@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4096 2048">
+  <defs>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0e2f50"/>
+      <stop offset="55%" stop-color="#0a1830"/>
+      <stop offset="100%" stop-color="#210f2e"/>
+    </linearGradient>
+  </defs>
+  <rect width="4096" height="2048" fill="url(#sky)"/>
+  <g stroke="rgba(255,255,255,0.12)" stroke-width="2">
+    <line x1="0" y1="170.7" x2="4096" y2="170.7"/>
+    <line x1="0" y1="341.4" x2="4096" y2="341.4"/>
+    <line x1="0" y1="512.1" x2="4096" y2="512.1"/>
+    <line x1="0" y1="682.8" x2="4096" y2="682.8"/>
+    <line x1="0" y1="853.5" x2="4096" y2="853.5"/>
+    <line x1="0" y1="1024.2" x2="4096" y2="1024.2"/>
+    <line x1="0" y1="1194.9" x2="4096" y2="1194.9"/>
+    <line x1="0" y1="1365.6" x2="4096" y2="1365.6"/>
+    <line x1="0" y1="1536.3" x2="4096" y2="1536.3"/>
+    <line x1="0" y1="1707" x2="4096" y2="1707"/>
+    <line x1="0" y1="1877.7" x2="4096" y2="1877.7"/>
+  </g>
+  <g stroke="rgba(104,245,212,0.2)" stroke-width="3">
+    <line x1="341.3" y1="0" x2="341.3" y2="2048"/>
+    <line x1="682.6" y1="0" x2="682.6" y2="2048"/>
+    <line x1="1023.9" y1="0" x2="1023.9" y2="2048"/>
+    <line x1="1365.2" y1="0" x2="1365.2" y2="2048"/>
+    <line x1="1706.5" y1="0" x2="1706.5" y2="2048"/>
+    <line x1="2047.8" y1="0" x2="2047.8" y2="2048"/>
+    <line x1="2389.1" y1="0" x2="2389.1" y2="2048"/>
+    <line x1="2730.4" y1="0" x2="2730.4" y2="2048"/>
+    <line x1="3071.7" y1="0" x2="3071.7" y2="2048"/>
+    <line x1="3413" y1="0" x2="3413" y2="2048"/>
+    <line x1="3754.3" y1="0" x2="3754.3" y2="2048"/>
+  </g>
+  <text x="2048" y="240" fill="#ecf3ff" font-size="122" font-family="Segoe UI, Microsoft YaHei, sans-serif" text-anchor="middle" font-weight="700">XinT-Panorama-System Demo</text>
+  <text x="2048" y="380" fill="#68f5d4" font-size="76" font-family="Segoe UI, Microsoft YaHei, sans-serif" text-anchor="middle" font-weight="700">FRONTEND / BACKEND SEPARATED</text>
+  <g font-family="Segoe UI, Microsoft YaHei, sans-serif" font-weight="700" font-size="58" text-anchor="middle">
+    <rect x="270" y="915" rx="26" ry="26" width="310" height="150" fill="#3ed0b7"/>
+    <text x="425" y="1004" fill="#07111f">North</text>
+    <rect x="1338" y="1070" rx="26" ry="26" width="310" height="150" fill="#ffb44c"/>
+    <text x="1493" y="1159" fill="#07111f">East</text>
+    <rect x="2415" y="890" rx="26" ry="26" width="310" height="150" fill="#56a6ff"/>
+    <text x="2570" y="979" fill="#07111f">South</text>
+    <rect x="3490" y="1060" rx="26" ry="26" width="310" height="150" fill="#ff6f76"/>
+    <text x="3645" y="1149" fill="#07111f">West</text>
+  </g>
+</svg>

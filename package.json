@@ -1,0 +1,19 @@
+{
+  "name": "xint-panorama-system",
+  "version": "0.1.0",
+  "description": "一个开源的720全景照片预览系统，采用前后端分离架构，支持网页端、嵌入式调用与桌面客户端。",
+  "author": "XinTycd",
+  "license": "Apache-2.0",
+  "private": false,
+  "main": "electron/main.js",
+  "scripts": {
+    "start:backend": "node backend/index.js",
+    "start:frontend": "node scripts/frontend-server.js",
+    "start:all": "node scripts/start-all.js",
+    "start:desktop": "electron .",
+    "test": "node tests/backend.test.js"
+  },
+  "devDependencies": {
+    "electron": "22.3.27"
+  }
+}

@@ -1,0 +1,403 @@
+:root {
+  --bg: #07111f;
+  --panel: rgba(8, 19, 33, 0.86);
+  --line: rgba(133, 173, 217, 0.18);
+  --line-strong: rgba(133, 173, 217, 0.4);
+  --text: #ecf3ff;
+  --text-soft: #9db5d0;
+  --accent: #35d5b0;
+  --accent-strong: #6ef4d6;
+  --danger: #ff7176;
+  --shadow: 0 26px 80px rgba(0, 0, 0, 0.36);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(53, 213, 176, 0.18), transparent 26%),
+    radial-gradient(circle at top right, rgba(63, 123, 255, 0.18), transparent 22%),
+    linear-gradient(180deg, #07111f 0%, #040913 100%);
+  font-family: "Segoe UI Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+body {
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+label {
+  display: block;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.hero,
+.panel,
+.viewer-panel {
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+
+.hero {
+  padding: 22px 24px;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--accent-strong);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(30px, 4vw, 46px);
+}
+
+.hero p {
+  margin: 12px 0 0;
+  color: var(--text-soft);
+  line-height: 1.7;
+}
+
+.api-box {
+  width: min(520px, 100%);
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(5, 12, 20, 0.56);
+}
+
+.api-box label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--text-soft);
+}
+
+.api-row {
+  display: flex;
+  gap: 10px;
+}
+
+.api-actions {
+  margin-top: 10px;
+}
+
+.api-actions .button {
+  flex: 1;
+}
+
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr) 320px;
+  gap: 18px;
+  min-height: 0;
+}
+
+.panel {
+  padding: 18px;
+  overflow: auto;
+}
+
+.viewer-panel {
+  position: relative;
+  overflow: hidden;
+  min-height: 70vh;
+}
+
+.viewer {
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(53, 213, 176, 0.08), transparent 22%),
+    linear-gradient(180deg, #081321 0%, #030812 100%);
+}
+
+.viewer canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.panel-section + .panel-section {
+  margin-top: 22px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.muted {
+  margin: 0 0 14px;
+  color: var(--text-soft);
+  line-height: 1.7;
+}
+
+.text-input,
+.text-area,
+#apiBaseInput {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  color: var(--text);
+  background: rgba(6, 13, 22, 0.82);
+}
+
+.text-area {
+  min-height: 130px;
+  resize: vertical;
+}
+
+.text-area.compact {
+  min-height: 110px;
+}
+
+.button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  color: var(--text);
+  background: rgba(16, 28, 44, 0.88);
+  cursor: pointer;
+}
+
+.button.primary {
+  border-color: transparent;
+  color: #051118;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+}
+
+.button.danger {
+  color: #fff;
+  background: linear-gradient(135deg, #d44d58, var(--danger));
+  border-color: transparent;
+}
+
+.button.wide {
+  width: 100%;
+}
+
+.gallery-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gallery-item {
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background: rgba(7, 16, 26, 0.7);
+  cursor: pointer;
+}
+
+.gallery-item.active {
+  border-color: rgba(110, 244, 214, 0.48);
+  background: rgba(10, 23, 36, 0.94);
+}
+
+.gallery-item strong,
+.gallery-item span {
+  display: block;
+}
+
+.gallery-item span {
+  margin-top: 6px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.viewer-hud,
+.toolbar {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  display: flex;
+  gap: 10px;
+  z-index: 5;
+}
+
+.viewer-hud {
+  top: 18px;
+  flex-wrap: wrap;
+}
+
+.toolbar {
+  bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(8, 19, 33, 0.86);
+}
+
+.meta-grid {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.meta-grid div {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(6, 13, 22, 0.62);
+}
+
+.meta-grid dt {
+  margin-bottom: 8px;
+  color: var(--text-soft);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.meta-grid dd {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.field + .field {
+  margin-top: 12px;
+}
+
+.form-grid .field + .field {
+  margin-top: 0;
+}
+
+.field span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.form-actions {
+  margin-top: 14px;
+}
+
+.code-block {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: auto;
+  color: var(--accent-strong);
+  background: rgba(6, 13, 22, 0.9);
+}
+
+@media (max-width: 1380px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .viewer-panel {
+    min-height: 60vh;
+  }
+
+  .detail-panel {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    padding: 12px;
+  }
+
+  .hero {
+    flex-direction: column;
+  }
+
+  .api-row {
+    flex-direction: column;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .viewer-panel {
+    min-height: 52vh;
+  }
+
+  .toolbar,
+  .viewer-hud {
+    left: 12px;
+    right: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    gap: 12px;
+  }
+
+  .hero,
+  .panel,
+  .viewer-panel {
+    border-radius: 20px;
+  }
+
+  .hero,
+  .panel {
+    padding: 16px;
+  }
+
+  .viewer-panel {
+    min-height: 46vh;
+  }
+
+  .toolbar .button,
+  .viewer-hud .chip {
+    width: 100%;
+    justify-content: center;
+  }
+}

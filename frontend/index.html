@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XinT-Panorama-System Frontend</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">XinTycd Frontend</p>
+          <h1>720 全景图片前端控制台</h1>
+          <p>
+            当前页面是独立前端站点，只通过后端 API 获取图库、上传图片、注册远程全景图并完成预览。
+          </p>
+        </div>
+        <div class="api-box">
+          <label for="apiBaseInput">后端 API 地址</label>
+          <div class="api-row">
+            <input id="apiBaseInput" type="text" />
+            <button id="connectBtn" class="button primary" type="button">连接</button>
+          </div>
+          <div class="api-row api-actions">
+            <button id="refreshBtn" class="button" type="button">刷新图库</button>
+            <button id="clearBtn" class="button danger" type="button">清空图库</button>
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <aside class="panel">
+          <section class="panel-section">
+            <h2>上传到后端</h2>
+            <p class="muted">选择本地 720 全景图，前端会将文件转成 Base64 后提交到后端存储。</p>
+            <label class="button primary wide">
+              <input id="fileInput" type="file" accept="image/*" multiple hidden />
+              选择并上传图片
+            </label>
+          </section>
+
+          <section class="panel-section">
+            <h2>注册远程链接</h2>
+            <input id="remoteNameInput" class="text-input" type="text" placeholder="全景图名称" />
+            <textarea
+              id="remoteUrlInput"
+              class="text-area"
+              placeholder="输入可访问的全景图 URL，后端会代理该资源以供前端直接显示。"
+            ></textarea>
+            <button id="registerUrlBtn" class="button wide" type="button">注册远程全景图</button>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-head">
+              <h2>图库列表</h2>
+              <span id="galleryCount">0</span>
+            </div>
+            <div id="galleryList" class="gallery-list"></div>
+          </section>
+        </aside>
+
+        <section class="viewer-panel">
+          <div id="viewer" class="viewer"></div>
+
+          <div class="viewer-hud">
+            <span id="statusBadge" class="chip">等待连接</span>
+            <span id="resolutionText" class="chip">分辨率: -</span>
+            <span id="sourceText" class="chip">来源: -</span>
+          </div>
+
+          <div class="toolbar">
+            <button id="prevBtn" class="button" type="button">上一张</button>
+            <button id="nextBtn" class="button" type="button">下一张</button>
+            <button id="autorotateBtn" class="button primary" type="button">关闭自动旋转</button>
+            <button id="resetBtn" class="button" type="button">重置视角</button>
+            <button id="fullscreenBtn" class="button" type="button">全屏</button>
+          </div>
+        </section>
+
+        <aside class="panel detail-panel">
+          <section class="panel-section">
+            <div class="section-head">
+              <h2>当前全景图</h2>
+              <span id="currentIndexText">0 / 0</span>
+            </div>
+            <dl class="meta-grid">
+              <div>
+                <dt>ID</dt>
+                <dd id="metaId">-</dd>
+              </div>
+              <div>
+                <dt>编号</dt>
+                <dd id="metaPanoramaNo">-</dd>
+              </div>
+              <div>
+                <dt>名称</dt>
+                <dd id="metaName">-</dd>
+              </div>
+              <div>
+                <dt>来源</dt>
+                <dd id="metaSource">-</dd>
+              </div>
+              <div>
+                <dt>大小</dt>
+                <dd id="metaSize">-</dd>
+              </div>
+              <div>
+                <dt>创建时间</dt>
+                <dd id="metaCreatedAt">-</dd>
+              </div>
+              <div>
+                <dt>描述</dt>
+                <dd id="metaDescription">-</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="panel-section">
+            <h2>编辑信息</h2>
+            <div class="form-grid">
+              <label class="field">
+                <span>全景编号</span>
+                <input id="editPanoramaNoInput" class="text-input" type="number" min="1" placeholder="例如 1001" />
+              </label>
+              <label class="field">
+                <span>全景名称</span>
+                <input id="editNameInput" class="text-input" type="text" placeholder="请输入名称" />
+              </label>
+            </div>
+            <label class="field">
+              <span>描述信息</span>
+              <textarea id="editDescriptionInput" class="text-area compact" placeholder="可选描述，例如场景说明、楼层、客户名称等"></textarea>
+            </label>
+            <div class="form-actions">
+              <button id="saveMetaBtn" class="button primary" type="button">保存修改</button>
+            </div>
+          </section>
+
+          <section class="panel-section">
+            <h2>普通网站接入</h2>
+            <pre id="embedExample" class="code-block"></pre>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <script src="./vendor/three.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
