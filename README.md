@@ -23,7 +23,6 @@
 - 支持注册远程全景图 URL，由后端代理输出，前台直接显示
 - 支持 720 全景图拖拽视角、滚轮缩放、自动旋转、全屏预览
 - 支持图库列表、上一张 / 下一张切换
-- 支持后端演示数据一键写入
 - 支持每张全景图自动分配独立编号 `panoramaNo`
 - 支持后端嵌入脚本 `embed.js`
 - 支持 Electron 桌面专属窗口客户端
@@ -206,81 +205,322 @@ Electron 客户端会自动拉起前后端，然后打开独立窗口。
 - 协议文件：[LICENSE](./LICENSE)
 - 版权归属：`Copyright (c) 2026 XinT-Tech`
 
-## 后端 API
+## API 文档
 
-### 健康检查
+### 统一说明
+
+所有接口默认基于：
+
+```text
+http://127.0.0.1:7210
+```
+
+统一规则：
+
+- 请求和响应编码：`UTF-8`
+- JSON 接口请求头：`Content-Type: application/json`
+- 后端默认开启 `CORS`
+- `id` 是系统生成的唯一主键，不允许手动修改
+- `panoramaNo` 是业务编号，可用于前端嵌入引用
+
+### 接口总表
+
+| 接口 | 方法 | 用途 | 说明 |
+| --- | --- | --- | --- |
+| `/api/health` | `GET` | 健康检查 | 检查后端服务是否在线 |
+| `/api/config` | `GET` | 获取服务配置 | 返回 API 根地址和嵌入资源地址 |
+| `/api/gallery` | `GET` | 获取图库列表 | 返回全部全景图 |
+| `/api/panoramas/by-no` | `GET` | 按编号获取单张全景图 | 用 `panoramaNo` 查询 |
+| `/api/gallery/clear` | `POST` | 清空图库 | 清空图库记录并删除上传文件 |
+| `/api/gallery/seed-demo` | `POST` | 写入演示数据 | 保留为调试接口，后台页面默认不再展示 |
+| `/api/panoramas/register` | `POST` | 注册远程全景图 | 将外部图片地址注册为图库记录 |
+| `/api/panoramas/upload-base64` | `POST` | 上传本地图片 | 通过 Base64 JSON 上传图片 |
+| `/api/panoramas/update` | `POST` | 修改全景图信息 | 可修改编号、名称、描述 |
+| `/api/panoramas/proxy` | `GET` | 远程图片代理 | 用于代理外部图片，减少跨域问题 |
+
+### 通用返回字段
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | `string` | 系统生成主键 |
+| `panoramaNo` | `number` | 业务编号 |
+| `name` | `string` | 全景图名称 |
+| `description` | `string` | 描述信息 |
+| `sourceType` | `string` | 来源类型 |
+| `viewerUrl` | `string` | 全景图预览地址 |
+| `thumbnailUrl` | `string` | 缩略图地址 |
+| `size` | `number \| null` | 文件大小，单位字节 |
+| `width` | `number \| null` | 图片宽度 |
+| `height` | `number \| null` | 图片高度 |
+| `createdAt` | `string` | 创建时间，ISO 字符串 |
+
+### 1. 健康检查
+
+**接口**
 
 ```http
 GET /api/health
 ```
 
-### 获取图库
+**请求参数**
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- | --- |
+| 无 | - | - | - | 无参数 |
+
+**返回示例**
+
+```json
+{
+  "ok": true,
+  "author": "XinTycd",
+  "service": "xint-panorama-system-backend",
+  "time": "2026-04-09T12:00:00.000Z"
+}
+```
+
+### 2. 获取服务配置
+
+**接口**
+
+```http
+GET /api/config
+```
+
+**返回字段**
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `author` | `string` | 作者名称 |
+| `apiBase` | `string` | API 根地址 |
+| `widgetScript` | `string` | `embed.js` 地址 |
+| `widgetPage` | `string` | `widget` 页面地址 |
+
+### 3. 获取图库列表
+
+**接口**
 
 ```http
 GET /api/gallery
 ```
 
-返回值中每个全景图都会带有独立编号字段：
+**请求参数**
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- | --- |
+| 无 | - | - | - | 无参数 |
+
+**返回字段**
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `author` | `string` | 作者名称 |
+| `items` | `array` | 全景图列表 |
+
+**返回示例**
 
 ```json
 {
-  "panoramaNo": 1001
+  "author": "XinTycd",
+  "items": [
+    {
+      "id": "upload-xxx",
+      "panoramaNo": 1001,
+      "name": "大厅全景",
+      "description": "一层前厅",
+      "sourceType": "uploaded-base64",
+      "viewerUrl": "http://127.0.0.1:7210/media/uploads/a.jpg"
+    }
+  ]
 }
 ```
 
-### 按编号获取单张全景图
+### 4. 按编号获取单张全景图
+
+**接口**
 
 ```http
 GET /api/panoramas/by-no?no=1001
 ```
 
-### 写入演示数据
+**请求参数**
 
-```http
-POST /api/gallery/seed-demo
-Content-Type: application/json
-```
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- | --- |
+| `no` | `query` | `number` | 是 | 全景图编号 `panoramaNo` |
 
-### 清空图库
+**返回字段**
 
-```http
-POST /api/gallery/clear
-Content-Type: application/json
-```
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `ok` | `boolean` | 是否成功 |
+| `item` | `object` | 单张全景图对象 |
 
-### 注册远程全景图
+### 5. 注册远程全景图
+
+**接口**
 
 ```http
 POST /api/panoramas/register
-Content-Type: application/json
+```
 
+**请求参数**
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- | --- |
+| `name` | `body` | `string` | 否 | 全景图名称，不传时默认“远程全景图” |
+| `description` | `body` | `string` | 否 | 描述信息 |
+| `url` | `body` | `string` | 是 | 远程图片地址，必须是 `http` 或 `https` |
+| `panoramaNo` | `body` | `number` | 否 | 手动指定业务编号，不传则自动分配 |
+
+**请求示例**
+
+```json
 {
   "name": "展示大厅",
-  "url": "https://example.com/panorama.jpg"
+  "description": "官网外链场景",
+  "url": "https://example.com/panorama.jpg",
+  "panoramaNo": 1001
 }
 ```
 
-### 上传本地图片到后端
+### 6. 上传本地图片到后端
+
+当前版本使用 **Base64 JSON 上传**，适合普通前端页面直接接入，不依赖表单提交。
+
+**接口**
 
 ```http
 POST /api/panoramas/upload-base64
-Content-Type: application/json
+```
 
+**请求参数**
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- | --- |
+| `name` | `body` | `string` | 否 | 全景图名称，不传则使用文件名 |
+| `description` | `body` | `string` | 否 | 描述信息 |
+| `panoramaNo` | `body` | `number` | 否 | 手动指定业务编号，不传则自动分配 |
+| `dataUrl` | `body` | `string` | 是 | 图片的 Base64 Data URL，例如 `data:image/jpeg;base64,...` |
+
+**请求示例**
+
+```json
 {
   "name": "room-01",
+  "description": "一楼大厅全景图",
+  "panoramaNo": 1002,
   "dataUrl": "data:image/jpeg;base64,..."
 }
 ```
 
-### 远程媒体代理
+**前端上传示例**
+
+```js
+async function uploadPanorama(file) {
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const response = await fetch("http://127.0.0.1:7210/api/panoramas/upload-base64", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name: file.name.replace(/\.[^.]+$/, ""),
+      description: "前端上传示例",
+      dataUrl: dataUrl
+    })
+  });
+
+  return response.json();
+}
+```
+
+### 7. 修改全景图信息
+
+**接口**
+
+```http
+POST /api/panoramas/update
+```
+
+**请求参数**
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | `body` | `string` | 是 | 系统生成主键，用于定位要修改的全景图 |
+| `panoramaNo` | `body` | `number` | 是 | 新的业务编号，必须为正整数且唯一 |
+| `name` | `body` | `string` | 否 | 新名称 |
+| `description` | `body` | `string` | 否 | 新描述 |
+
+**说明**
+
+- `id` 只用于定位记录，不允许修改
+- `panoramaNo`、`name`、`description` 可修改
+
+### 8. 清空图库
+
+**接口**
+
+```http
+POST /api/gallery/clear
+```
+
+**请求参数**
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- | --- |
+| 无 | - | - | - | 请求体可传 `{}` |
+
+### 9. 远程图片代理
+
+**接口**
 
 ```http
 GET /api/panoramas/proxy?url=https%3A%2F%2Fexample.com%2Fpanorama.jpg
 ```
 
-## 前端网站接入方式
+**请求参数**
 
-### 方式一：直接嵌入组件
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- | --- |
+| `url` | `query` | `string` | 是 | 远程全景图地址，后端会代理该图片 |
+
+## 嵌入参数说明
+
+### `embed.js` 最小示例
+
+```html
+<div id="panorama-widget"></div>
+<script
+  src="http://127.0.0.1:7210/embed.js"
+  data-target="panorama-widget"
+  data-api="http://127.0.0.1:7210"
+  data-panorama-no="1001"
+></script>
+```
+
+### 嵌入参数总表
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `src` | `string` | 是 | `embed.js` 脚本地址 |
+| `data-target` | `string` | 否 | 组件要挂载到的容器 `id`，不带 `#`；不传时默认插入到当前脚本后面 |
+| `data-api` | `string` | 否 | 后端 API 根地址，默认取当前脚本所在域名 |
+| `data-panorama-no` | `number` | 否 | 指定按编号加载某一张全景图 |
+| `data-image-url` | `string` | 否 | 直接使用外部全景图 URL 嵌入 |
+| `data-image-name` | `string` | 否 | 外部 URL 模式下显示名称 |
+| `data-autorotate` | `string` | 否 | 是否自动旋转，`1` 为开启，`0` 为关闭 |
+| `data-aspect-ratio` | `string` | 否 | 容器宽高比，例如 `16:9`、`2:1` |
+| `data-min-height` | `number` | 否 | 最小高度，单位像素 |
+| `data-max-height` | `number` | 否 | 最大高度，单位像素 |
+
+### 按编号嵌入
 
 ```html
 <div id="panorama-widget"></div>
@@ -290,21 +530,24 @@ GET /api/panoramas/proxy?url=https%3A%2F%2Fexample.com%2Fpanorama.jpg
   data-api="http://127.0.0.1:7210"
   data-panorama-no="1001"
   data-autorotate="1"
+  data-aspect-ratio="16:9"
 ></script>
 ```
 
-适合：
+### 按外部 URL 直接嵌入
 
-- 普通官网
-- 展示页
-- CMS 页面
-- 不想自己实现前端逻辑的场景
-
-说明：
-
-- `data-panorama-no` 用于指定嵌入哪一张全景图
-- 不传 `data-panorama-no` 时，组件会加载整个图库
-- 嵌入后的组件支持拖拽旋转、滚轮缩放、自动旋转、全屏
+```html
+<div id="panorama-widget-url"></div>
+<script
+  src="http://127.0.0.1:7210/embed.js"
+  data-target="panorama-widget-url"
+  data-api="http://127.0.0.1:7210"
+  data-image-url="https://example.com/panorama.jpg"
+  data-image-name="官网外链全景图"
+  data-autorotate="1"
+  data-aspect-ratio="2:1"
+></script>
+```
 
 ### 方式二：前端自己调用 API
 
@@ -316,20 +559,15 @@ fetch("http://127.0.0.1:7210/api/gallery")
   });
 ```
 
-适合：
-
-- 你自己已有前端工程
-- 需要自定义 UI / 权限 / 业务流程
-
 ## 前端功能说明
 
 独立前端站点 `frontend/` 已提供：
 
 - 后端地址配置
-- 写入演示数据
 - 刷新 / 清空图库
 - 上传本地图片到后端
 - 注册远程全景图 URL
+- 修改全景图编号、名称、描述
 - 720 全景预览
 - 自动旋转
 - 上一张 / 下一张切换
