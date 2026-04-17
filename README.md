@@ -7,7 +7,6 @@
 - 后端独立运行，提供图库管理、媒体代理、上传存储与嵌入资源
 - 前端独立运行，作为普通网站直接消费后端 API
 - 普通前端网站可直接通过 `embed.js` 按编号嵌入后端内容
-- Electron 专属窗口客户端可一键拉起前后端并独立运行
 
 ## 作者信息
 
@@ -25,7 +24,6 @@
 - 支持图库列表、上一张 / 下一张切换
 - 支持每张全景图自动分配独立编号 `panoramaNo`
 - 支持后端嵌入脚本 `embed.js`
-- 支持 Electron 桌面专属窗口客户端
 
 ## 适用场景
 
@@ -49,10 +47,6 @@ backend 独立服务
     |- 嵌入式 widget / embed.js
     |- 演示资源输出
 
-electron 客户端
-    |- 启动 backend
-    |- 启动 frontend
-    |- 打开独立窗口
 ```
 
 ## 技术栈
@@ -73,11 +67,6 @@ electron 客户端
 - 3D 渲染：`Three.js`
 - 全景显示方式：球体反转贴图 + 鼠标交互视角控制
 
-### 桌面端
-
-- 客户端容器：`Electron`
-- 运行模式：启动本地后端 + 启动前端静态服务 + 加载独立窗口
-
 ### 工程特点
 
 - 不依赖 React、Vue、Webpack、Vite
@@ -96,8 +85,6 @@ electron 客户端
 │  ├─ storage/
 │  ├─ index.js
 │  └─ store.js
-├─ electron/
-│  └─ main.js
 ├─ frontend/
 │  ├─ vendor/
 │  │  └─ three.min.js
@@ -165,22 +152,6 @@ http://127.0.0.1:7211/?api=http://127.0.0.1:7210
 ```bash
 npm run start:all
 ```
-
-### 4. 启动桌面客户端
-
-先安装依赖：
-
-```bash
-npm install
-```
-
-再启动：
-
-```bash
-npm run start:desktop
-```
-
-Electron 客户端会自动拉起前后端，然后打开独立窗口。
 
 ## 前后端分离说明
 
@@ -574,14 +545,6 @@ fetch("http://127.0.0.1:7210/api/gallery")
 - 全屏
 - 接入代码示例展示
 
-## 桌面客户端说明
-
-Electron 客户端用于用户本地进行预览：
-
-- 启动时自动拉起后端
-- 启动时自动拉起前端静态服务
-- 打开桌面专属窗口
-
 ## 支持的图片格式
 
 - `.jpg`
@@ -620,4 +583,3 @@ npm test
 - OSS / COS / MinIO 对接
 - 缩略图生成
 - 图片元数据检索
-- Electron 安装包打包
