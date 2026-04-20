@@ -1,5 +1,11 @@
 const assert = require("assert");
+const fs = require("fs");
 const http = require("http");
+const path = require("path");
+
+const TEST_STORAGE_DIR = path.join(__dirname, ".tmp", "storage-" + process.pid + "-" + Date.now());
+process.env.PANORAMA_STORAGE_DIR = TEST_STORAGE_DIR;
+
 const { createServer } = require("../backend/index");
 const { writeGallery } = require("../backend/store");
 
@@ -111,6 +117,7 @@ async function run() {
     await new Promise(function stop(resolve) {
       server.close(resolve);
     });
+    fs.rmSync(TEST_STORAGE_DIR, { recursive: true, force: true });
   }
 }
 

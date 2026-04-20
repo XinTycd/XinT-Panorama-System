@@ -1,32 +1,18 @@
 {
   "items": [
     {
-      "id": "upload-mnrjwiiu-gnt7ys",
+      "id": "upload-mo8t12in-1jcfmh",
       "panoramaNo": 1001,
-      "name": "dji_fly_20260221_100820_587_1771640061480_pano",
-      "description": "",
-      "sourceType": "uploaded-base64",
-      "originalUrl": null,
-      "viewerPath": "/media/uploads/dji_fly_20260221_100820_587_1771640061480_pano-1775743620280.jpg",
-      "thumbnailPath": "/media/uploads/dji_fly_20260221_100820_587_1771640061480_pano-1775743620280.jpg",
-      "size": 13562505,
-      "width": null,
-      "height": null,
-      "createdAt": "2026-04-09T14:07:00.295Z"
-    },
-    {
-      "id": "upload-mnrl5cbj-rcx2ni",
-      "panoramaNo": 1002,
       "name": "dji_fly_20260208_174152_542_1770544007625_pano",
       "description": "",
       "sourceType": "uploaded-base64",
       "originalUrl": null,
-      "viewerPath": "/media/uploads/dji_fly_20260208_174152_542_1770544007625_pano-1775745711765.jpg",
-      "thumbnailPath": "/media/uploads/dji_fly_20260208_174152_542_1770544007625_pano-1775745711765.jpg",
+      "viewerPath": "/media/uploads/dji_fly_20260208_174152_542_1770544007625_pano-1776786874349.jpg",
+      "thumbnailPath": "/media/uploads/dji_fly_20260208_174152_542_1770544007625_pano-1776786874349.jpg",
       "size": 9021764,
       "width": null,
       "height": null,
-      "createdAt": "2026-04-09T14:41:51.775Z"
+      "createdAt": "2026-04-21T15:54:34.367Z"
     }
   ]
 }

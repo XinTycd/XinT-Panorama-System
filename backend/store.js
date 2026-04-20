@@ -1,8 +1,11 @@
 const fs = require("fs");
 const path = require("path");
 
-const STORAGE_DIR = path.join(__dirname, "storage");
+const STORAGE_DIR = path.resolve(process.env.PANORAMA_STORAGE_DIR || path.join(__dirname, "storage"));
 const GALLERY_FILE = path.join(STORAGE_DIR, "gallery.json");
+
+let galleryCache = null;
+let galleryCacheMtimeMs = 0;
 
 function ensureStorage() {
   if (!fs.existsSync(STORAGE_DIR)) {
@@ -14,24 +17,44 @@ function ensureStorage() {
   }
 }
 
+function cloneItems(items) {
+  return items.map(function cloneItem(item) {
+    return Object.assign({}, item);
+  });
+}
+
+function saveGallery(items) {
+  const normalizedItems = Array.isArray(items) ? cloneItems(items) : [];
+  fs.writeFileSync(GALLERY_FILE, JSON.stringify({ items: normalizedItems }, null, 2), "utf8");
+  galleryCache = normalizedItems;
+  galleryCacheMtimeMs = fs.statSync(GALLERY_FILE).mtimeMs;
+  return cloneItems(galleryCache);
+}
+
 function readGallery() {
   ensureStorage();
+  const fileStat = fs.statSync(GALLERY_FILE);
+  if (galleryCache && galleryCacheMtimeMs === fileStat.mtimeMs) {
+    return cloneItems(galleryCache);
+  }
+
   const raw = fs.readFileSync(GALLERY_FILE, "utf8");
   const parsed = JSON.parse(raw || '{"items":[]}');
   const items = Array.isArray(parsed.items) ? parsed.items : [];
   const normalized = normalizeGalleryItems(items);
 
   if (normalized.changed) {
-    fs.writeFileSync(GALLERY_FILE, JSON.stringify({ items: normalized.items }, null, 2), "utf8");
+    return saveGallery(normalized.items);
   }
 
-  return normalized.items;
+  galleryCache = cloneItems(normalized.items);
+  galleryCacheMtimeMs = fileStat.mtimeMs;
+  return cloneItems(galleryCache);
 }
 
 function writeGallery(items) {
   ensureStorage();
-  fs.writeFileSync(GALLERY_FILE, JSON.stringify({ items: items }, null, 2), "utf8");
-  return items;
+  return saveGallery(items);
 }
 
 function getNextPanoramaNo(items) {
@@ -92,8 +115,8 @@ function makeId(prefix) {
   ].join("-");
 }
 
-function upsertItem(item) {
-  const items = readGallery();
+function upsertItem(item, currentItems) {
+  const items = Array.isArray(currentItems) ? cloneItems(currentItems) : readGallery();
   const index = items.findIndex(function findExisting(existing) {
     return existing.id === item.id || (existing.originalUrl && existing.originalUrl === item.originalUrl);
   });

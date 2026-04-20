@@ -1,43 +1,58 @@
-const path = require("path");
-const { spawn } = require("child_process");
+const backend = require("../backend/index");
+const frontend = require("./frontend-server");
 
-const processes = [
+const servers = [
   {
-    name: "backend",
-    cwd: path.resolve(__dirname, ".."),
-    command: process.execPath,
-    args: [path.join("backend", "index.js")]
+    name: "Backend",
+    host: backend.HOST,
+    port: backend.PORT,
+    server: backend.createServer()
   },
   {
-    name: "frontend",
-    cwd: path.resolve(__dirname, ".."),
-    command: process.execPath,
-    args: [path.join("scripts", "frontend-server.js")]
+    name: "Frontend",
+    host: frontend.HOST,
+    port: frontend.PORT,
+    server: frontend.createServer()
   }
 ];
 
-const children = processes.map(function startProcess(definition) {
-  const child = spawn(definition.command, definition.args, {
-    cwd: definition.cwd,
-    stdio: "inherit"
+function listen(definition) {
+  return new Promise(function start(resolve, reject) {
+    definition.server.once("error", reject);
+    definition.server.listen(definition.port, definition.host, function onListen() {
+      definition.server.off("error", reject);
+      console.log(definition.name + " started: http://" + definition.host + ":" + definition.port);
+      resolve();
+    });
   });
+}
 
-  child.on("exit", function onExit(code) {
-    if (code !== 0) {
-      console.error(definition.name + " exited with code " + code);
+function close(definition) {
+  return new Promise(function stop(resolve) {
+    if (!definition.server.listening) {
+      resolve();
+      return;
     }
+    definition.server.close(resolve);
   });
+}
 
-  return child;
-});
+async function startAll() {
+  for (const definition of servers) {
+    await listen(definition);
+  }
+}
 
-function shutdown() {
-  children.forEach(function stop(child) {
-    if (!child.killed) {
-      child.kill();
-    }
-  });
+async function shutdown() {
+  await Promise.all(servers.map(close));
+  process.exit(0);
 }
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+
+startAll().catch(async function onError(error) {
+  console.error(error.message);
+  await Promise.all(servers.map(close));
+  process.exit(1);
+});
