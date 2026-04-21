@@ -4,3 +4,4 @@ dist/
 Thumbs.db
 npm-debug.log*
 backend/storage/uploads/
+tests/.tmp/

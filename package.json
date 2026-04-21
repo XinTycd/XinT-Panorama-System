@@ -6,6 +6,8 @@
   "license": "Apache-2.0",
   "private": false,
   "scripts": {
+    "start": "node scripts/start-all.js",
+    "dev": "node scripts/start-all.js",
     "start:backend": "node backend/index.js",
     "start:frontend": "node scripts/frontend-server.js",
     "start:all": "node scripts/start-all.js",

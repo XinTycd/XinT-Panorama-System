@@ -4,6 +4,12 @@ const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
 const {
+  sendJson: writeJson,
+  sendText: writeText,
+  sendOptions,
+  streamFile
+} = require("../lib/http");
+const {
   STORAGE_DIR,
   getNextPanoramaNo,
   ensureStorage,
@@ -19,64 +25,17 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const UPLOADS_DIR = path.join(STORAGE_DIR, "uploads");
 const JSON_LIMIT_BYTES = 30 * 1024 * 1024;
 
-const MIME_TYPES = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "application/javascript; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".svg": "image/svg+xml",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-  ".bmp": "image/bmp",
-  ".avif": "image/avif",
-  ".txt": "text/plain; charset=utf-8"
-};
-
 ensureStorage();
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-function getMimeType(filePath) {
-  return MIME_TYPES[path.extname(filePath).toLowerCase()] || "application/octet-stream";
-}
-
 function sendJson(res, statusCode, payload) {
-  res.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS"
-  });
-  res.end(JSON.stringify(payload, null, 2));
+  writeJson(res, statusCode, payload, { cors: true });
 }
 
 function sendText(res, statusCode, message) {
-  res.writeHead(statusCode, {
-    "Content-Type": "text/plain; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS"
-  });
-  res.end(message);
-}
-
-function sendFile(res, absolutePath) {
-  fs.readFile(absolutePath, function onRead(error, buffer) {
-    if (error) {
-      sendText(res, 404, "Not Found");
-      return;
-    }
-
-    res.writeHead(200, {
-      "Content-Type": getMimeType(absolutePath),
-      "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "no-cache"
-    });
-    res.end(buffer);
-  });
+  writeText(res, statusCode, message, { cors: true });
 }
 
 function parseBody(req) {
@@ -137,8 +96,9 @@ function serializeItem(item, baseUrl) {
   };
 }
 
-function readGalleryPayload(baseUrl) {
-  return readGallery().map(function mapItem(item) {
+function readGalleryPayload(baseUrl, items) {
+  const galleryItems = Array.isArray(items) ? items : readGallery();
+  return galleryItems.map(function mapItem(item) {
     return serializeItem(item, baseUrl);
   });
 }
@@ -188,28 +148,32 @@ function ensureDemoItem() {
 
   if (!hasDemo) {
     items.unshift(makeDemoItem());
-    writeGallery(items);
+    return writeGallery(items);
   }
+
+  return items;
 }
 
-function findItemByPanoramaNo(panoramaNo) {
+function findItemByPanoramaNo(panoramaNo, items) {
   const normalizedNo = Number(panoramaNo);
   if (!Number.isFinite(normalizedNo)) {
     return null;
   }
 
-  return readGallery().find(function findItem(item) {
+  const galleryItems = Array.isArray(items) ? items : readGallery();
+  return galleryItems.find(function findItem(item) {
     return Number(item.panoramaNo) === normalizedNo;
   }) || null;
 }
 
-function isPanoramaNoTaken(panoramaNo, ignoreId) {
+function isPanoramaNoTaken(panoramaNo, ignoreId, items) {
   const normalizedNo = Number(panoramaNo);
   if (!Number.isFinite(normalizedNo)) {
     return false;
   }
 
-  return readGallery().some(function hasSameNo(item) {
+  const galleryItems = Array.isArray(items) ? items : readGallery();
+  return galleryItems.some(function hasSameNo(item) {
     return item.id !== ignoreId && Number(item.panoramaNo) === normalizedNo;
   });
 }
@@ -300,9 +264,10 @@ async function handleApi(req, res, urlObject) {
   }
 
   if (req.method === "GET" && urlObject.pathname === "/api/gallery") {
+    const items = readGallery();
     sendJson(res, 200, {
       author: "XinTycd",
-      items: readGalleryPayload(baseUrl)
+      items: readGalleryPayload(baseUrl, items)
     });
     return;
   }
@@ -323,10 +288,10 @@ async function handleApi(req, res, urlObject) {
   }
 
   if (req.method === "POST" && urlObject.pathname === "/api/gallery/seed-demo") {
-    ensureDemoItem();
+    const items = ensureDemoItem();
     sendJson(res, 200, {
       ok: true,
-      items: readGalleryPayload(baseUrl)
+      items: readGalleryPayload(baseUrl, items)
     });
     return;
   }
@@ -345,14 +310,16 @@ async function handleApi(req, res, urlObject) {
       return;
     }
 
-    if (body.panoramaNo && isPanoramaNoTaken(body.panoramaNo)) {
+    const items = readGallery();
+
+    if (body.panoramaNo && isPanoramaNoTaken(body.panoramaNo, null, items)) {
       sendJson(res, 409, { ok: false, message: "panoramaNo 已存在，请使用其他编号" });
       return;
     }
 
     const item = {
       id: makeId("remote"),
-      panoramaNo: Number(body.panoramaNo) || getNextPanoramaNo(readGallery()),
+      panoramaNo: Number(body.panoramaNo) || getNextPanoramaNo(items),
       name: String(body.name || "远程全景图"),
       description: String(body.description || ""),
       sourceType: "remote-url",
@@ -365,11 +332,12 @@ async function handleApi(req, res, urlObject) {
       createdAt: new Date().toISOString()
     };
 
-    upsertItem(item);
+    upsertItem(item, items);
+    const updatedItems = readGallery();
     sendJson(res, 200, {
       ok: true,
       item: serializeItem(item, baseUrl),
-      items: readGalleryPayload(baseUrl)
+      items: readGalleryPayload(baseUrl, updatedItems)
     });
     return;
   }
@@ -385,7 +353,9 @@ async function handleApi(req, res, urlObject) {
       return;
     }
 
-    if (body.panoramaNo && isPanoramaNoTaken(body.panoramaNo)) {
+    const items = readGallery();
+
+    if (body.panoramaNo && isPanoramaNoTaken(body.panoramaNo, null, items)) {
       sendJson(res, 409, { ok: false, message: "panoramaNo 已存在，请使用其他编号" });
       return;
     }
@@ -400,7 +370,7 @@ async function handleApi(req, res, urlObject) {
     const relativeMediaPath = "/media/uploads/" + fileName;
     const item = {
       id: makeId("upload"),
-      panoramaNo: Number(body.panoramaNo) || getNextPanoramaNo(readGallery()),
+      panoramaNo: Number(body.panoramaNo) || getNextPanoramaNo(items),
       name: body.name || fileName,
       description: String(body.description || ""),
       sourceType: "uploaded-base64",
@@ -413,11 +383,12 @@ async function handleApi(req, res, urlObject) {
       createdAt: new Date().toISOString()
     };
 
-    upsertItem(item);
+    upsertItem(item, items);
+    const updatedItems = readGallery();
     sendJson(res, 200, {
       ok: true,
       item: serializeItem(item, baseUrl),
-      items: readGalleryPayload(baseUrl)
+      items: readGalleryPayload(baseUrl, updatedItems)
     });
     return;
   }
@@ -443,7 +414,7 @@ async function handleApi(req, res, urlObject) {
       body.panoramaNo !== undefined &&
       body.panoramaNo !== null &&
       body.panoramaNo !== "" &&
-      isPanoramaNoTaken(body.panoramaNo, items[index].id)
+      isPanoramaNoTaken(body.panoramaNo, items[index].id, items)
     ) {
       sendJson(res, 409, { ok: false, message: "panoramaNo 已存在，请使用其他编号" });
       return;
@@ -471,7 +442,7 @@ async function handleApi(req, res, urlObject) {
     sendJson(res, 200, {
       ok: true,
       item: serializeItem(updatedItem, baseUrl),
-      items: readGalleryPayload(baseUrl)
+      items: readGalleryPayload(baseUrl, items)
     });
     return;
   }
@@ -482,12 +453,7 @@ async function handleApi(req, res, urlObject) {
 function createServer() {
   return http.createServer(function onRequest(req, res) {
     if (req.method === "OPTIONS") {
-      res.writeHead(204, {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS"
-      });
-      res.end();
+      sendOptions(res);
       return;
     }
 
@@ -501,22 +467,34 @@ function createServer() {
     }
 
     if (urlObject.pathname === "/embed.js") {
-      sendFile(res, path.join(PUBLIC_DIR, "embed.js"));
+      streamFile(req, res, path.join(PUBLIC_DIR, "embed.js"), {
+        cors: true,
+        cacheControl: "no-cache"
+      });
       return;
     }
 
     if (urlObject.pathname === "/widget") {
-      sendFile(res, path.join(PUBLIC_DIR, "widget.html"));
+      streamFile(req, res, path.join(PUBLIC_DIR, "widget.html"), {
+        cors: true,
+        cacheControl: "no-cache"
+      });
       return;
     }
 
     if (urlObject.pathname === "/assets/demo-panorama.svg") {
-      sendFile(res, path.join(PUBLIC_DIR, "demo-panorama.svg"));
+      streamFile(req, res, path.join(PUBLIC_DIR, "demo-panorama.svg"), {
+        cors: true,
+        cacheControl: "public, max-age=3600"
+      });
       return;
     }
 
     if (urlObject.pathname === "/assets/three.min.js") {
-      sendFile(res, path.join(__dirname, "..", "frontend", "vendor", "three.min.js"));
+      streamFile(req, res, path.join(__dirname, "..", "frontend", "vendor", "three.min.js"), {
+        cors: true,
+        cacheControl: "public, max-age=31536000, immutable"
+      });
       return;
     }
 
@@ -526,7 +504,10 @@ function createServer() {
         sendText(res, 403, "Forbidden");
         return;
       }
-      sendFile(res, absolutePath);
+      streamFile(req, res, absolutePath, {
+        cors: true,
+        cacheControl: "public, max-age=60"
+      });
       return;
     }
 

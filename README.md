@@ -91,6 +91,8 @@ backend 独立服务
 │  ├─ app.js
 │  ├─ index.html
 │  └─ styles.css
+├─ lib/
+│  └─ http.js
 ├─ scripts/
 │  ├─ frontend-server.js
 │  └─ start-all.js
@@ -150,8 +152,26 @@ http://127.0.0.1:7211/?api=http://127.0.0.1:7210
 ### 3. 同时启动前后端
 
 ```bash
+npm start
+```
+
+等价命令：
+
+```bash
+npm run dev
 npm run start:all
 ```
+
+`start:all` 使用单个 Node.js 进程同时启动后端与前端静态服务，减少脚本启动时创建子进程的开销。
+
+## 性能与结构优化
+
+- `lib/http.js` 集中管理 JSON/text 响应、CORS、静态路径安全校验与静态文件输出
+- 静态资源使用流式输出，避免每次请求都将文件完整读入内存
+- 静态资源支持 `ETag` / `Last-Modified`，浏览器可命中 `304 Not Modified`
+- `backend/store.js` 对 `gallery.json` 做进程内缓存，减少重复磁盘读取与 JSON 解析
+- API 写入图库后同步更新缓存，常见读取接口响应更快
+- 可通过 `PANORAMA_STORAGE_DIR` 指定后端存储目录，测试与生产数据可以隔离
 
 ## 前后端分离说明
 
