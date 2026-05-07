@@ -3,19 +3,10 @@
     apiBase: "",
     items: [],
     currentIndex: -1,
+    previewMode: "expand",
     autorotate: true,
-    yaw: 180,
-    pitch: 0,
-    fov: 75,
-    dragging: false,
-    lastX: 0,
-    lastY: 0,
     requestId: 0,
-    renderer: null,
-    scene: null,
-    camera: null,
-    sphere: null,
-    currentTexture: null,
+    viewerController: null,
     maxTextureSize: 4096
   };
 
@@ -38,6 +29,10 @@
     refs.connectBtn = document.getElementById("connectBtn");
     refs.refreshBtn = document.getElementById("refreshBtn");
     refs.clearBtn = document.getElementById("clearBtn");
+    refs.databaseTitleInput = document.getElementById("databaseTitleInput");
+    refs.databaseImageUrlInput = document.getElementById("databaseImageUrlInput");
+    refs.databaseThumbnailInput = document.getElementById("databaseThumbnailInput");
+    refs.createDatabaseRecordBtn = document.getElementById("createDatabaseRecordBtn");
     refs.fileInput = document.getElementById("fileInput");
     refs.remoteNameInput = document.getElementById("remoteNameInput");
     refs.remoteUrlInput = document.getElementById("remoteUrlInput");
@@ -45,6 +40,7 @@
     refs.galleryList = document.getElementById("galleryList");
     refs.galleryCount = document.getElementById("galleryCount");
     refs.viewer = document.getElementById("viewer");
+    refs.modeButtons = Array.prototype.slice.call(document.querySelectorAll(".mode-button"));
     refs.statusBadge = document.getElementById("statusBadge");
     refs.resolutionText = document.getElementById("resolutionText");
     refs.sourceText = document.getElementById("sourceText");
@@ -75,37 +71,26 @@
   }
 
   function initViewer() {
-    state.scene = new THREE.Scene();
-    state.camera = new THREE.PerspectiveCamera(75, refs.viewer.clientWidth / Math.max(refs.viewer.clientHeight, 1), 0.1, 1100);
-    state.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance"
+    state.previewMode = XinTPanoramaViewer.normalizeMode(
+      new URLSearchParams(location.search).get("mode") ||
+        localStorage.getItem("xint-panorama-system-preview-mode") ||
+        "expand"
+    );
+    state.viewerController = XinTPanoramaViewer.create({
+      element: refs.viewer,
+      THREE: THREE,
+      initialMode: state.previewMode,
+      autorotate: state.autorotate
     });
-    if ("outputColorSpace" in state.renderer && THREE.SRGBColorSpace) {
-      state.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    } else if ("outputEncoding" in state.renderer && THREE.sRGBEncoding) {
-      state.renderer.outputEncoding = THREE.sRGBEncoding;
-    }
-    state.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    state.renderer.setSize(refs.viewer.clientWidth, refs.viewer.clientHeight);
-    state.maxTextureSize = state.renderer.capabilities.maxTextureSize || 4096;
-    refs.viewer.appendChild(state.renderer.domElement);
-
-    var geometry = new THREE.SphereGeometry(500, 60, 40);
-    geometry.scale(-1, 1, 1);
-    state.sphere = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: 0x0c1320 }));
-    state.scene.add(state.sphere);
-
-    bindViewerControls();
-    window.addEventListener("resize", resizeViewer);
-    animate();
+    state.maxTextureSize = state.viewerController.getMaxTextureSize();
+    updateModeButtons();
   }
 
   function bindEvents() {
     refs.connectBtn.addEventListener("click", connectBackend);
     refs.refreshBtn.addEventListener("click", loadGallery);
     refs.clearBtn.addEventListener("click", clearGallery);
+    refs.createDatabaseRecordBtn.addEventListener("click", createDatabaseRecord);
     refs.fileInput.addEventListener("change", uploadFiles);
     refs.registerUrlBtn.addEventListener("click", registerRemoteUrl);
     refs.saveMetaBtn.addEventListener("click", saveCurrentMeta);
@@ -118,6 +103,11 @@
     refs.autorotateBtn.addEventListener("click", toggleAutorotate);
     refs.resetBtn.addEventListener("click", resetView);
     refs.fullscreenBtn.addEventListener("click", toggleFullscreen);
+    refs.modeButtons.forEach(function bindModeButton(button) {
+      button.addEventListener("click", function onModeClick() {
+        setPreviewMode(button.getAttribute("data-mode"));
+      });
+    });
 
     document.addEventListener("keydown", function onKeydown(event) {
       if (event.target && /INPUT|TEXTAREA/.test(event.target.tagName)) {
@@ -132,54 +122,19 @@
         resetView();
       } else if (event.key.toLowerCase() === "f") {
         toggleFullscreen();
+      } else if (event.key === "1") {
+        setPreviewMode("expand");
+      } else if (event.key === "2") {
+        setPreviewMode("planet");
+      } else if (event.key === "3") {
+        setPreviewMode("tunnel");
+      } else if (event.key === "4") {
+        setPreviewMode("crystal");
       } else if (event.key === " " || event.code === "Space") {
         event.preventDefault();
         toggleAutorotate();
       }
     });
-  }
-
-  function bindViewerControls() {
-    var canvas = state.renderer.domElement;
-    canvas.addEventListener("pointerdown", function onDown(event) {
-      state.dragging = true;
-      state.lastX = event.clientX;
-      state.lastY = event.clientY;
-      canvas.setPointerCapture(event.pointerId);
-    });
-
-    canvas.addEventListener("pointermove", function onMove(event) {
-      if (!state.dragging) {
-        return;
-      }
-
-      state.yaw -= (event.clientX - state.lastX) * 0.12;
-      state.pitch += (event.clientY - state.lastY) * 0.12;
-      state.lastX = event.clientX;
-      state.lastY = event.clientY;
-      clampView();
-    });
-
-    function stopDragging(event) {
-      state.dragging = false;
-      if (event.pointerId !== undefined && canvas.hasPointerCapture(event.pointerId)) {
-        canvas.releasePointerCapture(event.pointerId);
-      }
-    }
-
-    canvas.addEventListener("pointerup", stopDragging);
-    canvas.addEventListener("pointercancel", stopDragging);
-    canvas.addEventListener(
-      "wheel",
-      function onWheel(event) {
-        event.preventDefault();
-        state.fov += event.deltaY * 0.03;
-        state.fov = Math.max(35, Math.min(95, state.fov));
-        state.camera.fov = state.fov;
-        state.camera.updateProjectionMatrix();
-      },
-      { passive: false }
-    );
   }
 
   function connectBackend() {
@@ -245,6 +200,34 @@
     refs.remoteNameInput.value = "";
     refs.remoteUrlInput.value = "";
     loadGallery();
+  }
+
+  async function createDatabaseRecord() {
+    var imageUrl = refs.databaseImageUrlInput.value.trim();
+    if (!imageUrl) {
+      setStatus("请输入图片地址");
+      return;
+    }
+
+    setStatus("保存中...");
+
+    try {
+      await fetchJson("/api/panoramas/create", {
+        method: "POST",
+        body: JSON.stringify({
+          title: refs.databaseTitleInput.value.trim() || "数据库全景图",
+          imageUrl: imageUrl,
+          thumbnailUrl: refs.databaseThumbnailInput.value.trim() || imageUrl
+        })
+      });
+
+      refs.databaseTitleInput.value = "";
+      refs.databaseImageUrlInput.value = "";
+      refs.databaseThumbnailInput.value = "";
+      loadGallery();
+    } catch (error) {
+      setStatus("保存失败");
+    }
   }
 
   async function saveCurrentMeta() {
@@ -345,14 +328,7 @@
         return;
       }
 
-      if (state.currentTexture) {
-        state.currentTexture.dispose();
-      }
-
-      state.currentTexture = loaded.texture;
-      state.sphere.material.map = loaded.texture;
-      state.sphere.material.color.setHex(0xffffff);
-      state.sphere.material.needsUpdate = true;
+      state.viewerController.setTexture(loaded.texture);
       refs.resolutionText.textContent =
         "分辨率: " +
         loaded.originalWidth +
@@ -452,13 +428,7 @@
   }
 
   function resetViewerSurface() {
-    if (state.currentTexture) {
-      state.currentTexture.dispose();
-      state.currentTexture = null;
-    }
-    state.sphere.material.map = null;
-    state.sphere.material.color.setHex(0x0c1320);
-    state.sphere.material.needsUpdate = true;
+    state.viewerController.clear();
     refs.resolutionText.textContent = "分辨率: -";
     refs.sourceText.textContent = "来源: -";
   }
@@ -519,6 +489,9 @@
       state.apiBase +
       '"' +
       (currentItem && currentItem.panoramaNo ? ' data-panorama-no="' + currentItem.panoramaNo + '"' : "") +
+      ' data-mode="' +
+      state.previewMode +
+      '"' +
       '><' +
       "/script>\n\n" +
       "按外部 URL 直接嵌入：\n" +
@@ -527,7 +500,9 @@
       state.apiBase +
       '/embed.js" data-target="panorama-widget-url" data-api="' +
       state.apiBase +
-      '" data-image-url="https://example.com/panorama.jpg" data-image-name="外部全景图"><' +
+      '" data-image-url="https://example.com/panorama.jpg" data-image-name="外部全景图" data-mode="' +
+      state.previewMode +
+      '"><' +
       "/script>";
   }
 
@@ -540,17 +515,28 @@
     selectScene(nextIndex);
   }
 
+  function setPreviewMode(mode) {
+    state.previewMode = state.viewerController.setMode(mode);
+    localStorage.setItem("xint-panorama-system-preview-mode", state.previewMode);
+    updateModeButtons();
+    updateEmbedExample();
+  }
+
+  function updateModeButtons() {
+    refs.modeButtons.forEach(function updateButton(button) {
+      var isActive = button.getAttribute("data-mode") === state.previewMode;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+
   function toggleAutorotate() {
-    state.autorotate = !state.autorotate;
+    state.autorotate = state.viewerController.toggleAutorotate();
     refs.autorotateBtn.textContent = state.autorotate ? "关闭自动旋转" : "开启自动旋转";
   }
 
   function resetView() {
-    state.yaw = 180;
-    state.pitch = 0;
-    state.fov = 75;
-    state.camera.fov = state.fov;
-    state.camera.updateProjectionMatrix();
+    state.viewerController.resetView();
   }
 
   function toggleFullscreen() {
@@ -559,34 +545,6 @@
     } else {
       document.exitFullscreen();
     }
-  }
-
-  function resizeViewer() {
-    state.camera.aspect = refs.viewer.clientWidth / Math.max(refs.viewer.clientHeight, 1);
-    state.camera.updateProjectionMatrix();
-    state.renderer.setSize(refs.viewer.clientWidth, refs.viewer.clientHeight);
-  }
-
-  function animate() {
-    window.requestAnimationFrame(animate);
-    if (state.autorotate && !state.dragging) {
-      state.yaw += 0.025;
-    }
-    clampView();
-    var phi = THREE.MathUtils.degToRad(90 - state.pitch);
-    var theta = THREE.MathUtils.degToRad(state.yaw);
-    var radius = 500;
-    var target = new THREE.Vector3(
-      radius * Math.sin(phi) * Math.cos(theta),
-      radius * Math.cos(phi),
-      radius * Math.sin(phi) * Math.sin(theta)
-    );
-    state.camera.lookAt(target);
-    state.renderer.render(state.scene, state.camera);
-  }
-
-  function clampView() {
-    state.pitch = Math.max(-85, Math.min(85, state.pitch));
   }
 
   async function fetchJson(pathname, options) {

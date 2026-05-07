@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>XinT-Panorama-System Frontend</title>
+    <title>XinT-Panorama-System 控制台</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <header class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">XinTycd Frontend</p>
-          <h1>720 全景图片前端控制台</h1>
+          <p class="eyebrow">XinT Panorama Console</p>
+          <h1>720 全景控制台</h1>
           <p>
             当前页面是独立前端站点，只通过后端 API 获取图库、上传图片、注册远程全景图并完成预览。
           </p>
@@ -31,6 +31,18 @@
 
       <main class="layout">
         <aside class="panel">
+          <section class="panel-section">
+            <h2>保存数据库记录</h2>
+            <input id="databaseTitleInput" class="text-input" type="text" placeholder="全景图标题" />
+            <textarea
+              id="databaseImageUrlInput"
+              class="text-area compact"
+              placeholder="图片地址，可填写完整 URL 或后端可访问路径。"
+            ></textarea>
+            <input id="databaseThumbnailInput" class="text-input" type="text" placeholder="缩略图地址，可选" />
+            <button id="createDatabaseRecordBtn" class="button wide" type="button">保存到数据库</button>
+          </section>
+
           <section class="panel-section">
             <h2>上传到后端</h2>
             <p class="muted">选择本地 720 全景图，前端会将文件转成 Base64 后提交到后端存储。</p>
@@ -63,10 +75,19 @@
         <section class="viewer-panel">
           <div id="viewer" class="viewer"></div>
 
-          <div class="viewer-hud">
-            <span id="statusBadge" class="chip">等待连接</span>
-            <span id="resolutionText" class="chip">分辨率: -</span>
-            <span id="sourceText" class="chip">来源: -</span>
+          <div class="viewer-top">
+            <div class="viewer-hud">
+              <span id="statusBadge" class="chip">等待连接</span>
+              <span id="resolutionText" class="chip">分辨率: -</span>
+              <span id="sourceText" class="chip">来源: -</span>
+            </div>
+
+            <div class="viewer-modebar" role="group" aria-label="预览模式">
+              <button class="mode-button active" data-mode="expand" type="button">展开</button>
+              <button class="mode-button" data-mode="planet" type="button">小行星</button>
+              <button class="mode-button" data-mode="tunnel" type="button">隧道</button>
+              <button class="mode-button" data-mode="crystal" type="button">水晶球</button>
+            </div>
           </div>
 
           <div class="toolbar">
@@ -146,6 +167,7 @@
     </div>
 
     <script src="./vendor/three.min.js"></script>
+    <script src="./panorama-viewer.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

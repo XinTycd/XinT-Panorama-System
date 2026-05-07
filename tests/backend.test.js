@@ -48,7 +48,7 @@ function request(port, pathname, options) {
 }
 
 async function run() {
-  writeGallery([]);
+  await writeGallery([]);
   const server = createServer();
 
   await new Promise(function start(resolve) {
@@ -83,9 +83,23 @@ async function run() {
     const uploadPayload = JSON.parse(upload.body);
     assert.ok(Number(uploadPayload.item.panoramaNo) >= 1001);
 
+    const databaseRecord = await request(port, "/api/panoramas/create", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "database-panorama",
+        imageUrl: "https://example.com/panorama.jpg",
+        panoramaNo: 2001
+      })
+    });
+    assert.strictEqual(databaseRecord.statusCode, 200);
+    const databasePayload = JSON.parse(databaseRecord.body);
+    assert.strictEqual(databasePayload.item.panoramaNo, 2001);
+    assert.strictEqual(databasePayload.item.name, "database-panorama");
+    assert.strictEqual(databasePayload.item.sourceType, "database-record");
+
     const gallery = await request(port, "/api/gallery");
     const galleryPayload = JSON.parse(gallery.body);
-    assert.ok(galleryPayload.items.length >= 2);
+    assert.ok(galleryPayload.items.length >= 3);
 
     const byNo = await request(port, "/api/panoramas/by-no?no=" + uploadPayload.item.panoramaNo);
     const byNoPayload = JSON.parse(byNo.body);
@@ -113,7 +127,7 @@ async function run() {
       method: "POST",
       body: JSON.stringify({})
     });
-    writeGallery([]);
+    await writeGallery([]);
     await new Promise(function stop(resolve) {
       server.close(resolve);
     });

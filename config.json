@@ -1,0 +1,29 @@
+{
+  "modes": ["database", "external", "upload"],
+  "database": {
+    "driver": "json",
+    "json": {
+      "storageDir": "backend/storage"
+    },
+    "mysql": {
+      "url": "",
+      "host": "127.0.0.1",
+      "port": 3306,
+      "user": "root",
+      "password": "",
+      "database": "xint_panorama",
+      "table": "panoramas",
+      "connectionLimit": 10
+    }
+  },
+  "server": {
+    "backend": {
+      "host": "127.0.0.1",
+      "port": 7210
+    },
+    "frontend": {
+      "host": "127.0.0.1",
+      "port": 7211
+    }
+  }
+}

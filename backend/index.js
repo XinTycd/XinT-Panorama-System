@@ -3,6 +3,10 @@ const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
+const { applyRuntimeConfig, getModesFromEnv } = require("../lib/runtime-config");
+
+applyRuntimeConfig(process.argv.slice(2));
+
 const {
   sendJson: writeJson,
   sendText: writeText,
@@ -11,23 +15,36 @@ const {
 } = require("../lib/http");
 const {
   STORAGE_DIR,
+  DB_DRIVER,
   getNextPanoramaNo,
-  ensureStorage,
+  initialize,
   readGallery,
   writeGallery,
   makeId,
-  upsertItem
+  upsertItem,
+  getStoreInfo
 } = require("./store");
 
 const HOST = process.env.PANORAMA_HOST || "127.0.0.1";
 const PORT = Number(process.env.PANORAMA_PORT || 7210);
+const APP_MODES = getModesFromEnv();
 const PUBLIC_DIR = path.join(__dirname, "public");
 const UPLOADS_DIR = path.join(STORAGE_DIR, "uploads");
 const JSON_LIMIT_BYTES = 30 * 1024 * 1024;
 
-ensureStorage();
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+function modeAllows(requiredMode) {
+  return APP_MODES.indexOf(requiredMode) !== -1;
+}
+
+function rejectMode(res, requiredMode) {
+  sendJson(res, 403, {
+    ok: false,
+    message: "当前启动模式为 " + APP_MODES.join(",") + "，该接口需要 " + requiredMode + " 模式"
+  });
 }
 
 function sendJson(res, statusCode, payload) {
@@ -97,7 +114,7 @@ function serializeItem(item, baseUrl) {
 }
 
 function readGalleryPayload(baseUrl, items) {
-  const galleryItems = Array.isArray(items) ? items : readGallery();
+  const galleryItems = Array.isArray(items) ? items : [];
   return galleryItems.map(function mapItem(item) {
     return serializeItem(item, baseUrl);
   });
@@ -140,39 +157,39 @@ function makeDemoItem() {
   };
 }
 
-function ensureDemoItem() {
-  const items = readGallery();
+async function ensureDemoItem() {
+  const items = await readGallery();
   const hasDemo = items.some(function hasItem(item) {
     return item.id === "demo-panorama";
   });
 
   if (!hasDemo) {
     items.unshift(makeDemoItem());
-    return writeGallery(items);
+    return await writeGallery(items);
   }
 
   return items;
 }
 
-function findItemByPanoramaNo(panoramaNo, items) {
+async function findItemByPanoramaNo(panoramaNo, items) {
   const normalizedNo = Number(panoramaNo);
   if (!Number.isFinite(normalizedNo)) {
     return null;
   }
 
-  const galleryItems = Array.isArray(items) ? items : readGallery();
+  const galleryItems = Array.isArray(items) ? items : await readGallery();
   return galleryItems.find(function findItem(item) {
     return Number(item.panoramaNo) === normalizedNo;
   }) || null;
 }
 
-function isPanoramaNoTaken(panoramaNo, ignoreId, items) {
+async function isPanoramaNoTaken(panoramaNo, ignoreId, items) {
   const normalizedNo = Number(panoramaNo);
   if (!Number.isFinite(normalizedNo)) {
     return false;
   }
 
-  const galleryItems = Array.isArray(items) ? items : readGallery();
+  const galleryItems = Array.isArray(items) ? items : await readGallery();
   return galleryItems.some(function hasSameNo(item) {
     return item.id !== ignoreId && Number(item.panoramaNo) === normalizedNo;
   });
@@ -248,6 +265,9 @@ async function handleApi(req, res, urlObject) {
       ok: true,
       author: "XinTycd",
       service: "xint-panorama-system-backend",
+      mode: APP_MODES.length === 3 ? "all" : APP_MODES.join(","),
+      modes: APP_MODES,
+      database: DB_DRIVER,
       time: new Date().toISOString()
     });
     return;
@@ -258,13 +278,21 @@ async function handleApi(req, res, urlObject) {
       author: "XinTycd",
       apiBase: baseUrl,
       widgetScript: baseUrl + "/embed.js",
-      widgetPage: baseUrl + "/widget"
+      widgetPage: baseUrl + "/widget",
+      mode: APP_MODES.length === 3 ? "all" : APP_MODES.join(","),
+      modes: APP_MODES,
+      database: getStoreInfo()
     });
     return;
   }
 
   if (req.method === "GET" && urlObject.pathname === "/api/gallery") {
-    const items = readGallery();
+    if (!modeAllows("database") && !modeAllows("external") && !modeAllows("upload")) {
+      rejectMode(res, "database/external/upload");
+      return;
+    }
+
+    const items = await readGallery();
     sendJson(res, 200, {
       author: "XinTycd",
       items: readGalleryPayload(baseUrl, items)
@@ -273,8 +301,13 @@ async function handleApi(req, res, urlObject) {
   }
 
   if (req.method === "GET" && urlObject.pathname === "/api/panoramas/by-no") {
+    if (!modeAllows("database") && !modeAllows("external") && !modeAllows("upload")) {
+      rejectMode(res, "database/external/upload");
+      return;
+    }
+
     const panoramaNo = urlObject.searchParams.get("no");
-    const item = findItemByPanoramaNo(panoramaNo);
+    const item = await findItemByPanoramaNo(panoramaNo);
     if (!item) {
       sendJson(res, 404, { ok: false, message: "指定编号的全景图不存在" });
       return;
@@ -288,7 +321,12 @@ async function handleApi(req, res, urlObject) {
   }
 
   if (req.method === "POST" && urlObject.pathname === "/api/gallery/seed-demo") {
-    const items = ensureDemoItem();
+    if (!modeAllows("database") && !modeAllows("external") && !modeAllows("upload")) {
+      rejectMode(res, "database/external/upload");
+      return;
+    }
+
+    const items = await ensureDemoItem();
     sendJson(res, 200, {
       ok: true,
       items: readGalleryPayload(baseUrl, items)
@@ -297,22 +335,32 @@ async function handleApi(req, res, urlObject) {
   }
 
   if (req.method === "POST" && urlObject.pathname === "/api/gallery/clear") {
+    if (!modeAllows("database") && !modeAllows("external") && !modeAllows("upload")) {
+      rejectMode(res, "database/external/upload");
+      return;
+    }
+
     clearUploadsDirectory();
-    writeGallery([]);
+    await writeGallery([]);
     sendJson(res, 200, { ok: true, items: [] });
     return;
   }
 
   if (req.method === "POST" && urlObject.pathname === "/api/panoramas/register") {
+    if (!modeAllows("external")) {
+      rejectMode(res, "external");
+      return;
+    }
+
     const body = await parseBody(req);
     if (!body || !isRemoteHttpUrl(body.url)) {
       sendJson(res, 400, { ok: false, message: "url 必须是 http 或 https 地址" });
       return;
     }
 
-    const items = readGallery();
+    const items = await readGallery();
 
-    if (body.panoramaNo && isPanoramaNoTaken(body.panoramaNo, null, items)) {
+    if (body.panoramaNo && await isPanoramaNoTaken(body.panoramaNo, null, items)) {
       sendJson(res, 409, { ok: false, message: "panoramaNo 已存在，请使用其他编号" });
       return;
     }
@@ -332,8 +380,53 @@ async function handleApi(req, res, urlObject) {
       createdAt: new Date().toISOString()
     };
 
-    upsertItem(item, items);
-    const updatedItems = readGallery();
+    await upsertItem(item, items);
+    const updatedItems = await readGallery();
+    sendJson(res, 200, {
+      ok: true,
+      item: serializeItem(item, baseUrl),
+      items: readGalleryPayload(baseUrl, updatedItems)
+    });
+    return;
+  }
+
+  if (req.method === "POST" && urlObject.pathname === "/api/panoramas/create") {
+    if (!modeAllows("database")) {
+      rejectMode(res, "database");
+      return;
+    }
+
+    const body = await parseBody(req);
+    const imageUrl = String(body.imageUrl || body.viewerPath || body.url || "").trim();
+    if (!imageUrl) {
+      sendJson(res, 400, { ok: false, message: "imageUrl 必须填写" });
+      return;
+    }
+
+    const items = await readGallery();
+
+    if (body.panoramaNo && await isPanoramaNoTaken(body.panoramaNo, null, items)) {
+      sendJson(res, 409, { ok: false, message: "panoramaNo 已存在，请使用其他编号" });
+      return;
+    }
+
+    const item = {
+      id: body.id ? String(body.id) : makeId("db"),
+      panoramaNo: Number(body.panoramaNo) || getNextPanoramaNo(items),
+      name: String(body.name || body.title || "数据库全景图"),
+      description: String(body.description || ""),
+      sourceType: "database-record",
+      originalUrl: body.originalUrl || imageUrl,
+      viewerPath: imageUrl,
+      thumbnailPath: body.thumbnailUrl || body.thumbnailPath || imageUrl,
+      size: body.size || null,
+      width: body.width || null,
+      height: body.height || null,
+      createdAt: body.createdAt || new Date().toISOString()
+    };
+
+    await upsertItem(item, items);
+    const updatedItems = await readGallery();
     sendJson(res, 200, {
       ok: true,
       item: serializeItem(item, baseUrl),
@@ -343,6 +436,11 @@ async function handleApi(req, res, urlObject) {
   }
 
   if (req.method === "POST" && urlObject.pathname === "/api/panoramas/upload-base64") {
+    if (!modeAllows("upload")) {
+      rejectMode(res, "upload");
+      return;
+    }
+
     const body = await parseBody(req);
     const name = sanitizeFileName(body && body.name ? body.name : "panorama");
     const dataUrl = body && body.dataUrl ? String(body.dataUrl) : "";
@@ -353,9 +451,9 @@ async function handleApi(req, res, urlObject) {
       return;
     }
 
-    const items = readGallery();
+    const items = await readGallery();
 
-    if (body.panoramaNo && isPanoramaNoTaken(body.panoramaNo, null, items)) {
+    if (body.panoramaNo && await isPanoramaNoTaken(body.panoramaNo, null, items)) {
       sendJson(res, 409, { ok: false, message: "panoramaNo 已存在，请使用其他编号" });
       return;
     }
@@ -383,8 +481,8 @@ async function handleApi(req, res, urlObject) {
       createdAt: new Date().toISOString()
     };
 
-    upsertItem(item, items);
-    const updatedItems = readGallery();
+    await upsertItem(item, items);
+    const updatedItems = await readGallery();
     sendJson(res, 200, {
       ok: true,
       item: serializeItem(item, baseUrl),
@@ -394,13 +492,23 @@ async function handleApi(req, res, urlObject) {
   }
 
   if (req.method === "GET" && urlObject.pathname === "/api/panoramas/proxy") {
+    if (!modeAllows("external") && !modeAllows("database") && !modeAllows("upload")) {
+      rejectMode(res, "external/database/upload");
+      return;
+    }
+
     handleProxy(req, res, urlObject.searchParams.get("url"), 0);
     return;
   }
 
   if (req.method === "POST" && urlObject.pathname === "/api/panoramas/update") {
+    if (!modeAllows("database") && !modeAllows("external") && !modeAllows("upload")) {
+      rejectMode(res, "database/external/upload");
+      return;
+    }
+
     const body = await parseBody(req);
-    const items = readGallery();
+    const items = await readGallery();
     const index = items.findIndex(function findItem(item) {
       return item.id === body.id;
     });
@@ -414,7 +522,7 @@ async function handleApi(req, res, urlObject) {
       body.panoramaNo !== undefined &&
       body.panoramaNo !== null &&
       body.panoramaNo !== "" &&
-      isPanoramaNoTaken(body.panoramaNo, items[index].id, items)
+      await isPanoramaNoTaken(body.panoramaNo, items[index].id, items)
     ) {
       sendJson(res, 409, { ok: false, message: "panoramaNo 已存在，请使用其他编号" });
       return;
@@ -437,7 +545,7 @@ async function handleApi(req, res, urlObject) {
     });
 
     items[index] = updatedItem;
-    writeGallery(items);
+    await writeGallery(items);
 
     sendJson(res, 200, {
       ok: true,
@@ -498,6 +606,14 @@ function createServer() {
       return;
     }
 
+    if (urlObject.pathname === "/assets/panorama-viewer.js") {
+      streamFile(req, res, path.join(__dirname, "..", "frontend", "panorama-viewer.js"), {
+        cors: true,
+        cacheControl: "no-cache"
+      });
+      return;
+    }
+
     if (urlObject.pathname.indexOf("/media/") === 0) {
       const absolutePath = safeLocalMediaPath(urlObject.pathname);
       if (!absolutePath) {
@@ -516,16 +632,27 @@ function createServer() {
 }
 
 if (require.main === module) {
-  const server = createServer();
-  server.listen(PORT, HOST, function onListen() {
-    console.log("XinT-Panorama-System Backend started");
-    console.log("Local: http://" + HOST + ":" + PORT);
-  });
+  initialize()
+    .then(function onReady() {
+        const server = createServer();
+        server.listen(PORT, HOST, function onListen() {
+          console.log("XinT-Panorama-System Backend started");
+        console.log("Modes: " + APP_MODES.join(",") + ", database: " + DB_DRIVER);
+        console.log("Local: http://" + HOST + ":" + PORT);
+      });
+    })
+    .catch(function onError(error) {
+      console.error(error.message);
+      process.exit(1);
+    });
 }
 
 module.exports = {
   HOST,
   PORT,
+  APP_MODES,
+  DB_DRIVER,
+  initialize,
   createServer,
   makeDemoItem
 };

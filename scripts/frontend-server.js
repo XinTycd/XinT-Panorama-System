@@ -1,6 +1,9 @@
 const http = require("http");
 const path = require("path");
+const { applyRuntimeConfig } = require("../lib/runtime-config");
 const { resolveStaticPath, streamFile, sendText } = require("../lib/http");
+
+applyRuntimeConfig(process.argv.slice(2));
 
 const HOST = process.env.FRONTEND_HOST || "127.0.0.1";
 const PORT = Number(process.env.FRONTEND_PORT || 7211);
