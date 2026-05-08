@@ -21,6 +21,7 @@
 - 支持将本地全景图上传到后端并持久化存储
 - 支持注册远程全景图 URL，由后端代理输出，前台直接显示
 - 支持 720 全景图拖拽视角、滚轮缩放、自动旋转、全屏预览
+- 支持展开、小行星、隧道、水晶球四种预览模式
 - 支持图库列表、上一张 / 下一张切换
 - 支持每张全景图自动分配独立编号 `panoramaNo`
 - 支持后端嵌入脚本 `embed.js`
@@ -55,7 +56,7 @@ backend 独立服务
 
 - 运行时：`Node.js`
 - 服务实现：原生 `http / https / fs / path / url`
-- 数据存储：本地 `JSON` 文件持久化
+- 数据存储：本地调试 `JSON` 或 `MySQL`
 - 媒体处理：远程图片代理、本地 Base64 上传落盘
 - 接口风格：`REST-like JSON API`
 
@@ -92,13 +93,15 @@ backend 独立服务
 │  ├─ index.html
 │  └─ styles.css
 ├─ lib/
-│  └─ http.js
+│  ├─ http.js
+│  └─ runtime-config.js
 ├─ scripts/
 │  ├─ frontend-server.js
 │  └─ start-all.js
 ├─ tests/
 │  └─ backend.test.js
 ├─ .gitignore
+├─ config.json
 ├─ LICENSE
 ├─ package.json
 └─ README.md
@@ -155,21 +158,109 @@ http://127.0.0.1:7211/?api=http://127.0.0.1:7210
 npm start
 ```
 
-等价命令：
+`npm start` 会读取根目录 `config.json`，并在单个 Node.js 进程内同时启动后端与前端静态服务。
 
-```bash
-npm run dev
-npm run start:all
+### 4. 配置运行模式
+
+系统支持三种业务模式，`config.json` 的 `modes` 可配置一个或多个模式，也可以全开：
+
+| 模式 | 配置值 | 说明 |
+| --- | --- | --- |
+| 数据库模式 | `database` | 通过 API 保存全景 `id`、标题、图片地址、缩略图、尺寸等参数 |
+| 外部图片模式 | `external` | 保持原有远程图片 URL 注册与代理能力 |
+| 上传模式 | `upload` | 图片上传到服务器，并将图库信息写入数据库 |
+
+只开启数据库模式：
+
+```json
+{
+  "modes": ["database"]
+}
 ```
 
-`start:all` 使用单个 Node.js 进程同时启动后端与前端静态服务，减少脚本启动时创建子进程的开销。
+开启数据库模式和上传模式：
+
+```json
+{
+  "modes": ["database", "upload"]
+}
+```
+
+全开：
+
+```json
+{
+  "modes": ["database", "external", "upload"]
+}
+```
+
+### 5. 选择数据库后端
+
+数据库保存模式通过 `config.json` 的 `database.driver` 指定，支持 `json` 和 `mysql`。MySQL 模式连接外部 MySQL 服务器，不在项目内安装或启动 MySQL 服务。
+
+```json
+{
+  "database": {
+    "driver": "json"
+  }
+}
+```
+
+MySQL 服务器地址、账号和数据表通过 `config.json` 配置：
+
+```json
+{
+  "database": {
+    "driver": "mysql",
+    "mysql": {
+      "host": "127.0.0.1",
+      "port": 3306,
+      "user": "root",
+      "password": "",
+      "database": "xint_panorama",
+      "table": "panoramas"
+    }
+  }
+}
+```
+
+MySQL 模式启动时会先检查配置的数据表：
+
+- 如果表内已有数据，跳过初始数据导入
+- 如果表内没有数据，自动导入 [backend/sql/init-mysql-data.sql](./backend/sql/init-mysql-data.sql)
+- 如果自动导入失败，启动日志会提示手动导入该 SQL 文件
+
+手动导入示例：
+
+```bash
+mysql -h 127.0.0.1 -P 3306 -u root -p xint_panorama < backend/sql/init-mysql-data.sql
+```
+
+如果你在 `config.json` 中修改了 `database.mysql.table`，手动导入前需要把 SQL 文件中的 `panoramas` 表名替换成你的表名。自动导入会按配置的表名处理。
+
+MySQL 环境变量：
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `PANORAMA_DB` | `json` | 数据库后端，支持 `json` / `mysql` |
+| `PANORAMA_APP_MODES` | `database,external,upload` | 可选环境变量覆盖 `config.json` 的 `modes` |
+| `PANORAMA_MYSQL_HOST` | `127.0.0.1` | MySQL 主机 |
+| `PANORAMA_MYSQL_PORT` | `3306` | MySQL 端口 |
+| `PANORAMA_MYSQL_USER` | `root` | MySQL 用户名 |
+| `PANORAMA_MYSQL_PASSWORD` | 空 | MySQL 密码 |
+| `PANORAMA_MYSQL_DATABASE` | `xint_panorama` | MySQL 数据库名 |
+| `PANORAMA_MYSQL_TABLE` | `panoramas` | 全景数据表名 |
+| `PANORAMA_MYSQL_URL` | 空 | 外部 MySQL 连接 URL，配置后优先使用 |
+| `PANORAMA_STORAGE_DIR` | `backend/storage` | JSON 数据与上传文件目录 |
 
 ## 性能与结构优化
 
 - `lib/http.js` 集中管理 JSON/text 响应、CORS、静态路径安全校验与静态文件输出
+- `lib/runtime-config.js` 集中读取 `config.json`、命令行参数与环境变量
 - 静态资源使用流式输出，避免每次请求都将文件完整读入内存
 - 静态资源支持 `ETag` / `Last-Modified`，浏览器可命中 `304 Not Modified`
-- `backend/store.js` 对 `gallery.json` 做进程内缓存，减少重复磁盘读取与 JSON 解析
+- `backend/store.js` 支持 JSON / MySQL 两种图库数据仓库
+- JSON 模式对 `gallery.json` 做进程内缓存，减少重复磁盘读取与 JSON 解析
 - API 写入图库后同步更新缓存，常见读取接口响应更快
 - 可通过 `PANORAMA_STORAGE_DIR` 指定后端存储目录，测试与生产数据可以隔离
 
@@ -224,6 +315,7 @@ http://127.0.0.1:7210
 | `/api/panoramas/by-no` | `GET` | 按编号获取单张全景图 | 用 `panoramaNo` 查询 |
 | `/api/gallery/clear` | `POST` | 清空图库 | 清空图库记录并删除上传文件 |
 | `/api/gallery/seed-demo` | `POST` | 写入演示数据 | 保留为调试接口，后台页面默认不再展示 |
+| `/api/panoramas/create` | `POST` | 创建数据库全景记录 | 保存标题、图片地址、缩略图等数据库记录 |
 | `/api/panoramas/register` | `POST` | 注册远程全景图 | 将外部图片地址注册为图库记录 |
 | `/api/panoramas/upload-base64` | `POST` | 上传本地图片 | 通过 Base64 JSON 上传图片 |
 | `/api/panoramas/update` | `POST` | 修改全景图信息 | 可修改编号、名称、描述 |
@@ -347,7 +439,41 @@ GET /api/panoramas/by-no?no=1001
 | `ok` | `boolean` | 是否成功 |
 | `item` | `object` | 单张全景图对象 |
 
-### 5. 注册远程全景图
+### 5. 创建数据库全景记录
+
+适用于数据库模式，后端只保存全景元数据和图片地址，不负责下载图片。
+
+**接口**
+
+```http
+POST /api/panoramas/create
+```
+
+**请求参数**
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- | --- |
+| `title` / `name` | `body` | `string` | 否 | 全景图标题 |
+| `imageUrl` / `viewerPath` / `url` | `body` | `string` | 是 | 图片访问地址，可以是完整 URL 或后端可访问路径 |
+| `thumbnailUrl` / `thumbnailPath` | `body` | `string` | 否 | 缩略图地址，不传时使用图片地址 |
+| `description` | `body` | `string` | 否 | 描述信息 |
+| `panoramaNo` | `body` | `number` | 否 | 手动指定业务编号，不传则自动分配 |
+| `width` / `height` / `size` | `body` | `number` | 否 | 图片元数据 |
+
+**请求示例**
+
+```json
+{
+  "title": "数据库全景图",
+  "imageUrl": "https://example.com/panorama.jpg",
+  "thumbnailUrl": "https://example.com/thumb.jpg",
+  "panoramaNo": 2001,
+  "width": 4096,
+  "height": 2048
+}
+```
+
+### 6. 注册远程全景图
 
 **接口**
 
@@ -375,7 +501,7 @@ POST /api/panoramas/register
 }
 ```
 
-### 6. 上传本地图片到后端
+### 7. 上传本地图片到后端
 
 当前版本使用 **Base64 JSON 上传**，适合普通前端页面直接接入，不依赖表单提交。
 
@@ -432,7 +558,7 @@ async function uploadPanorama(file) {
 }
 ```
 
-### 7. 修改全景图信息
+### 8. 修改全景图信息
 
 **接口**
 
@@ -454,7 +580,7 @@ POST /api/panoramas/update
 - `id` 只用于定位记录，不允许修改
 - `panoramaNo`、`name`、`description` 可修改
 
-### 8. 清空图库
+### 9. 清空图库
 
 **接口**
 
@@ -468,7 +594,7 @@ POST /api/gallery/clear
 | --- | --- | --- | --- | --- |
 | 无 | - | - | - | 请求体可传 `{}` |
 
-### 9. 远程图片代理
+### 10. 远程图片代理
 
 **接口**
 
@@ -507,6 +633,7 @@ GET /api/panoramas/proxy?url=https%3A%2F%2Fexample.com%2Fpanorama.jpg
 | `data-image-url` | `string` | 否 | 直接使用外部全景图 URL 嵌入 |
 | `data-image-name` | `string` | 否 | 外部 URL 模式下显示名称 |
 | `data-autorotate` | `string` | 否 | 是否自动旋转，`1` 为开启，`0` 为关闭 |
+| `data-mode` | `string` | 否 | 初始预览模式：`expand`、`planet`、`tunnel`、`crystal` |
 | `data-aspect-ratio` | `string` | 否 | 容器宽高比，例如 `16:9`、`2:1` |
 | `data-min-height` | `number` | 否 | 最小高度，单位像素 |
 | `data-max-height` | `number` | 否 | 最大高度，单位像素 |
@@ -521,6 +648,7 @@ GET /api/panoramas/proxy?url=https%3A%2F%2Fexample.com%2Fpanorama.jpg
   data-api="http://127.0.0.1:7210"
   data-panorama-no="1001"
   data-autorotate="1"
+  data-mode="planet"
   data-aspect-ratio="16:9"
 ></script>
 ```
@@ -536,6 +664,7 @@ GET /api/panoramas/proxy?url=https%3A%2F%2Fexample.com%2Fpanorama.jpg
   data-image-url="https://example.com/panorama.jpg"
   data-image-name="官网外链全景图"
   data-autorotate="1"
+  data-mode="crystal"
   data-aspect-ratio="2:1"
 ></script>
 ```
@@ -556,10 +685,11 @@ fetch("http://127.0.0.1:7210/api/gallery")
 
 - 后端地址配置
 - 刷新 / 清空图库
+- 保存数据库全景记录
 - 上传本地图片到后端
 - 注册远程全景图 URL
 - 修改全景图编号、名称、描述
-- 720 全景预览
+- 720 全景预览与四种预览模式切换
 - 自动旋转
 - 上一张 / 下一张切换
 - 全屏
