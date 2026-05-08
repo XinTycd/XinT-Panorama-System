@@ -10,6 +10,7 @@
   var imageUrl = script.getAttribute("data-image-url") || script.getAttribute("data-src-url");
   var imageName = script.getAttribute("data-image-name") || script.getAttribute("data-title");
   var autorotate = script.getAttribute("data-autorotate");
+  var mode = script.getAttribute("data-mode") || script.getAttribute("data-preview-mode");
   var aspectRatio = parseAspectRatio(script.getAttribute("data-aspect-ratio")) || 16 / 9;
   var minHeight = Number(script.getAttribute("data-min-height")) || 280;
   var maxHeight = Number(script.getAttribute("data-max-height")) || 960;
@@ -34,14 +35,18 @@
   if (autorotate) {
     iframeUrl += "&autorotate=" + encodeURIComponent(autorotate);
   }
+  if (mode) {
+    iframeUrl += "&mode=" + encodeURIComponent(mode);
+  }
 
   iframe.src = iframeUrl;
   iframe.loading = "lazy";
   iframe.style.width = "100%";
   iframe.style.display = "block";
   iframe.style.border = "0";
-  iframe.style.borderRadius = "20px";
-  iframe.style.boxShadow = "0 18px 48px rgba(0,0,0,0.22)";
+  iframe.style.borderRadius = "8px";
+  iframe.style.background = "#050505";
+  iframe.style.boxShadow = "0 22px 60px rgba(0,0,0,0.42)";
   iframe.allowFullscreen = true;
   container.innerHTML = "";
   container.appendChild(iframe);

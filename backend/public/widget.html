@@ -7,6 +7,13 @@
     <style>
       :root {
         color-scheme: dark;
+        --bg: #050505;
+        --panel: rgba(7, 7, 7, 0.9);
+        --line: #2b2b2b;
+        --line-strong: #5f5f5f;
+        --text: #f4f4f4;
+        --text-soft: #b8b8b8;
+        --white: #ffffff;
       }
       * {
         box-sizing: border-box;
@@ -17,13 +24,14 @@
         width: 100%;
         height: 100%;
         font-family: "Segoe UI Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
-        background:
-          radial-gradient(circle at top left, rgba(53, 213, 176, 0.18), transparent 25%),
-          linear-gradient(180deg, #07111f 0%, #030712 100%);
-        color: #ecf3ff;
+        background: var(--bg);
+        color: var(--text);
+      }
+      button {
+        font: inherit;
+        -webkit-tap-highlight-color: transparent;
       }
       .shell {
-        padding: 0;
         width: 100%;
         height: 100%;
       }
@@ -33,10 +41,11 @@
         height: 100%;
         min-height: 220px;
         overflow: hidden;
-        border-radius: 0;
         background:
-          radial-gradient(circle at 50% 40%, rgba(53, 213, 176, 0.08), transparent 22%),
-          linear-gradient(180deg, #081321 0%, #030812 100%);
+          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          #050505;
+        background-size: 44px 44px;
       }
       #viewer {
         width: 100%;
@@ -46,41 +55,108 @@
         display: block;
         width: 100%;
         height: 100%;
+        cursor: grab;
+      }
+      #viewer canvas:active {
+        cursor: grabbing;
+      }
+      .viewer-top,
+      .toolbar {
+        position: absolute;
+        left: 14px;
+        right: 14px;
+        z-index: 2;
+      }
+      .viewer-top {
+        top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+        pointer-events: none;
       }
       .hud,
       .toolbar {
-        position: absolute;
-        left: 18px;
-        right: 18px;
-        z-index: 2;
         display: flex;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
       }
-      .hud {
-        top: 18px;
-      }
       .toolbar {
-        bottom: 18px;
+        bottom: 14px;
       }
       .chip,
       .button {
-        min-height: 40px;
-        padding: 0 14px;
+        min-height: 38px;
+        padding: 0 12px;
         border-radius: 999px;
         display: inline-flex;
         align-items: center;
-        border: 1px solid rgba(133, 173, 217, 0.18);
-        background: rgba(8, 19, 33, 0.84);
-        color: #ecf3ff;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--text);
+      }
+      .chip {
+        max-width: 100%;
+        overflow-wrap: anywhere;
       }
       .button {
         cursor: pointer;
       }
+      .button:hover {
+        border-color: var(--line-strong);
+        background: rgba(28, 28, 28, 0.94);
+      }
       .button.primary {
-        color: #051118;
-        border-color: transparent;
-        background: linear-gradient(135deg, #35d5b0, #6ef4d6);
+        color: #050505;
+        border-color: var(--white);
+        background: var(--white);
+      }
+      .modebar {
+        display: inline-grid;
+        grid-template-columns: repeat(4, minmax(76px, 1fr));
+        gap: 4px;
+        padding: 4px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        pointer-events: auto;
+      }
+      .mode-button {
+        min-height: 32px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 6px;
+        color: var(--text-soft);
+        background: transparent;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .mode-button:hover {
+        color: var(--white);
+        background: #242424;
+      }
+      .mode-button.active {
+        color: #050505;
+        background: var(--white);
+      }
+      @media (max-width: 640px) {
+        .viewer-top,
+        .toolbar {
+          left: 10px;
+          right: 10px;
+        }
+        .modebar {
+          width: 100%;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .toolbar {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .button {
+          justify-content: center;
+          padding: 0 10px;
+        }
       }
     </style>
   </head>
@@ -88,10 +164,18 @@
     <div class="shell">
       <div class="viewer-shell">
         <div id="viewer"></div>
-        <div class="hud">
-          <span id="statusText" class="chip">加载中...</span>
-          <span id="panoramaNoText" class="chip">编号: -</span>
-          <span id="resolutionText" class="chip">分辨率: -</span>
+        <div class="viewer-top">
+          <div class="hud">
+            <span id="statusText" class="chip">加载中...</span>
+            <span id="panoramaNoText" class="chip">编号: -</span>
+            <span id="resolutionText" class="chip">分辨率: -</span>
+          </div>
+          <div class="modebar" role="group" aria-label="预览模式">
+            <button class="mode-button active" data-mode="expand" type="button">展开</button>
+            <button class="mode-button" data-mode="planet" type="button">小行星</button>
+            <button class="mode-button" data-mode="tunnel" type="button">隧道</button>
+            <button class="mode-button" data-mode="crystal" type="button">水晶球</button>
+          </div>
         </div>
         <div class="toolbar">
           <button id="prevBtn" class="button" type="button">上一张</button>
@@ -104,14 +188,16 @@
     </div>
 
     <script src="/assets/three.min.js"></script>
+    <script src="/assets/panorama-viewer.js"></script>
     <script>
-      (function () {
+      (function initWidget() {
         var params = new URLSearchParams(location.search);
         var apiBase = (params.get("api") || location.origin).replace(/\/$/, "");
         var fixedPanoramaNo = params.get("panoramaNo");
         var externalImageUrl = params.get("imageUrl");
         var externalImageName = params.get("imageName") || "外部全景图";
         var initialAutorotate = params.get("autorotate") !== "0";
+        var previewMode = XinTPanoramaViewer.normalizeMode(params.get("mode") || "expand");
         var refs = {
           viewer: document.getElementById("viewer"),
           statusText: document.getElementById("statusText"),
@@ -121,115 +207,64 @@
           nextBtn: document.getElementById("nextBtn"),
           autorotateBtn: document.getElementById("autorotateBtn"),
           resetBtn: document.getElementById("resetBtn"),
-          fullscreenBtn: document.getElementById("fullscreenBtn")
+          fullscreenBtn: document.getElementById("fullscreenBtn"),
+          modeButtons: Array.prototype.slice.call(document.querySelectorAll(".mode-button"))
         };
         var state = {
           items: [],
           currentIndex: -1,
-          autorotate: initialAutorotate,
-          yaw: 180,
-          pitch: 0,
-          fov: 75,
-          dragging: false,
-          lastX: 0,
-          lastY: 0,
-          currentTexture: null,
           requestId: 0,
           maxTextureSize: 4096,
-          renderer: null,
-          scene: null,
-          camera: null,
-          sphere: null
+          autorotate: initialAutorotate,
+          viewerController: null
         };
-        var resizeObserver = null;
 
         initViewer();
         bindEvents();
         loadInitialData();
 
         function initViewer() {
-          state.scene = new THREE.Scene();
-          state.camera = new THREE.PerspectiveCamera(75, refs.viewer.clientWidth / Math.max(refs.viewer.clientHeight, 1), 0.1, 1100);
-          state.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-          if ("outputColorSpace" in state.renderer && THREE.SRGBColorSpace) {
-            state.renderer.outputColorSpace = THREE.SRGBColorSpace;
-          } else if ("outputEncoding" in state.renderer && THREE.sRGBEncoding) {
-            state.renderer.outputEncoding = THREE.sRGBEncoding;
-          }
-          state.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-          state.renderer.setSize(refs.viewer.clientWidth, refs.viewer.clientHeight);
-          state.maxTextureSize = state.renderer.capabilities.maxTextureSize || 4096;
-          refs.viewer.appendChild(state.renderer.domElement);
-
-          var geometry = new THREE.SphereGeometry(500, 60, 40);
-          geometry.scale(-1, 1, 1);
-          state.sphere = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: 0x0c1320 }));
-          state.scene.add(state.sphere);
-          resetView();
-          animate();
+          state.viewerController = XinTPanoramaViewer.create({
+            element: refs.viewer,
+            THREE: THREE,
+            initialMode: previewMode,
+            autorotate: state.autorotate
+          });
+          state.maxTextureSize = state.viewerController.getMaxTextureSize();
+          updateModeButtons();
+          updateAutorotateText();
         }
 
         function bindEvents() {
-          refs.prevBtn.addEventListener("click", function () { moveSelection(-1); });
-          refs.nextBtn.addEventListener("click", function () { moveSelection(1); });
+          refs.prevBtn.addEventListener("click", function onPrev() {
+            moveSelection(-1);
+          });
+          refs.nextBtn.addEventListener("click", function onNext() {
+            moveSelection(1);
+          });
           refs.autorotateBtn.addEventListener("click", toggleAutorotate);
-          refs.resetBtn.addEventListener("click", resetView);
+          refs.resetBtn.addEventListener("click", function onReset() {
+            state.viewerController.resetView();
+          });
           refs.fullscreenBtn.addEventListener("click", toggleFullscreen);
-          bindPointerControls();
-          window.addEventListener("resize", resizeViewer);
-          if (typeof ResizeObserver !== "undefined") {
-            resizeObserver = new ResizeObserver(resizeViewer);
-            resizeObserver.observe(refs.viewer);
-          }
-        }
-
-        function bindPointerControls() {
-          var canvas = state.renderer.domElement;
-          canvas.addEventListener("pointerdown", function (event) {
-            state.dragging = true;
-            state.lastX = event.clientX;
-            state.lastY = event.clientY;
-            canvas.setPointerCapture(event.pointerId);
+          refs.modeButtons.forEach(function bindMode(button) {
+            button.addEventListener("click", function onModeClick() {
+              previewMode = state.viewerController.setMode(button.getAttribute("data-mode"));
+              updateModeButtons();
+            });
           });
-          canvas.addEventListener("pointermove", function (event) {
-            if (!state.dragging) {
-              return;
-            }
-            state.yaw -= (event.clientX - state.lastX) * 0.12;
-            state.pitch += (event.clientY - state.lastY) * 0.12;
-            state.lastX = event.clientX;
-            state.lastY = event.clientY;
-            clampView();
-          });
-          function stopDragging(event) {
-            state.dragging = false;
-            if (event.pointerId !== undefined && canvas.hasPointerCapture(event.pointerId)) {
-              canvas.releasePointerCapture(event.pointerId);
-            }
-          }
-          canvas.addEventListener("pointerup", stopDragging);
-          canvas.addEventListener("pointercancel", stopDragging);
-          canvas.addEventListener("wheel", function (event) {
-            event.preventDefault();
-            state.fov += event.deltaY * 0.03;
-            state.fov = Math.max(35, Math.min(95, state.fov));
-            state.camera.fov = state.fov;
-            state.camera.updateProjectionMatrix();
-          }, { passive: false });
         }
 
         function loadInitialData() {
           if (externalImageUrl) {
-            refs.prevBtn.style.display = "none";
-            refs.nextBtn.style.display = "none";
+            hidePaging();
             state.items = [
               {
                 id: "external-image",
                 panoramaNo: null,
                 name: externalImageName,
                 sourceType: "external-url",
-                viewerUrl: apiBase + "/api/panoramas/proxy?url=" + encodeURIComponent(externalImageUrl),
-                thumbnailUrl: apiBase + "/api/panoramas/proxy?url=" + encodeURIComponent(externalImageUrl)
+                viewerUrl: apiBase + "/api/panoramas/proxy?url=" + encodeURIComponent(externalImageUrl)
               }
             ];
             selectScene(0);
@@ -237,18 +272,17 @@
           }
 
           if (fixedPanoramaNo) {
-            refs.prevBtn.style.display = "none";
-            refs.nextBtn.style.display = "none";
+            hidePaging();
             fetch(apiBase + "/api/panoramas/by-no?no=" + encodeURIComponent(fixedPanoramaNo))
               .then(toJson)
-              .then(function (payload) {
+              .then(function onPayload(payload) {
                 state.items = payload.item ? [payload.item] : [];
                 if (!state.items.length) {
                   throw new Error("not found");
                 }
                 selectScene(0);
               })
-              .catch(function () {
+              .catch(function onError() {
                 refs.statusText.textContent = "指定编号的全景图不存在";
               });
             return;
@@ -256,7 +290,7 @@
 
           fetch(apiBase + "/api/gallery")
             .then(toJson)
-            .then(function (payload) {
+            .then(function onPayload(payload) {
               state.items = payload.items || [];
               if (!state.items.length) {
                 refs.statusText.textContent = "暂无可用全景图";
@@ -264,9 +298,14 @@
               }
               selectScene(0);
             })
-            .catch(function () {
+            .catch(function onError() {
               refs.statusText.textContent = "后端不可用";
             });
+        }
+
+        function hidePaging() {
+          refs.prevBtn.style.display = "none";
+          refs.nextBtn.style.display = "none";
         }
 
         function toJson(response) {
@@ -288,31 +327,25 @@
           refs.panoramaNoText.textContent = item.panoramaNo ? "编号: #" + item.panoramaNo : "来源: 外部 URL";
 
           loadTexture(item.viewerUrl)
-            .then(function (loaded) {
+            .then(function onLoaded(loaded) {
               if (requestId !== state.requestId) {
                 loaded.texture.dispose();
                 return;
               }
 
-              if (state.currentTexture) {
-                state.currentTexture.dispose();
-              }
-
-              state.currentTexture = loaded.texture;
-              state.sphere.material.map = loaded.texture;
-              state.sphere.material.color.setHex(0xffffff);
-              state.sphere.material.needsUpdate = true;
+              state.viewerController.setTexture(loaded.texture);
               refs.resolutionText.textContent = "分辨率: " + loaded.originalWidth + " × " + loaded.originalHeight;
               refs.statusText.textContent = "已就绪: " + item.name;
             })
-            .catch(function () {
-              resetSurface();
+            .catch(function onError() {
+              state.viewerController.clear();
+              refs.resolutionText.textContent = "分辨率: -";
               refs.statusText.textContent = "加载失败";
             });
         }
 
         function loadTexture(url) {
-          return loadImageSource(url).then(function (source) {
+          return loadImageSource(url).then(function buildTexture(source) {
             var originalWidth = source.naturalWidth || source.width;
             var originalHeight = source.naturalHeight || source.height;
             var scale = Math.min(1, Math.max(1024, state.maxTextureSize || 4096) / Math.max(originalWidth, originalHeight));
@@ -326,15 +359,7 @@
             canvas.height = scaledHeight;
             context.drawImage(source, 0, 0, scaledWidth, scaledHeight);
             texture = new THREE.CanvasTexture(canvas);
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            texture.generateMipmaps = false;
-            if ("colorSpace" in texture && THREE.SRGBColorSpace) {
-              texture.colorSpace = THREE.SRGBColorSpace;
-            } else if ("encoding" in texture && THREE.sRGBEncoding) {
-              texture.encoding = THREE.sRGBEncoding;
-            }
-            texture.needsUpdate = true;
+            applyTextureSettings(texture);
 
             if (typeof source.close === "function") {
               source.close();
@@ -351,16 +376,16 @@
         function loadImageSource(url) {
           if (typeof createImageBitmap === "function") {
             return fetch(url, { mode: "cors", cache: "no-cache" })
-              .then(function (response) {
+              .then(function onFetch(response) {
                 if (!response.ok) {
                   throw new Error("image fetch failed");
                 }
                 return response.blob();
               })
-              .then(function (blob) {
+              .then(function onBlob(blob) {
                 return createImageBitmap(blob);
               })
-              .catch(function () {
+              .catch(function fallbackToImage() {
                 return loadImageElement(url);
               });
           }
@@ -368,34 +393,54 @@
         }
 
         function loadImageElement(url) {
-          return new Promise(function (resolve, reject) {
+          return new Promise(function loadImage(resolve, reject) {
             var image = new Image();
             image.crossOrigin = "anonymous";
             image.decoding = "async";
-            image.onload = function () { resolve(image); };
-            image.onerror = function () { reject(new Error("image failed")); };
+            image.onload = function onLoad() {
+              resolve(image);
+            };
+            image.onerror = function onError() {
+              reject(new Error("image failed"));
+            };
             image.src = url;
           });
         }
 
+        function applyTextureSettings(texture) {
+          texture.minFilter = THREE.LinearFilter;
+          texture.magFilter = THREE.LinearFilter;
+          texture.generateMipmaps = false;
+          if ("colorSpace" in texture && THREE.SRGBColorSpace) {
+            texture.colorSpace = THREE.SRGBColorSpace;
+          } else if ("encoding" in texture && THREE.sRGBEncoding) {
+            texture.encoding = THREE.sRGBEncoding;
+          }
+          texture.needsUpdate = true;
+        }
+
         function moveSelection(delta) {
-          if (fixedPanoramaNo || !state.items.length) {
+          if (fixedPanoramaNo || externalImageUrl || !state.items.length) {
             return;
           }
           selectScene((state.currentIndex + delta + state.items.length) % state.items.length);
         }
 
         function toggleAutorotate() {
-          state.autorotate = !state.autorotate;
+          state.autorotate = state.viewerController.toggleAutorotate();
+          updateAutorotateText();
+        }
+
+        function updateAutorotateText() {
           refs.autorotateBtn.textContent = state.autorotate ? "关闭自动旋转" : "开启自动旋转";
         }
 
-        function resetView() {
-          state.yaw = 180;
-          state.pitch = 0;
-          state.fov = 75;
-          state.camera.fov = state.fov;
-          state.camera.updateProjectionMatrix();
+        function updateModeButtons() {
+          refs.modeButtons.forEach(function updateButton(button) {
+            var isActive = button.getAttribute("data-mode") === previewMode;
+            button.classList.toggle("active", isActive);
+            button.setAttribute("aria-pressed", isActive ? "true" : "false");
+          });
         }
 
         function toggleFullscreen() {
@@ -405,46 +450,6 @@
             document.exitFullscreen();
           }
         }
-
-        function resizeViewer() {
-          state.camera.aspect = refs.viewer.clientWidth / Math.max(refs.viewer.clientHeight, 1);
-          state.camera.updateProjectionMatrix();
-          state.renderer.setSize(refs.viewer.clientWidth, refs.viewer.clientHeight);
-        }
-
-        function animate() {
-          window.requestAnimationFrame(animate);
-          if (state.autorotate && !state.dragging) {
-            state.yaw += 0.025;
-          }
-          clampView();
-          var phi = THREE.MathUtils.degToRad(90 - state.pitch);
-          var theta = THREE.MathUtils.degToRad(state.yaw);
-          var radius = 500;
-          var target = new THREE.Vector3(
-            radius * Math.sin(phi) * Math.cos(theta),
-            radius * Math.cos(phi),
-            radius * Math.sin(phi) * Math.sin(theta)
-          );
-          state.camera.lookAt(target);
-          state.renderer.render(state.scene, state.camera);
-        }
-
-        function clampView() {
-          state.pitch = Math.max(-85, Math.min(85, state.pitch));
-        }
-
-        function resetSurface() {
-          if (state.currentTexture) {
-            state.currentTexture.dispose();
-            state.currentTexture = null;
-          }
-          state.sphere.material.map = null;
-          state.sphere.material.color.setHex(0x0c1320);
-          state.sphere.material.needsUpdate = true;
-          refs.resolutionText.textContent = "分辨率: -";
-        }
-
       })();
     </script>
   </body>

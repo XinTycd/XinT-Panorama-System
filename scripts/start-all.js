@@ -1,3 +1,7 @@
+const { applyRuntimeConfig } = require("../lib/runtime-config");
+
+applyRuntimeConfig(process.argv.slice(2));
+
 const backend = require("../backend/index");
 const frontend = require("./frontend-server");
 
@@ -21,7 +25,6 @@ function listen(definition) {
     definition.server.once("error", reject);
     definition.server.listen(definition.port, definition.host, function onListen() {
       definition.server.off("error", reject);
-      console.log(definition.name + " started: http://" + definition.host + ":" + definition.port);
       resolve();
     });
   });
@@ -38,9 +41,13 @@ function close(definition) {
 }
 
 async function startAll() {
+  await backend.initialize();
   for (const definition of servers) {
     await listen(definition);
   }
+  console.log("前端地址： http://" + frontend.HOST + ":" + frontend.PORT);
+  console.log("后端地址： http://" + backend.HOST + ":" + backend.PORT);
+  console.log("Runtime modes: " + backend.APP_MODES.join(",") + ", database: " + backend.DB_DRIVER);
 }
 
 async function shutdown() {
