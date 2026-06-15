@@ -4,4 +4,16 @@ dist/
 Thumbs.db
 npm-debug.log*
 backend/storage/uploads/
+backend/storage/encoded-images/
+backend/storage/media-settings.json.*.tmp
+backend/storage/*.sqlite
+backend/storage/*.sqlite-*
+backend/storage/gallery.json
+backend/storage/catalog.json
+backend/storage/projects.json
+backend/storage/*.json
+backend/storage/*.log
+backend/logs/
+logs/runtime/
 tests/.tmp/
+backups/

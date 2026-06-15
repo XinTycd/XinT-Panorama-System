@@ -1,0 +1,17 @@
+services:
+  xint-panorama:
+    build: .
+    container_name: xint-panorama-system
+    ports:
+      - "127.0.0.1:7210:7210"
+      - "127.0.0.1:7211:7211"
+    environment:
+      PANORAMA_HOST: 0.0.0.0
+      FRONTEND_HOST: 0.0.0.0
+      PANORAMA_STORAGE_DIR: /data
+    volumes:
+      - xint_panorama_storage:/data
+    restart: unless-stopped
+
+volumes:
+  xint_panorama_storage:

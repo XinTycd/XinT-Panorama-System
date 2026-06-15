@@ -1,0 +1,11 @@
+.git
+node_modules
+backups
+tests/.tmp
+backend/storage/uploads
+backend/storage/encoded-images
+backend/storage/media-settings.json.*.tmp
+backend/storage/*.sqlite
+backend/storage/*.sqlite-*
+backend/storage/*.json
+npm-debug.log*

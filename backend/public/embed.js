@@ -11,6 +11,8 @@
   var imageName = script.getAttribute("data-image-name") || script.getAttribute("data-title");
   var autorotate = script.getAttribute("data-autorotate");
   var mode = script.getAttribute("data-mode") || script.getAttribute("data-preview-mode");
+  var controls = sanitizeControlList(script.getAttribute("data-controls"));
+  var hiddenControls = sanitizeControlList(script.getAttribute("data-hide-controls"));
   var aspectRatio = parseAspectRatio(script.getAttribute("data-aspect-ratio")) || 16 / 9;
   var minHeight = Number(script.getAttribute("data-min-height")) || 280;
   var maxHeight = Number(script.getAttribute("data-max-height")) || 960;
@@ -37,6 +39,12 @@
   }
   if (mode) {
     iframeUrl += "&mode=" + encodeURIComponent(mode);
+  }
+  if (controls) {
+    iframeUrl += "&controls=" + encodeURIComponent(controls);
+  }
+  if (hiddenControls) {
+    iframeUrl += "&hideControls=" + encodeURIComponent(hiddenControls);
   }
 
   iframe.src = iframeUrl;
@@ -81,5 +89,40 @@
 
     var numeric = Number(value);
     return numeric > 0 ? numeric : null;
+  }
+
+  function sanitizeControlList(value) {
+    var allowed = {
+      all: true,
+      none: true,
+      default: true,
+      brand: true,
+      status: true,
+      "panorama-no": true,
+      resolution: true,
+      previous: true,
+      next: true,
+      autorotate: true,
+      "zoom-in": true,
+      "zoom-out": true,
+      focus: true,
+      director: true,
+      reset: true,
+      fullscreen: true
+    };
+    var result = [];
+
+    if (!value) {
+      return "";
+    }
+
+    value.split(",").forEach(function filterControl(rawToken) {
+      var token = rawToken.trim().toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(allowed, token) && result.indexOf(token) === -1) {
+        result.push(token);
+      }
+    });
+
+    return result.join(",");
   }
 })();

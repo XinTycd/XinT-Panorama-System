@@ -1,44 +1,21 @@
-const fs = require("fs");
-const path = require("path");
+const { STORAGE_DIR, DATABASE_FILE, DB_DRIVER, getDatabase, transaction, closeDatabase } = require("./sqlite");
 
-const STORAGE_DIR = path.resolve(process.env.PANORAMA_STORAGE_DIR || path.join(__dirname, "storage"));
-const GALLERY_FILE = path.join(STORAGE_DIR, "gallery.json");
-const DB_DRIVER = normalizeDbDriver(process.env.PANORAMA_DB || process.env.PANORAMA_DB_DRIVER || "json");
-const MYSQL_TABLE = normalizeMysqlIdentifier(process.env.PANORAMA_MYSQL_TABLE || "panoramas", "panoramas");
-const MYSQL_INIT_SQL_FILE = path.join(__dirname, "sql", "init-mysql-data.sql");
-
-let galleryCache = null;
-let galleryCacheMtimeMs = 0;
-let mysqlPool = null;
-let initialized = false;
-
-function normalizeDbDriver(value) {
-  const normalized = String(value || "json").trim().toLowerCase();
-  return normalized === "mysql" ? "mysql" : "json";
-}
-
-function normalizeMysqlIdentifier(value, fallback) {
-  const normalized = String(value || fallback).trim();
-  return /^[A-Za-z0-9_]+$/.test(normalized) ? normalized : fallback;
-}
-
-function ensureStorage() {
-  if (!fs.existsSync(STORAGE_DIR)) {
-    fs.mkdirSync(STORAGE_DIR, { recursive: true });
-  }
-
-  if (!fs.existsSync(GALLERY_FILE)) {
-    fs.writeFileSync(GALLERY_FILE, JSON.stringify({ items: [] }, null, 2), "utf8");
-  }
-}
-
-function cloneItems(items) {
-  return items.map(function cloneItem(item) {
-    return Object.assign({}, item);
-  });
+function makeId(prefix) {
+  return [prefix || "item", Date.now().toString(36), Math.random().toString(36).slice(2, 8)].join("-");
 }
 
 function normalizeItem(item) {
+  if (item.group !== undefined && item.group !== null && typeof item.group !== "string") {
+    const error = new Error("group 必须是字符串");
+    error.statusCode = 400;
+    throw error;
+  }
+  const group = String(item.group == null ? "" : item.group).trim();
+  if (Array.from(group).length > 64) {
+    const error = new Error("group 最长为 64 个字符");
+    error.statusCode = 400;
+    throw error;
+  }
   return {
     id: String(item.id || makeId("item")),
     panoramaNo: Number(item.panoramaNo) || null,
@@ -51,330 +28,287 @@ function normalizeItem(item) {
     size: item.size === undefined || item.size === null ? null : Number(item.size),
     width: item.width === undefined || item.width === null ? null : Number(item.width),
     height: item.height === undefined || item.height === null ? null : Number(item.height),
-    createdAt: item.createdAt || new Date().toISOString()
+    createdAt: item.createdAt || new Date().toISOString(),
+    group: group
   };
 }
 
 function normalizeGalleryItems(items) {
   const normalizedItems = Array.isArray(items) ? items.map(normalizeItem) : [];
-  const usedNos = {};
-  let nextPanoramaNo = 1001;
+  const usedNos = new Set();
+  let nextPanoramaNo = 1;
   let changed = false;
-
-  normalizedItems.forEach(function collectExistingNos(item) {
-    const numericValue = Number(item && item.panoramaNo);
-    if (Number.isFinite(numericValue) && numericValue > 0) {
-      usedNos[numericValue] = true;
-      nextPanoramaNo = Math.max(nextPanoramaNo, numericValue + 1);
+  for (const item of normalizedItems) {
+    const n = Number(item.panoramaNo);
+    if (Number.isFinite(n) && n > 0) {
+      if (!Number.isInteger(n)) throw new Error("panoramaNo 必须是正整数: " + item.id);
+      if (usedNos.has(n)) throw new Error("panoramaNo 已存在: " + n);
+      usedNos.add(n);
+      nextPanoramaNo = Math.max(nextPanoramaNo, n + 1);
     }
-  });
-
-  normalizedItems.forEach(function assignMissingNo(item, index) {
-    const numericValue = Number(item && item.panoramaNo);
-    if (Number.isFinite(numericValue) && numericValue > 0) {
-      return;
-    }
-
-    while (usedNos[nextPanoramaNo]) {
-      nextPanoramaNo += 1;
-    }
-
-    normalizedItems[index] = Object.assign({}, item, {
-      panoramaNo: nextPanoramaNo
-    });
-    usedNos[nextPanoramaNo] = true;
-    nextPanoramaNo += 1;
+  }
+  for (let i = 0; i < normalizedItems.length; i += 1) {
+    const n = Number(normalizedItems[i].panoramaNo);
+    if (Number.isFinite(n) && n > 0) continue;
+    while (usedNos.has(nextPanoramaNo)) nextPanoramaNo += 1;
+    normalizedItems[i].panoramaNo = nextPanoramaNo;
+    usedNos.add(nextPanoramaNo++);
     changed = true;
-  });
+  }
+  return { changed, items: normalizedItems };
+}
 
+function dbItemToGalleryItem(row) {
   return {
-    changed: changed,
-    items: normalizedItems
-  };
-}
-
-function saveJsonGallery(items) {
-  const normalizedItems = Array.isArray(items) ? cloneItems(items) : [];
-  fs.writeFileSync(GALLERY_FILE, JSON.stringify({ items: normalizedItems }, null, 2), "utf8");
-  galleryCache = normalizedItems;
-  galleryCacheMtimeMs = fs.statSync(GALLERY_FILE).mtimeMs;
-  return cloneItems(galleryCache);
-}
-
-async function initialize() {
-  if (initialized) {
-    return;
-  }
-
-  if (DB_DRIVER === "mysql") {
-    await initializeMysql();
-  } else {
-    ensureStorage();
-  }
-
-  initialized = true;
-}
-
-async function initializeMysql() {
-  const mysql = loadMysqlDriver();
-  mysqlPool = mysql.createPool(getMysqlOptions());
-  await mysqlPool.query(
-    "CREATE TABLE IF NOT EXISTS `" + MYSQL_TABLE + "` (" +
-      "`id` VARCHAR(191) NOT NULL PRIMARY KEY," +
-      "`panorama_no` INT NOT NULL UNIQUE," +
-      "`name` VARCHAR(255) NOT NULL," +
-      "`description` TEXT NULL," +
-      "`source_type` VARCHAR(64) NOT NULL," +
-      "`original_url` TEXT NULL," +
-      "`viewer_path` TEXT NOT NULL," +
-      "`thumbnail_path` TEXT NULL," +
-      "`size` BIGINT NULL," +
-      "`width` INT NULL," +
-      "`height` INT NULL," +
-      "`created_at` VARCHAR(64) NOT NULL," +
-      "INDEX `idx_created_at` (`created_at`)" +
-    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-  );
-  await importMysqlInitialDataIfEmpty();
-}
-
-async function importMysqlInitialDataIfEmpty() {
-  const rows = await mysqlPool.query("SELECT COUNT(*) AS total FROM `" + MYSQL_TABLE + "`");
-  const total = Number(rows[0] && rows[0][0] && rows[0][0].total) || 0;
-
-  if (total > 0) {
-    console.log("MySQL 初始数据已存在，跳过导入");
-    return;
-  }
-
-  try {
-    const sql = readMysqlInitialDataSql();
-    await mysqlPool.query(sql);
-    console.log("MySQL 初始数据已导入: " + MYSQL_INIT_SQL_FILE);
-  } catch (error) {
-    console.warn("MySQL 初始数据自动导入失败: " + error.message);
-    console.warn("请手动导入初始数据 SQL 文件: " + MYSQL_INIT_SQL_FILE);
-  }
-}
-
-function readMysqlInitialDataSql() {
-  const sql = fs.readFileSync(MYSQL_INIT_SQL_FILE, "utf8");
-  if (MYSQL_TABLE === "panoramas") {
-    return sql;
-  }
-  return sql.replace(/`panoramas`/g, "`" + MYSQL_TABLE + "`");
-}
-
-function loadMysqlDriver() {
-  try {
-    return require("mysql2/promise");
-  } catch (error) {
-    throw new Error("MySQL 模式需要可用的 MySQL 客户端驱动，并连接 config.json 中配置的外部 MySQL 服务器；如不使用 MySQL，请将 database.driver 改为 json");
-  }
-}
-
-function getMysqlOptions() {
-  if (process.env.PANORAMA_MYSQL_URL) {
-    return process.env.PANORAMA_MYSQL_URL;
-  }
-
-  return {
-    host: process.env.PANORAMA_MYSQL_HOST || "127.0.0.1",
-    port: Number(process.env.PANORAMA_MYSQL_PORT || 3306),
-    user: process.env.PANORAMA_MYSQL_USER || "root",
-    password: process.env.PANORAMA_MYSQL_PASSWORD || "",
-    database: process.env.PANORAMA_MYSQL_DATABASE || "xint_panorama",
-    waitForConnections: true,
-    connectionLimit: Number(process.env.PANORAMA_MYSQL_CONNECTION_LIMIT || 10),
-    charset: "utf8mb4"
-  };
-}
-
-async function readGallery() {
-  await initialize();
-  if (DB_DRIVER === "mysql") {
-    return readMysqlGallery();
-  }
-  return readJsonGallery();
-}
-
-function readJsonGallery() {
-  ensureStorage();
-  const fileStat = fs.statSync(GALLERY_FILE);
-  if (galleryCache && galleryCacheMtimeMs === fileStat.mtimeMs) {
-    return cloneItems(galleryCache);
-  }
-
-  const raw = fs.readFileSync(GALLERY_FILE, "utf8");
-  const parsed = JSON.parse(raw || '{"items":[]}');
-  const items = Array.isArray(parsed.items) ? parsed.items : [];
-  const normalized = normalizeGalleryItems(items);
-
-  if (normalized.changed) {
-    return saveJsonGallery(normalized.items);
-  }
-
-  galleryCache = cloneItems(normalized.items);
-  galleryCacheMtimeMs = fileStat.mtimeMs;
-  return cloneItems(galleryCache);
-}
-
-async function readMysqlGallery() {
-  const rows = await mysqlPool.query(
-    "SELECT id, panorama_no, name, description, source_type, original_url, viewer_path, thumbnail_path, size, width, height, created_at " +
-      "FROM `" + MYSQL_TABLE + "` ORDER BY panorama_no ASC"
-  );
-  return rows[0].map(rowToItem);
-}
-
-async function writeGallery(items) {
-  await initialize();
-  const normalized = normalizeGalleryItems(items).items;
-  if (DB_DRIVER === "mysql") {
-    await replaceMysqlGallery(normalized);
-    return normalized;
-  }
-  return saveJsonGallery(normalized);
-}
-
-async function replaceMysqlGallery(items) {
-  const connection = await mysqlPool.getConnection();
-  try {
-    await connection.beginTransaction();
-    await connection.query("DELETE FROM `" + MYSQL_TABLE + "`");
-    for (const item of items) {
-      await upsertMysqlItem(item, connection);
-    }
-    await connection.commit();
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
-}
-
-function getNextPanoramaNo(items) {
-  const currentMax = items.reduce(function findMax(maxValue, item) {
-    const numericValue = Number(item && item.panoramaNo);
-    if (!Number.isFinite(numericValue)) {
-      return maxValue;
-    }
-    return Math.max(maxValue, numericValue);
-  }, 1000);
-
-  return currentMax + 1;
-}
-
-function makeId(prefix) {
-  return [
-    prefix || "item",
-    Date.now().toString(36),
-    Math.random().toString(36).slice(2, 8)
-  ].join("-");
-}
-
-async function upsertItem(item, currentItems) {
-  await initialize();
-  const items = Array.isArray(currentItems) ? cloneItems(currentItems) : await readGallery();
-  const normalizedItem = normalizeItem(item);
-  const index = items.findIndex(function findExisting(existing) {
-    return existing.id === normalizedItem.id || (existing.originalUrl && existing.originalUrl === normalizedItem.originalUrl);
-  });
-
-  if (index >= 0) {
-    if (!normalizedItem.panoramaNo && items[index].panoramaNo) {
-      normalizedItem.panoramaNo = items[index].panoramaNo;
-    }
-    items[index] = normalizedItem;
-  } else {
-    if (!normalizedItem.panoramaNo) {
-      normalizedItem.panoramaNo = getNextPanoramaNo(items);
-    }
-    items.push(normalizedItem);
-  }
-
-  const normalizedItems = normalizeGalleryItems(items).items;
-  const savedItem = normalizedItems.find(function findSavedItem(existing) {
-    return existing.id === normalizedItem.id;
-  }) || normalizedItem;
-
-  if (DB_DRIVER === "mysql") {
-    await upsertMysqlItem(savedItem);
-  } else {
-    saveJsonGallery(normalizedItems);
-  }
-
-  Object.assign(item, savedItem);
-  return item;
-}
-
-async function upsertMysqlItem(item, connection) {
-  const executor = connection || mysqlPool;
-  await executor.query(
-    "INSERT INTO `" + MYSQL_TABLE + "` " +
-      "(id, panorama_no, name, description, source_type, original_url, viewer_path, thumbnail_path, size, width, height, created_at) " +
-      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-      "ON DUPLICATE KEY UPDATE " +
-      "panorama_no=VALUES(panorama_no), name=VALUES(name), description=VALUES(description), source_type=VALUES(source_type), " +
-      "original_url=VALUES(original_url), viewer_path=VALUES(viewer_path), thumbnail_path=VALUES(thumbnail_path), " +
-      "size=VALUES(size), width=VALUES(width), height=VALUES(height), created_at=VALUES(created_at)",
-    itemToRowValues(item)
-  );
-}
-
-function rowToItem(row) {
-  return normalizeItem({
     id: row.id,
-    panoramaNo: row.panorama_no,
+    panoramaNo: Number(row.panorama_no),
     name: row.name,
-    description: row.description,
+    description: row.description || "",
     sourceType: row.source_type,
     originalUrl: row.original_url,
     viewerPath: row.viewer_path,
     thumbnailPath: row.thumbnail_path,
-    size: row.size,
-    width: row.width,
-    height: row.height,
-    createdAt: row.created_at
+    size: row.size == null ? null : Number(row.size),
+    width: row.width == null ? null : Number(row.width),
+    height: row.height == null ? null : Number(row.height),
+    createdAt: row.created_at,
+    group: row.group_name || ""
+  };
+}
+
+function selectGallery(db) {
+  return db.prepare("SELECT id, panorama_no, name, description, source_type, original_url, viewer_path, thumbnail_path, size, width, height, created_at, group_name FROM panoramas ORDER BY panorama_no ASC").all().map(dbItemToGalleryItem);
+}
+
+function currentHighWater(db) {
+  const state = db.prepare("SELECT high_water FROM panorama_number_sequence WHERE id=1").get();
+  if (state) return Number(state.high_water) || 0;
+  return Number(db.prepare("SELECT COALESCE(MAX(panorama_no), 0) AS max_no FROM panoramas").get().max_no) || 0;
+}
+
+function reserveNextPanoramaNo(db) {
+  const next = currentHighWater(db) + 1;
+  db.prepare("INSERT INTO panorama_number_sequence (id, high_water) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET high_water=excluded.high_water").run(next);
+  return next;
+}
+
+function raisePanoramaHighWater(db, panoramaNo) {
+  const number = Number(panoramaNo);
+  if (!Number.isInteger(number) || number <= 0) return;
+  db.prepare("INSERT INTO panorama_number_sequence (id, high_water) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET high_water=MAX(high_water, excluded.high_water)").run(number);
+}
+
+function validateGroup(db, group) {
+  if (!group) return;
+  if (!db.prepare("SELECT name FROM panorama_groups WHERE name=?").get(group)) {
+    const error = new Error("请先创建所选分组，或将图片设为未分组");
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+function insertItem(db, item) {
+  const normalized = normalizeItem(item);
+  validateGroup(db, normalized.group);
+  db.prepare(`INSERT INTO panoramas
+    (id, panorama_no, name, description, source_type, original_url, viewer_path, thumbnail_path, size, width, height, created_at, group_name)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    normalized.id, normalized.panoramaNo, normalized.name, normalized.description, normalized.sourceType,
+    normalized.originalUrl, normalized.viewerPath, normalized.thumbnailPath, normalized.size,
+    normalized.width, normalized.height, normalized.createdAt, normalized.group
+  );
+  raisePanoramaHighWater(db, normalized.panoramaNo);
+  return normalized;
+}
+
+function conflictError(error) {
+  if (error && (error.code === "ERR_SQLITE_CONSTRAINT_UNIQUE" || /UNIQUE constraint failed/.test(error.message))) {
+    const conflict = new Error("panoramaNo 或 id 已存在");
+    conflict.statusCode = 409;
+    conflict.code = "GALLERY_CONFLICT";
+    return conflict;
+  }
+  return error;
+}
+
+async function initialize() {
+  getDatabase();
+}
+
+async function readGallery() {
+  return selectGallery(getDatabase());
+}
+
+async function writeGallery(items) {
+  try {
+    return transaction(function replace(db) {
+      const normalized = (Array.isArray(items) ? items : []).map(normalizeItem);
+      const usedNumbers = new Set();
+      db.exec("DELETE FROM panoramas");
+      normalized.forEach(function each(item) {
+        if (!item.panoramaNo) item.panoramaNo = reserveNextPanoramaNo(db);
+        if (!Number.isInteger(item.panoramaNo) || item.panoramaNo <= 0) throw new Error("panoramaNo 必须是正整数: " + item.id);
+        if (usedNumbers.has(item.panoramaNo)) throw new Error("panoramaNo 已存在: " + item.panoramaNo);
+        usedNumbers.add(item.panoramaNo);
+        validateGroup(db, item.group);
+        insertItem(db, item);
+      });
+      return normalized;
+    });
+  } catch (error) {
+    throw conflictError(error);
+  }
+}
+
+function getNextPanoramaNo(items) {
+  return currentHighWater(getDatabase()) + 1;
+}
+
+async function upsertItem(item, options) {
+  const source = normalizeItem(item);
+  const groupProvided = item && item.group !== undefined;
+  const resequence = Boolean(options && !Array.isArray(options) && options.resequence);
+  try {
+    const savedItem = transaction(function upsert(db) {
+      if (resequence) {
+        const ordered = db.prepare("SELECT id FROM panoramas ORDER BY panorama_no ASC, rowid ASC").all();
+        db.exec("UPDATE panoramas SET panorama_no = -rowid");
+        const setNo = db.prepare("UPDATE panoramas SET panorama_no = ? WHERE id = ?");
+        ordered.forEach(function setSequence(row, index) { setNo.run(index + 1, row.id); });
+      }
+      const existing = source.originalUrl
+        ? db.prepare("SELECT * FROM panoramas WHERE id = ? OR original_url = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1").get(source.id, source.originalUrl, source.id)
+        : db.prepare("SELECT * FROM panoramas WHERE id = ?").get(source.id);
+      const oldItem = existing ? dbItemToGalleryItem(existing) : null;
+      if (oldItem) {
+        source.id = oldItem.id;
+        if (!source.panoramaNo) source.panoramaNo = oldItem.panoramaNo;
+        if (!groupProvided) source.group = oldItem.group;
+      } else if (!source.panoramaNo) {
+        source.panoramaNo = reserveNextPanoramaNo(db);
+      }
+      const normalized = normalizeGalleryItems([source]).items[0];
+      validateGroup(db, normalized.group);
+      if (oldItem) {
+        db.prepare(`UPDATE panoramas SET panorama_no=?, name=?, description=?, source_type=?, original_url=?, viewer_path=?, thumbnail_path=?, size=?, width=?, height=?, created_at=?, group_name=? WHERE id=?`).run(
+          normalized.panoramaNo, normalized.name, normalized.description, normalized.sourceType, normalized.originalUrl,
+          normalized.viewerPath, normalized.thumbnailPath, normalized.size, normalized.width, normalized.height, normalized.createdAt, normalized.group, oldItem.id
+        );
+        raisePanoramaHighWater(db, normalized.panoramaNo);
+      } else {
+        insertItem(db, normalized);
+      }
+      return normalized;
+    });
+    Object.assign(item, savedItem);
+    return item;
+  } catch (error) {
+    throw conflictError(error);
+  }
+}
+
+async function updateItem(id, changes) {
+  try {
+    return transaction(function update(db) {
+      const row = db.prepare("SELECT * FROM panoramas WHERE id = ?").get(String(id));
+      if (!row) return null;
+      const current = dbItemToGalleryItem(row);
+      const updated = normalizeItem(Object.assign({}, current, changes || {}, { id: current.id }));
+      if (!Number.isInteger(updated.panoramaNo) || updated.panoramaNo <= 0) {
+        const error = new Error("panoramaNo 必须是正整数");
+        error.statusCode = 400;
+        throw error;
+      }
+      validateGroup(db, updated.group);
+      db.prepare(`UPDATE panoramas SET panorama_no=?, name=?, description=?, source_type=?, original_url=?, viewer_path=?, thumbnail_path=?, size=?, width=?, height=?, created_at=?, group_name=? WHERE id=?`).run(
+        updated.panoramaNo, updated.name, updated.description, updated.sourceType, updated.originalUrl,
+        updated.viewerPath, updated.thumbnailPath, updated.size, updated.width, updated.height, updated.createdAt, updated.group, current.id
+      );
+      raisePanoramaHighWater(db, updated.panoramaNo);
+      return updated;
+    });
+  } catch (error) {
+    throw conflictError(error);
+  }
+}
+
+async function deleteItem(id) {
+  return transaction(function deletePanorama(db) {
+    const row = db.prepare("SELECT * FROM panoramas WHERE id=?").get(String(id));
+    if (!row) return null;
+    const referenceCount = Number(db.prepare("SELECT COUNT(*) AS count FROM scenes WHERE panorama_id=?").get(String(id)).count);
+    if (referenceCount > 0) {
+      const error = new Error("该全景图仍被项目场景引用，不能删除图库记录");
+      error.statusCode = 409;
+      error.references = referenceCount;
+      throw error;
+    }
+    db.prepare("DELETE FROM panoramas WHERE id=?").run(String(id));
+    return dbItemToGalleryItem(row);
   });
 }
 
-function itemToRowValues(item) {
-  const normalized = normalizeItem(item);
-  return [
-    normalized.id,
-    normalized.panoramaNo,
-    normalized.name,
-    normalized.description,
-    normalized.sourceType,
-    normalized.originalUrl,
-    normalized.viewerPath,
-    normalized.thumbnailPath,
-    normalized.size,
-    normalized.width,
-    normalized.height,
-    normalized.createdAt
-  ];
+async function listGroups() {
+  const database = getDatabase();
+  const ungroupedCount = Number(database.prepare("SELECT COUNT(*) AS count FROM panoramas WHERE group_name=''").get().count);
+  const groups = database.prepare(`SELECT g.name, COUNT(p.id) AS count
+    FROM panorama_groups g LEFT JOIN panoramas p ON p.group_name=g.name
+    GROUP BY g.name ORDER BY g.name COLLATE NOCASE ASC, g.name ASC`).all()
+    .map((row) => ({ name: row.name, count: Number(row.count) }));
+  return [{ name: "", count: ungroupedCount }].concat(groups);
+}
+
+async function createGroup(value) {
+  if (typeof value !== "string") {
+    const error = new Error("name 必须是字符串");
+    error.statusCode = 400;
+    throw error;
+  }
+  const name = value.trim();
+  if (!name) {
+    const error = new Error("分组名称不能为空");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (Array.from(name).length > 64) {
+    const error = new Error("分组名称最长为 64 个字符");
+    error.statusCode = 400;
+    throw error;
+  }
+  return transaction(function insertGroup(database) {
+    if (database.prepare("SELECT name FROM panorama_groups WHERE name=?").get(name)) {
+      const error = new Error("分组名称已存在");
+      error.statusCode = 409;
+      throw error;
+    }
+    database.prepare("INSERT INTO panorama_groups(name) VALUES (?)").run(name);
+    return { name: name, count: 0 };
+  });
+}
+
+async function deleteGroup(value) {
+  const name = String(value || "").trim();
+  if (!name) {
+    const error = new Error("name 必须指定已有分组");
+    error.statusCode = 400;
+    throw error;
+  }
+  return transaction(function removeGroup(database) {
+    if (!database.prepare("SELECT name FROM panorama_groups WHERE name=?").get(name)) return null;
+    const result = database.prepare("UPDATE panoramas SET group_name='' WHERE group_name=?").run(name);
+    database.prepare("DELETE FROM panorama_groups WHERE name=?").run(name);
+    return { name: name, movedToUngrouped: Number(result.changes) };
+  });
 }
 
 function getStoreInfo() {
-  return {
-    driver: DB_DRIVER,
-    storageDir: DB_DRIVER === "json" ? STORAGE_DIR : null,
-    galleryFile: DB_DRIVER === "json" ? GALLERY_FILE : null,
-    mysqlTable: DB_DRIVER === "mysql" ? MYSQL_TABLE : null,
-    mysqlInitSqlFile: DB_DRIVER === "mysql" ? MYSQL_INIT_SQL_FILE : null
-  };
+  return { driver: DB_DRIVER };
 }
 
 module.exports = {
   STORAGE_DIR,
-  GALLERY_FILE,
+  DATABASE_FILE,
   DB_DRIVER,
-  MYSQL_TABLE,
-  MYSQL_INIT_SQL_FILE,
-  ensureStorage,
   initialize,
   readGallery,
   writeGallery,
@@ -382,5 +316,11 @@ module.exports = {
   normalizeGalleryItems,
   makeId,
   upsertItem,
-  getStoreInfo
+  updateItem,
+  deleteItem,
+  listGroups,
+  createGroup,
+  deleteGroup,
+  getStoreInfo,
+  closeDatabase
 };

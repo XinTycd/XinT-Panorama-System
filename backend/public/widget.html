@@ -18,6 +18,9 @@
       * {
         box-sizing: border-box;
       }
+      [hidden] {
+        display: none !important;
+      }
       html,
       body {
         margin: 0;
@@ -41,11 +44,7 @@
         height: 100%;
         min-height: 220px;
         overflow: hidden;
-        background:
-          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-          linear-gradient(180deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-          #050505;
-        background-size: 44px 44px;
+        background: #050505;
       }
       #viewer {
         width: 100%;
@@ -60,134 +59,54 @@
       #viewer canvas:active {
         cursor: grabbing;
       }
-      .viewer-top,
-      .toolbar {
-        position: absolute;
-        left: 14px;
-        right: 14px;
-        z-index: 2;
-      }
-      .viewer-top {
-        top: 14px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        align-items: flex-start;
-        pointer-events: none;
-      }
-      .hud,
-      .toolbar {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-      .toolbar {
-        bottom: 14px;
-      }
-      .chip,
-      .button {
-        min-height: 38px;
-        padding: 0 12px;
-        border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        border: 1px solid var(--line);
-        background: var(--panel);
-        color: var(--text);
-      }
-      .chip {
-        max-width: 100%;
-        overflow-wrap: anywhere;
-      }
-      .button {
-        cursor: pointer;
-      }
-      .button:hover {
-        border-color: var(--line-strong);
-        background: rgba(28, 28, 28, 0.94);
-      }
-      .button.primary {
-        color: #050505;
-        border-color: var(--white);
-        background: var(--white);
-      }
-      .modebar {
-        display: inline-grid;
-        grid-template-columns: repeat(4, minmax(76px, 1fr));
-        gap: 4px;
-        padding: 4px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--panel);
-        pointer-events: auto;
-      }
-      .mode-button {
-        min-height: 32px;
-        padding: 0 10px;
-        border: 0;
-        border-radius: 6px;
-        color: var(--text-soft);
-        background: transparent;
-        cursor: pointer;
-        white-space: nowrap;
-      }
-      .mode-button:hover {
-        color: var(--white);
-        background: #242424;
-      }
-      .mode-button.active {
-        color: #050505;
-        background: var(--white);
-      }
-      @media (max-width: 640px) {
-        .viewer-top,
-        .toolbar {
-          left: 10px;
-          right: 10px;
-        }
-        .modebar {
-          width: 100%;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        .toolbar {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        .button {
-          justify-content: center;
-          padding: 0 10px;
-        }
-      }
-    </style>
+      .viewer-shell.is-legacy #prevBtn,
+      .viewer-shell.is-legacy #nextBtn,
+      .viewer-shell.is-legacy #autorotateBtn,
+      .viewer-shell.is-legacy #focusBtn,
+      .viewer-shell.is-legacy #directorBtn,
+      .viewer-shell.is-legacy #resetBtn,
+      .viewer-shell.is-legacy #fullscreenBtn { display: none !important; }
+      .viewer-shell.is-legacy .toolbar { left: auto; right: 14px; bottom: 14px; gap: 8px; padding: 0; }
+      .viewer-shell.is-legacy #zoomOutBtn:not([hidden]),
+      .viewer-shell.is-legacy #zoomInBtn:not([hidden]) { width: 44px; min-width: 44px; height: 44px; min-height: 44px; justify-content: center; padding: 0; border-color: rgba(255,255,255,0.38); border-radius: 50%; color: var(--white); background: rgba(7,7,7,0.76); box-shadow: 0 4px 14px rgba(0,0,0,0.25); font-size: 0; }
+      .viewer-shell.is-legacy #zoomOutBtn:not([hidden])::before,
+      .viewer-shell.is-legacy #zoomInBtn:not([hidden])::before { font-size: 23px; line-height: 1; }
+      .viewer-shell.is-legacy #zoomOutBtn:not([hidden])::before { content: "−"; }
+      .viewer-shell.is-legacy #zoomInBtn:not([hidden])::before { content: "+"; }
+      .viewer-shell, #viewer { background: #111; }
+      .viewer-feedback { position: absolute; z-index: 4; top: 50%; left: 50%; max-width: calc(100% - 32px); padding: 9px 13px; transform: translate(-50%, -50%); border: 1px solid rgba(255,255,255,0.13); border-radius: 7px; color: rgba(255,255,255,0.92); background: rgba(24,24,24,0.82); font-size: 13px; text-align: center; overflow-wrap: anywhere; pointer-events: none; }
+      .viewer-feedback[hidden] { display: none !important; }
+      .toolbar { position: absolute; z-index: 5; left: 50%; right: auto; bottom: 12px; display: flex; align-items: center; max-width: calc(100% - 24px); flex-wrap: nowrap; gap: 6px; overflow-x: auto; padding: 6px; transform: translateX(-50%); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; background: rgba(28,28,28,0.78); box-shadow: 0 6px 20px rgba(0,0,0,0.22); backdrop-filter: blur(12px); scrollbar-width: none; }
+      .toolbar::-webkit-scrollbar { display: none; }
+      .button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; display: grid; place-items: center; justify-content: center; padding: 0; border: 1px solid transparent; border-radius: 7px; color: rgba(255,255,255,0.92); background: transparent; cursor: pointer; font-size: 21px; line-height: 1; }
+      .button:hover, .button:focus-visible { border-color: rgba(255,255,255,0.14); background: rgba(255,255,255,0.12); }
+      .button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+      .button[aria-pressed="true"] { background: rgba(255,255,255,0.16); }
+      .viewer-shell.is-legacy .toolbar { left: auto; right: 12px; bottom: 12px; transform: none; }
+      @media (max-width: 640px) { .viewer-shell.is-legacy .toolbar { left: auto; right: 10px; } }
+      </style>
   </head>
   <body>
     <div class="shell">
       <div class="viewer-shell">
         <div id="viewer"></div>
-        <div class="viewer-top">
-          <div class="hud">
-            <span id="statusText" class="chip">加载中...</span>
-            <span id="panoramaNoText" class="chip">编号: -</span>
-            <span id="resolutionText" class="chip">分辨率: -</span>
-          </div>
-          <div class="modebar" role="group" aria-label="预览模式">
-            <button class="mode-button active" data-mode="expand" type="button">展开</button>
-            <button class="mode-button" data-mode="planet" type="button">小行星</button>
-            <button class="mode-button" data-mode="tunnel" type="button">隧道</button>
-            <button class="mode-button" data-mode="crystal" type="button">水晶球</button>
-          </div>
-        </div>
-        <div class="toolbar">
-          <button id="prevBtn" class="button" type="button">上一张</button>
-          <button id="nextBtn" class="button" type="button">下一张</button>
-          <button id="autorotateBtn" class="button primary" type="button">关闭自动旋转</button>
-          <button id="resetBtn" class="button" type="button">重置视角</button>
-          <button id="fullscreenBtn" class="button" type="button">全屏</button>
+        <div id="statusText" class="viewer-feedback" data-control="status" role="status" aria-live="polite">加载中...</div>
+        <div class="toolbar" role="toolbar" aria-label="全景查看工具">
+          <button id="prevBtn" class="button" data-control="previous" type="button" aria-label="上一张" title="上一张">‹</button>
+          <button id="nextBtn" class="button" data-control="next" type="button" aria-label="下一张" title="下一张">›</button>
+          <button id="autorotateBtn" class="button" data-control="autorotate" type="button" aria-label="自动旋转" title="自动旋转" aria-pressed="false">↻</button>
+          <button id="zoomOutBtn" class="button" data-control="zoom-out" type="button" aria-label="缩小视野" title="缩小视野">−</button>
+          <button id="zoomInBtn" class="button" data-control="zoom-in" type="button" aria-label="放大细节" title="放大细节">+</button>
+          <button id="focusBtn" class="button" data-control="focus" type="button" aria-label="聚焦" title="聚焦" aria-pressed="false">⌕</button>
+          <button id="directorBtn" class="button" data-control="director" type="button" aria-label="自动演示" title="自动演示" aria-pressed="false">▶</button>
+          <button id="resetBtn" class="button" data-control="reset" type="button" aria-label="重置视角" title="重置视角">⟲</button>
+          <button id="fullscreenBtn" class="button" data-control="fullscreen" type="button" aria-label="全屏预览" title="全屏预览" aria-pressed="false">⛶</button>
         </div>
       </div>
     </div>
 
     <script src="/assets/three.min.js"></script>
+    <script src="/assets/legacy-viewer.js"></script>
     <script src="/assets/panorama-viewer.js"></script>
     <script>
       (function initWidget() {
@@ -196,19 +115,20 @@
         var fixedPanoramaNo = params.get("panoramaNo");
         var externalImageUrl = params.get("imageUrl");
         var externalImageName = params.get("imageName") || "外部全景图";
-        var initialAutorotate = params.get("autorotate") !== "0";
-        var previewMode = XinTPanoramaViewer.normalizeMode(params.get("mode") || "expand");
+        var initialAutorotate = params.get("autorotate") === "1";
+        var visibleControls = resolveVisibleControls(params.get("controls"), params.get("hideControls"));
         var refs = {
           viewer: document.getElementById("viewer"),
           statusText: document.getElementById("statusText"),
-          panoramaNoText: document.getElementById("panoramaNoText"),
-          resolutionText: document.getElementById("resolutionText"),
           prevBtn: document.getElementById("prevBtn"),
           nextBtn: document.getElementById("nextBtn"),
           autorotateBtn: document.getElementById("autorotateBtn"),
+          zoomOutBtn: document.getElementById("zoomOutBtn"),
+          zoomInBtn: document.getElementById("zoomInBtn"),
+          focusBtn: document.getElementById("focusBtn"),
+          directorBtn: document.getElementById("directorBtn"),
           resetBtn: document.getElementById("resetBtn"),
           fullscreenBtn: document.getElementById("fullscreenBtn"),
-          modeButtons: Array.prototype.slice.call(document.querySelectorAll(".mode-button"))
         };
         var state = {
           items: [],
@@ -218,21 +138,32 @@
           autorotate: initialAutorotate,
           viewerController: null
         };
+        var viewerShell = document.querySelector(".viewer-shell");
+        var statusIsFeedback = true;
 
-        initViewer();
+        applyControlVisibility();
         bindEvents();
+        initViewer();
         loadInitialData();
+        window.addEventListener("pagehide", function disposeViewer(event) { if (!event.persisted && state.viewerController) state.viewerController.dispose(); }, { once: true });
 
         function initViewer() {
+          viewerShell.classList.add("is-legacy");
+          ["previous", "next", "autorotate", "focus", "director", "reset", "fullscreen"].forEach(function hideLegacyControl(name) {
+            visibleControls[name] = false;
+          });
+          applyControlVisibility();
+          refs.statusText.hidden = !statusIsFeedback;
+          updateControlContainers();
+          state.autorotate = false;
           state.viewerController = XinTPanoramaViewer.create({
             element: refs.viewer,
-            THREE: THREE,
-            initialMode: previewMode,
-            autorotate: state.autorotate
+            autorotate: false,
+            onViewChange: updateViewControlState
           });
           state.maxTextureSize = state.viewerController.getMaxTextureSize();
-          updateModeButtons();
           updateAutorotateText();
+          updateViewControlState();
         }
 
         function bindEvents() {
@@ -243,16 +174,22 @@
             moveSelection(1);
           });
           refs.autorotateBtn.addEventListener("click", toggleAutorotate);
+          refs.zoomOutBtn.addEventListener("click", function onZoomOut() {
+            state.viewerController.zoomBy(8);
+            updateViewControlState();
+          });
+          refs.zoomInBtn.addEventListener("click", function onZoomIn() {
+            state.viewerController.zoomBy(-8);
+            updateViewControlState();
+          });
+          refs.focusBtn.addEventListener("click", toggleFocus);
+          refs.directorBtn.addEventListener("click", toggleDirector);
           refs.resetBtn.addEventListener("click", function onReset() {
             state.viewerController.resetView();
+            updateViewControlState();
           });
           refs.fullscreenBtn.addEventListener("click", toggleFullscreen);
-          refs.modeButtons.forEach(function bindMode(button) {
-            button.addEventListener("click", function onModeClick() {
-              previewMode = state.viewerController.setMode(button.getAttribute("data-mode"));
-              updateModeButtons();
-            });
-          });
+          document.addEventListener("fullscreenchange", updateFullscreenButton);
         }
 
         function loadInitialData() {
@@ -280,10 +217,15 @@
                 if (!state.items.length) {
                   throw new Error("not found");
                 }
+                if (state.items[0].sourceType === "client-upload") {
+                  state.items = [];
+                  setWidgetStatus("该图片仅在上传它的浏览器中可见", true);
+                  return;
+                }
                 selectScene(0);
               })
               .catch(function onError() {
-                refs.statusText.textContent = "指定编号的全景图不存在";
+                setWidgetStatus("指定编号的全景图不存在", true);
               });
             return;
           }
@@ -291,21 +233,24 @@
           fetch(apiBase + "/api/gallery")
             .then(toJson)
             .then(function onPayload(payload) {
-              state.items = payload.items || [];
+              state.items = (payload.items || []).filter(function isShared(item) {
+                return item.sourceType !== "client-upload";
+              });
               if (!state.items.length) {
-                refs.statusText.textContent = "暂无可用全景图";
+                setWidgetStatus("暂无可用全景图", true);
                 return;
               }
               selectScene(0);
             })
             .catch(function onError() {
-              refs.statusText.textContent = "后端不可用";
+              setWidgetStatus("后端不可用", true);
             });
         }
 
         function hidePaging() {
-          refs.prevBtn.style.display = "none";
-          refs.nextBtn.style.display = "none";
+          refs.prevBtn.hidden = true;
+          refs.nextBtn.hidden = true;
+          updateControlContainers();
         }
 
         function toJson(response) {
@@ -323,100 +268,20 @@
           var item = state.items[index];
           var requestId = ++state.requestId;
           state.currentIndex = index;
-          refs.statusText.textContent = "加载中...";
-          refs.panoramaNoText.textContent = item.panoramaNo ? "编号: #" + item.panoramaNo : "来源: 外部 URL";
+          setWidgetStatus("加载中...", true);
 
-          loadTexture(item.viewerUrl)
+          state.viewerController.setPanorama(item.viewerUrl)
             .then(function onLoaded(loaded) {
-              if (requestId !== state.requestId) {
-                loaded.texture.dispose();
-                return;
-              }
+              if (requestId !== state.requestId) return;
 
-              state.viewerController.setTexture(loaded.texture);
-              refs.resolutionText.textContent = "分辨率: " + loaded.originalWidth + " × " + loaded.originalHeight;
-              refs.statusText.textContent = "已就绪: " + item.name;
+              if (loaded.stale) return;
+              setWidgetStatus("已就绪: " + item.name, false);
             })
             .catch(function onError() {
+              if (requestId !== state.requestId) return;
               state.viewerController.clear();
-              refs.resolutionText.textContent = "分辨率: -";
-              refs.statusText.textContent = "加载失败";
+              setWidgetStatus("加载失败", true);
             });
-        }
-
-        function loadTexture(url) {
-          return loadImageSource(url).then(function buildTexture(source) {
-            var originalWidth = source.naturalWidth || source.width;
-            var originalHeight = source.naturalHeight || source.height;
-            var scale = Math.min(1, Math.max(1024, state.maxTextureSize || 4096) / Math.max(originalWidth, originalHeight));
-            var scaledWidth = Math.max(1, Math.round(originalWidth * scale));
-            var scaledHeight = Math.max(1, Math.round(originalHeight * scale));
-            var canvas = document.createElement("canvas");
-            var context = canvas.getContext("2d", { alpha: false, desynchronized: true });
-            var texture;
-
-            canvas.width = scaledWidth;
-            canvas.height = scaledHeight;
-            context.drawImage(source, 0, 0, scaledWidth, scaledHeight);
-            texture = new THREE.CanvasTexture(canvas);
-            applyTextureSettings(texture);
-
-            if (typeof source.close === "function") {
-              source.close();
-            }
-
-            return {
-              texture: texture,
-              originalWidth: originalWidth,
-              originalHeight: originalHeight
-            };
-          });
-        }
-
-        function loadImageSource(url) {
-          if (typeof createImageBitmap === "function") {
-            return fetch(url, { mode: "cors", cache: "no-cache" })
-              .then(function onFetch(response) {
-                if (!response.ok) {
-                  throw new Error("image fetch failed");
-                }
-                return response.blob();
-              })
-              .then(function onBlob(blob) {
-                return createImageBitmap(blob);
-              })
-              .catch(function fallbackToImage() {
-                return loadImageElement(url);
-              });
-          }
-          return loadImageElement(url);
-        }
-
-        function loadImageElement(url) {
-          return new Promise(function loadImage(resolve, reject) {
-            var image = new Image();
-            image.crossOrigin = "anonymous";
-            image.decoding = "async";
-            image.onload = function onLoad() {
-              resolve(image);
-            };
-            image.onerror = function onError() {
-              reject(new Error("image failed"));
-            };
-            image.src = url;
-          });
-        }
-
-        function applyTextureSettings(texture) {
-          texture.minFilter = THREE.LinearFilter;
-          texture.magFilter = THREE.LinearFilter;
-          texture.generateMipmaps = false;
-          if ("colorSpace" in texture && THREE.SRGBColorSpace) {
-            texture.colorSpace = THREE.SRGBColorSpace;
-          } else if ("encoding" in texture && THREE.sRGBEncoding) {
-            texture.encoding = THREE.sRGBEncoding;
-          }
-          texture.needsUpdate = true;
         }
 
         function moveSelection(delta) {
@@ -429,26 +294,209 @@
         function toggleAutorotate() {
           state.autorotate = state.viewerController.toggleAutorotate();
           updateAutorotateText();
+          updateDirectorText();
         }
 
         function updateAutorotateText() {
-          refs.autorotateBtn.textContent = state.autorotate ? "关闭自动旋转" : "开启自动旋转";
+          var label = state.autorotate ? "停止旋转" : "自动旋转";
+          refs.autorotateBtn.textContent = "↻";
+          refs.autorotateBtn.setAttribute("aria-label", label);
+          refs.autorotateBtn.title = label;
         }
 
-        function updateModeButtons() {
-          refs.modeButtons.forEach(function updateButton(button) {
-            var isActive = button.getAttribute("data-mode") === previewMode;
-            button.classList.toggle("active", isActive);
-            button.setAttribute("aria-pressed", isActive ? "true" : "false");
-          });
+        function toggleFocus() {
+          var view = state.viewerController.getView();
+          var isFocused = view.fov <= 42;
+          state.viewerController.stopDirector();
+          state.viewerController.setView({ fov: isFocused ? 75 : 36 }, 320);
+          state.autorotate = false;
+          updateAutorotateText();
+          updateDirectorText();
+          refs.focusBtn.setAttribute("aria-pressed", isFocused ? "false" : "true");
+          refs.focusBtn.setAttribute("aria-label", isFocused ? "聚焦视野" : "退出聚焦");
+          refs.focusBtn.title = isFocused ? "聚焦视野" : "退出聚焦";
         }
 
-        function toggleFullscreen() {
-          if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen();
+        function toggleDirector() {
+          if (state.viewerController.isDirectorPlaying()) {
+            state.viewerController.stopDirector();
           } else {
-            document.exitFullscreen();
+            var view = state.viewerController.getView();
+            state.viewerController.playDirector(
+              [
+                { yaw: view.yaw, pitch: view.pitch, fov: view.fov, duration: 1200, hold: 500 },
+                { yaw: view.yaw + 72, pitch: -7, fov: 58, duration: 3600, hold: 650 },
+                { yaw: view.yaw + 152, pitch: 6, fov: 46, duration: 4200, hold: 700 },
+                { yaw: view.yaw + 242, pitch: 0, fov: 68, duration: 4200, hold: 550 }
+              ],
+              { loop: true }
+            );
+            state.autorotate = false;
+            updateAutorotateText();
           }
+          updateDirectorText();
+        }
+
+        function updateViewControlState(view) {
+          if (!state.viewerController) {
+            return;
+          }
+          state.autorotate = state.viewerController.getAutorotate();
+          updateAutorotateText();
+          var currentView = view || state.viewerController.getView();
+          var focused = currentView.fov <= 42;
+          refs.focusBtn.setAttribute("aria-pressed", focused ? "true" : "false");
+          refs.focusBtn.setAttribute("aria-label", focused ? "退出聚焦" : "聚焦视野");
+          refs.focusBtn.title = focused ? "退出聚焦" : "聚焦视野";
+          updateDirectorText();
+        }
+
+        function updateDirectorText() {
+          if (!state.viewerController) {
+            return;
+          }
+          var isPlaying = state.viewerController.isDirectorPlaying();
+          refs.directorBtn.textContent = isPlaying ? "Ⅱ" : "▶";
+          refs.directorBtn.classList.toggle("active", isPlaying);
+          refs.directorBtn.setAttribute("aria-pressed", isPlaying ? "true" : "false");
+          refs.directorBtn.setAttribute("aria-label", isPlaying ? "停止自动演示" : "自动演示");
+          refs.directorBtn.title = isPlaying ? "停止自动演示" : "自动演示";
+        }
+
+        async function toggleFullscreen() {
+          try {
+            if (!document.fullscreenElement) {
+              if (document.fullscreenEnabled === false || !document.documentElement.requestFullscreen) throw new Error("当前浏览器不支持全屏");
+              await document.documentElement.requestFullscreen();
+            } else {
+              if (!document.exitFullscreen) throw new Error("当前浏览器不支持退出全屏");
+              await document.exitFullscreen();
+            }
+          } catch (error) {
+            setWidgetStatus(error && error.message || "全屏操作失败", true);
+          }
+        }
+
+        function updateFullscreenButton() {
+          var active = Boolean(document.fullscreenElement);
+          refs.fullscreenBtn.setAttribute("aria-pressed", active ? "true" : "false");
+          refs.fullscreenBtn.setAttribute("aria-label", active ? "退出全屏" : "全屏预览");
+          refs.fullscreenBtn.title = active ? "退出全屏" : "全屏预览";
+          refs.fullscreenBtn.textContent = "⛶";
+        }
+
+        function resolveVisibleControls(controlsValue, hiddenValue) {
+          var allControls = [
+            "status",
+            "previous",
+            "next",
+            "autorotate",
+            "zoom-in",
+            "zoom-out",
+            "focus",
+            "director",
+            "reset",
+            "fullscreen"
+          ];
+          var defaultControls = allControls.filter(function useDefaultControl(name) {
+            return name !== "director";
+          });
+          var requested = parseControlList(controlsValue, allControls);
+          var hidden = parseControlList(hiddenValue, allControls);
+          var visible = {};
+
+          getBaseControls(requested, allControls, defaultControls).forEach(function addControl(name) {
+            visible[name] = true;
+          });
+
+          getHiddenControls(hidden, allControls, defaultControls).forEach(function removeControl(name) {
+            delete visible[name];
+          });
+
+          return visible;
+        }
+
+        function parseControlList(value, allControls) {
+          var allowed = {};
+          var result = {
+            keys: [],
+            specials: []
+          };
+
+          allControls.forEach(function allowControl(name) {
+            allowed[name] = true;
+          });
+
+          if (!value) {
+            return result;
+          }
+
+          value.split(",").forEach(function parseToken(rawToken) {
+            var token = rawToken.trim().toLowerCase();
+            if (Object.prototype.hasOwnProperty.call(allowed, token) && result.keys.indexOf(token) === -1) {
+              result.keys.push(token);
+            } else if (
+              (token === "all" || token === "none" || token === "default") &&
+              result.specials.indexOf(token) === -1
+            ) {
+              result.specials.push(token);
+            }
+          });
+
+          return result;
+        }
+
+        function getBaseControls(parsed, allControls, defaultControls) {
+          if (parsed.keys.length) {
+            return parsed.keys;
+          }
+          if (parsed.specials.length !== 1) {
+            return defaultControls;
+          }
+          if (parsed.specials[0] === "all") {
+            return allControls;
+          }
+          if (parsed.specials[0] === "none") {
+            return [];
+          }
+          return defaultControls;
+        }
+
+        function getHiddenControls(parsed, allControls, defaultControls) {
+          if (parsed.keys.length) {
+            return parsed.keys;
+          }
+          if (parsed.specials.length !== 1 || parsed.specials[0] === "none") {
+            return [];
+          }
+          return parsed.specials[0] === "all" ? allControls : defaultControls;
+        }
+
+        function applyControlVisibility() {
+          Array.prototype.forEach.call(document.querySelectorAll("[data-control]"), function updateControl(element) {
+            element.hidden = !visibleControls[element.getAttribute("data-control")];
+          });
+          updateControlContainers();
+        }
+
+        function updateControlContainers() {
+          [document.querySelector(".hud"), document.querySelector(".toolbar")].forEach(
+            function updateContainer(container) {
+              if (!container) {
+                return;
+              }
+              container.hidden = !Array.prototype.some.call(container.querySelectorAll("[data-control]"), function isVisible(element) {
+                return !element.hidden;
+              });
+            }
+          );
+        }
+
+        function setWidgetStatus(message, feedback) {
+          statusIsFeedback = feedback === true;
+          refs.statusText.textContent = message;
+          refs.statusText.hidden = !statusIsFeedback;
+          updateControlContainers();
         }
       })();
     </script>

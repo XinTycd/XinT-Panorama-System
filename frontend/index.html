@@ -3,171 +3,326 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>XinT-Panorama-System 控制台</title>
+    <title>XinT Panorama Studio</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="app-shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">XinT Panorama Console</p>
-          <h1>720 全景控制台</h1>
-          <p>
-            当前页面是独立前端站点，只通过后端 API 获取图库、上传图片、注册远程全景图并完成预览。
-          </p>
-        </div>
-        <div class="api-box">
-          <label for="apiBaseInput">后端 API 地址</label>
-          <div class="api-row">
-            <input id="apiBaseInput" type="text" />
-            <button id="connectBtn" class="button primary" type="button">连接</button>
-          </div>
-          <div class="api-row api-actions">
-            <button id="refreshBtn" class="button" type="button">刷新图库</button>
-            <button id="clearBtn" class="button danger" type="button">清空图库</button>
-          </div>
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="XinT Panorama Studio 首页">
+          <span class="brand-mark">XT</span>
+          <span>
+            <strong>XinT Panorama</strong>
+            <small>STUDIO / 720</small>
+          </span>
+        </a>
+
+        <nav class="workspace-nav" aria-label="工作区导航">
+          <button class="workspace-nav__item" type="button" data-drawer-panel="library">资源库 <span id="galleryCount">0</span></button>
+          <button class="workspace-nav__item" type="button" data-drawer-panel="projects">项目</button>
+          <button class="workspace-nav__item" type="button" data-drawer-panel="settings">设置</button>
+        </nav>
+
+        <div class="topbar-status">
+          <span id="statusBadge" class="status-dot">等待连接</span>
         </div>
       </header>
 
-      <main class="layout">
-        <aside class="panel">
-          <section class="panel-section">
-            <h2>保存数据库记录</h2>
-            <input id="databaseTitleInput" class="text-input" type="text" placeholder="全景图标题" />
-            <textarea
-              id="databaseImageUrlInput"
-              class="text-area compact"
-              placeholder="图片地址，可填写完整 URL 或后端可访问路径。"
-            ></textarea>
-            <input id="databaseThumbnailInput" class="text-input" type="text" placeholder="缩略图地址，可选" />
-            <button id="createDatabaseRecordBtn" class="button wide" type="button">保存到数据库</button>
-          </section>
-
-          <section class="panel-section">
-            <h2>上传到后端</h2>
-            <p class="muted">选择本地 720 全景图，前端会将文件转成 Base64 后提交到后端存储。</p>
-            <label class="button primary wide">
-              <input id="fileInput" type="file" accept="image/*" multiple hidden />
-              选择并上传图片
-            </label>
-          </section>
-
-          <section class="panel-section">
-            <h2>注册远程链接</h2>
-            <input id="remoteNameInput" class="text-input" type="text" placeholder="全景图名称" />
-            <textarea
-              id="remoteUrlInput"
-              class="text-area"
-              placeholder="输入可访问的全景图 URL，后端会代理该资源以供前端直接显示。"
-            ></textarea>
-            <button id="registerUrlBtn" class="button wide" type="button">注册远程全景图</button>
-          </section>
-
-          <section class="panel-section">
-            <div class="section-head">
-              <h2>图库列表</h2>
-              <span id="galleryCount">0</span>
-            </div>
-            <div id="galleryList" class="gallery-list"></div>
-          </section>
-        </aside>
-
-        <section class="viewer-panel">
-          <div id="viewer" class="viewer"></div>
-
-          <div class="viewer-top">
-            <div class="viewer-hud">
-              <span id="statusBadge" class="chip">等待连接</span>
-              <span id="resolutionText" class="chip">分辨率: -</span>
-              <span id="sourceText" class="chip">来源: -</span>
-            </div>
-
-            <div class="viewer-modebar" role="group" aria-label="预览模式">
-              <button class="mode-button active" data-mode="expand" type="button">展开</button>
-              <button class="mode-button" data-mode="planet" type="button">小行星</button>
-              <button class="mode-button" data-mode="tunnel" type="button">隧道</button>
-              <button class="mode-button" data-mode="crystal" type="button">水晶球</button>
-            </div>
+      <main class="studio-layout">
+        <section class="scene-summary" aria-label="当前场景概览">
+          <p class="eyebrow">CURRENT PANORAMA</p>
+          <h1 id="currentSceneTitle">尚未选择全景图</h1>
+          <div class="scene-summary__meta">
+            <span id="currentIndexText">0 / 0</span>
+            <span id="sourceText">来源: -</span>
           </div>
-
-          <div class="toolbar">
-            <button id="prevBtn" class="button" type="button">上一张</button>
-            <button id="nextBtn" class="button" type="button">下一张</button>
-            <button id="autorotateBtn" class="button primary" type="button">关闭自动旋转</button>
-            <button id="resetBtn" class="button" type="button">重置视角</button>
-            <button id="fullscreenBtn" class="button" type="button">全屏</button>
+          <div class="scene-summary__actions">
+            <button class="icon-button current-scene-edit" type="button" data-drawer-panel="editor" aria-label="编辑当前场景信息" title="编辑当前场景信息"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button>
+            <button class="text-button" type="button" data-drawer-panel="embed">嵌入接入</button>
           </div>
         </section>
 
-        <aside class="panel detail-panel">
-          <section class="panel-section">
-            <div class="section-head">
-              <h2>当前全景图</h2>
-              <span id="currentIndexText">0 / 0</span>
-            </div>
-            <dl class="meta-grid">
-              <div>
-                <dt>ID</dt>
-                <dd id="metaId">-</dd>
-              </div>
-              <div>
-                <dt>编号</dt>
-                <dd id="metaPanoramaNo">-</dd>
-              </div>
-              <div>
-                <dt>名称</dt>
-                <dd id="metaName">-</dd>
-              </div>
-              <div>
-                <dt>来源</dt>
-                <dd id="metaSource">-</dd>
-              </div>
-              <div>
-                <dt>大小</dt>
-                <dd id="metaSize">-</dd>
-              </div>
-              <div>
-                <dt>创建时间</dt>
-                <dd id="metaCreatedAt">-</dd>
-              </div>
-              <div>
-                <dt>描述</dt>
-                <dd id="metaDescription">-</dd>
-              </div>
-            </dl>
-          </section>
+        <section class="viewer-panel" aria-label="XinT 全景查看器">
+          <div id="viewer" class="viewer"></div>
 
-          <section class="panel-section">
-            <h2>编辑信息</h2>
-            <div class="form-grid">
-              <label class="field">
-                <span>全景编号</span>
-                <input id="editPanoramaNoInput" class="text-input" type="number" min="1" placeholder="例如 1001" />
-              </label>
-              <label class="field">
-                <span>全景名称</span>
-                <input id="editNameInput" class="text-input" type="text" placeholder="请输入名称" />
-              </label>
-            </div>
-            <label class="field">
-              <span>描述信息</span>
-              <textarea id="editDescriptionInput" class="text-area compact" placeholder="可选描述，例如场景说明、楼层、客户名称等"></textarea>
-            </label>
-            <div class="form-actions">
-              <button id="saveMetaBtn" class="button primary" type="button">保存修改</button>
-            </div>
-          </section>
+          <div id="viewerState" class="viewer-state is-loading" role="status" aria-live="polite" aria-atomic="true">
+            <span class="viewer-state__spinner" aria-hidden="true"></span>
+            <strong id="viewerStateTitle">正在加载全景图片</strong>
+            <small id="viewerStateDetail">准备全景资源</small>
+            <button id="viewerStateAction" type="button" hidden>重新加载</button>
+          </div>
 
-          <section class="panel-section">
-            <h2>普通网站接入</h2>
-            <pre id="embedExample" class="code-block"></pre>
-          </section>
+          <div id="hotspotLayer" class="hotspot-layer" aria-label="空间热点"></div>
+
+          <div class="viewer-toolbar" role="toolbar" aria-label="全景查看工具">
+            <button id="prevBtn" class="viewer-action" data-toolbar-control="previous" type="button" aria-label="上一张" title="上一张">‹</button>
+            <button id="nextBtn" class="viewer-action" data-toolbar-control="next" type="button" aria-label="下一张" title="下一张">›</button>
+            <button id="zoomOutBtn" class="viewer-action" data-toolbar-control="zoom-out" type="button" aria-label="缩小视野" title="缩小视野">−</button>
+            <button id="zoomInBtn" class="viewer-action" data-toolbar-control="zoom-in" type="button" aria-label="放大细节" title="放大细节">+</button>
+            <button id="autorotateBtn" class="viewer-action" data-toolbar-control="autorotate" type="button" aria-label="自动旋转" title="自动旋转" aria-pressed="false">↻</button>
+            <button id="directorBtn" class="viewer-action" data-toolbar-control="director" type="button" aria-label="自动演示" title="自动演示" aria-pressed="false">▶</button>
+            <button id="resetBtn" class="viewer-action" data-toolbar-control="reset" type="button" aria-label="重置视角" title="重置视角">⟲</button>
+            <button id="fullscreenBtn" class="viewer-action" data-toolbar-control="fullscreen" type="button" aria-label="全屏预览" title="全屏预览" aria-pressed="false">⛶</button>
+            <button id="customizeToolbarBtn" class="viewer-action viewer-more-button" type="button" aria-haspopup="dialog" aria-label="更多工具" title="更多工具">⋯</button>
+          </div>
+        </section>
+
+        <aside class="scene-facts" aria-label="场景信息">
+          <div class="scene-facts__heading">
+            <span class="section-kicker">SCENE DATA</span>
+            <span id="metaPanoramaNo" class="scene-number">-</span>
+          </div>
+          <dl>
+            <div><dt>来源</dt><dd id="metaSource">-</dd></div>
+            <div><dt>分组</dt><dd id="metaGroup">未分组</dd></div>
+            <div><dt>分辨率</dt><dd id="resolutionText">-</dd></div>
+            <div><dt>文件大小</dt><dd id="metaSize">-</dd></div>
+            <div><dt>创建时间</dt><dd id="metaCreatedAt">-</dd></div>
+          </dl>
+          <p id="metaDescription" class="scene-description">-</p>
+          <button class="outlined-button" type="button" data-drawer-panel="projects">加入项目</button>
         </aside>
       </main>
     </div>
 
+    <div id="drawerBackdrop" class="drawer-backdrop" hidden></div>
+    <aside id="workspaceDrawer" class="workspace-drawer" aria-label="工作区面板" hidden>
+      <div class="drawer-header">
+        <div>
+          <p id="drawerEyebrow" class="eyebrow">LIBRARY</p>
+          <h2 id="drawerTitle">资源库</h2>
+        </div>
+        <button id="drawerCloseBtn" class="icon-button" type="button" aria-label="关闭面板">×</button>
+      </div>
+
+      <section class="drawer-panel" data-panel="library">
+        <div class="drawer-intro">
+          <p>选择图片预览，或添加新的全景图。</p>
+          <button id="refreshBtn" class="outlined-button" type="button">刷新资源</button>
+        </div>
+        <details id="addPanoramaPanel" class="secondary-section add-panorama-panel">
+          <summary>添加全景图</summary>
+          <div class="stack-form">
+            <label class="field" for="addSourceSelect"><span>添加方式</span>
+              <select id="addSourceSelect" class="text-input" disabled>
+                <option value="">正在读取可用来源…</option>
+                <option value="upload" data-source-option="upload">上传本地图片</option>
+                <option value="external" data-source-option="external">使用图片链接</option>
+                <option value="database" data-source-option="database">已有图片地址（高级）</option>
+              </select>
+            </label>
+            <p id="sourceAvailability" class="drawer-copy" role="status" aria-live="polite">正在读取服务端支持的添加方式…</p>
+            <div id="uploadSourceForm" class="source-form" hidden>
+              <label class="upload-zone" for="fileInput">
+                <input id="fileInput" class="file-input-visually-hidden" type="file" accept="image/*" multiple />
+                <strong>选择本地图片</strong>
+                <span>可一次选择多张；编号由系统自动分配</span>
+              </label>
+              <div id="uploadInitPanel" class="upload-init-panel" hidden>
+                <div class="section-label"><span>待上传</span><span id="uploadInitCount">0</span></div>
+                <label class="field"><span>本批次默认分组</span><span class="group-apply-row"><select id="uploadGroupInput" class="text-input"><option value="">未分组</option></select><button id="applyUploadGroupBtn" class="outlined-button" type="button">应用到全部</button></span></label>
+                <p class="drawer-copy">请确认名称和描述。成功上传的图片会从此列表移除。</p>
+                <div id="uploadInitList" class="upload-init-list"></div>
+                <p id="uploadProgress" class="upload-progress" role="status" aria-live="polite"></p>
+                <div class="upload-init-actions">
+                  <button id="uploadCancelBtn" class="outlined-button" type="button">取消剩余图片</button>
+                  <button id="uploadSubmitBtn" class="primary-button" type="button">开始上传</button>
+                </div>
+              </div>
+            </div>
+            <div id="remoteSourceForm" class="source-form" hidden>
+              <label class="field"><span>图片名称</span><input id="remoteNameInput" class="text-input" type="text" placeholder="全景图名称" /></label>
+              <label class="field"><span>图片链接</span><textarea id="remoteUrlInput" class="text-area compact" placeholder="输入可访问的 HTTP 或 HTTPS 图片地址"></textarea></label>
+              <label class="field"><span>分组</span><select id="remoteGroupInput" class="text-input"><option value="">未分组</option></select></label>
+              <button id="registerUrlBtn" class="primary-button" type="button">添加图片链接</button>
+              <p id="remoteFormStatus" class="form-status" role="status" aria-live="polite"></p>
+            </div>
+            <div id="databaseSourceForm" class="source-form" hidden>
+              <label class="field"><span>记录名称</span><input id="databaseTitleInput" class="text-input" type="text" placeholder="全景图标题" /></label>
+              <label class="field"><span>已有图片地址</span><textarea id="databaseImageUrlInput" class="text-area compact" placeholder="HTTP(S) 图片链接或 /media/uploads/ 下的本地图片"></textarea></label>
+              <label class="field"><span>分组</span><select id="databaseGroupInput" class="text-input"><option value="">未分组</option></select></label>
+              <label class="field"><span>缩略图地址（可选）</span><input id="databaseThumbnailInput" class="text-input" type="text" placeholder="留空时使用图片地址" /></label>
+              <button id="createDatabaseRecordBtn" class="primary-button" type="button">保存图片记录</button>
+              <p id="databaseFormStatus" class="form-status" role="status" aria-live="polite"></p>
+            </div>
+          </div>
+        </details>
+        <div class="gallery-filters">
+          <label class="field"><span>按分组筛选</span><select id="galleryGroupFilter" class="text-input"><option value="">全部分组</option></select></label>
+          <label class="field"><span>搜索名称或编号</span><input id="gallerySearchInput" class="text-input" type="search" placeholder="输入名称或编号" /></label>
+        </div>
+        <button id="manageGalleryGroupsBtn" class="outlined-button gallery-group-manage" type="button">新建 / 管理分组</button>
+        <p id="galleryActionStatus" class="form-status" role="status" aria-live="polite"></p>
+        <div id="galleryList" class="gallery-list"></div>
+        <nav class="gallery-pagination" aria-label="资源库分页">
+          <button id="galleryPrevPage" class="outlined-button" type="button">上一页</button>
+          <span id="galleryPageStatus" aria-live="polite">第 1 页</span>
+          <button id="galleryNextPage" class="outlined-button" type="button">下一页</button>
+        </nav>
+      </section>
+
+      <section class="drawer-panel" data-panel="projects" hidden>
+        <div class="project-create">
+          <input id="projectNameInput" class="text-input" type="text" placeholder="新项目名称" />
+          <button id="createProjectBtn" class="primary-button" type="button">创建项目</button>
+        </div>
+        <div class="section-label"><span>项目列表</span><span id="projectCount">0</span></div>
+        <div id="projectList" class="project-list"></div>
+        <p id="projectActionStatus" class="form-status" role="status" aria-live="polite"></p>
+
+        <div class="drawer-divider"></div>
+        <div class="section-label"><span>项目场景</span></div>
+        <div id="projectSceneList" class="project-scene-list"></div>
+        <p id="sceneActionStatus" class="form-status" role="status" aria-live="polite"></p>
+        <div class="stack-form project-actions">
+          <input id="sceneNameInput" class="text-input" type="text" placeholder="将当前全景图加入项目" />
+          <button id="addCurrentSceneBtn" class="outlined-button" type="button">加入当前全景图</button>
+          <button id="inspectProjectBtn" class="trust-button" type="button">
+            <span>运行可信交付检查</span>
+            <small>离线依赖 · 场景链路 · 资源完整性</small>
+          </button>
+          <input id="releaseNameInput" class="text-input" type="text" placeholder="发布版本名称，可选" />
+          <button id="publishProjectBtn" class="primary-button" type="button">生成项目发布版本</button>
+        </div>
+      </section>
+
+      <section class="drawer-panel" data-panel="insights" hidden>
+        <div class="trust-hero">
+          <div>
+            <p class="section-kicker">TRUSTED DELIVERY</p>
+            <h3 id="deliveryStatus">等待检查</h3>
+            <p id="deliverySummary" class="drawer-copy">选择项目后运行检查，系统会评估离线依赖、场景链路和资源完整性。</p>
+          </div>
+          <div id="deliveryScore" class="trust-score" aria-label="交付评分">--</div>
+        </div>
+        <div class="trust-badges">
+          <span id="deliveryReadinessBadge" class="trust-badge">未检查</span>
+          <span id="deliveryOfflineBadge" class="trust-badge">离线状态未知</span>
+        </div>
+        <dl class="trust-stats">
+          <div><dt>场景</dt><dd id="deliverySceneCount">0</dd></div>
+          <div><dt>热点</dt><dd id="deliveryHotspotCount">0</dd></div>
+          <div><dt>资源</dt><dd id="deliveryAssetCount">0</dd></div>
+          <div><dt>问题</dt><dd id="deliveryIssueCount">0</dd></div>
+        </dl>
+        <div class="section-label"><span>检查结果</span><span>按风险排序</span></div>
+        <div id="deliveryCheckList" class="delivery-check-list">
+          <div class="project-empty">尚未生成检查报告。</div>
+        </div>
+        <button class="outlined-button trust-back-button" type="button" data-drawer-panel="projects">返回项目工作区</button>
+      </section>
+
+      <section class="drawer-panel" data-panel="editor" hidden>
+        <p class="drawer-copy">编辑当前全景图的业务信息，不会影响原始图片文件。</p>
+        <dl class="editor-meta">
+          <div><dt>ID</dt><dd id="metaId">-</dd></div>
+          <div><dt>当前名称</dt><dd id="metaName">-</dd></div>
+        </dl>
+        <div class="stack-form">
+          <label class="field"><span>全景编号</span><input id="editPanoramaNoInput" class="text-input" type="number" min="1" placeholder="例如 1001" /></label>
+          <label class="field"><span>全景名称</span><input id="editNameInput" class="text-input" type="text" placeholder="请输入名称" /></label>
+          <label class="field"><span>分组</span><select id="editGroupInput" class="text-input"><option value="">未分组</option></select></label>
+          <label class="field"><span>描述信息</span><textarea id="editDescriptionInput" class="text-area compact" placeholder="可选描述，例如场景说明、楼层、客户名称等"></textarea></label>
+          <button id="saveMetaBtn" class="primary-button" type="button">保存修改</button>
+          <p id="editActionStatus" class="form-status" role="status" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section class="drawer-panel" data-panel="embed" hidden>
+        <p class="drawer-copy">将当前全景图嵌入普通网站。预览模式会随当前选择自动更新。</p>
+        <div class="embed-configurator">
+          <div class="embed-configurator__heading">
+            <span>控件可见性</span>
+            <div class="embed-presets" aria-label="嵌入控件预设">
+              <button type="button" data-embed-preset="all">完整</button>
+              <button type="button" data-embed-preset="compact">精简</button>
+              <button type="button" data-embed-preset="none">纯净</button>
+            </div>
+          </div>
+          <label class="field">
+            <span>可见控件白名单</span>
+            <input id="embedControlsInput" class="text-input" type="text" value="default" spellcheck="false" />
+          </label>
+          <label class="field">
+            <span>额外隐藏控件</span>
+            <input id="embedHiddenControlsInput" class="text-input" type="text" placeholder="例如 resolution,previous,next" spellcheck="false" />
+          </label>
+          <p class="embed-control-help">可配置控件：previous、next、zoom-in、zoom-out、focus、director、autorotate、reset、fullscreen，以及 all、default、none。brand、panorama-no、resolution 等旧 HUD 参数仍可解析，但新版查看器不显示这些叠加信息；旧 mode 参数按标准展开视图处理。</p>
+        </div>
+        <pre id="embedExample" class="code-block"></pre>
+      </section>
+
+      <section class="drawer-panel" data-panel="settings" hidden>
+        <div class="stack-form">
+          <label class="field"><span>服务端 API 地址</span><input id="apiBaseInput" class="text-input" type="url" placeholder="http://127.0.0.1:7210" autocomplete="url" /></label>
+          <p class="drawer-copy">保存后会在此浏览器记住地址，并立即重新连接服务。</p>
+          <button id="connectBtn" class="primary-button" type="button">保存并连接</button>
+          <p id="settingsStatus" class="form-status" role="status" aria-live="polite"></p>
+        </div>
+        <div class="drawer-divider"></div>
+        <div class="stack-form media-storage-settings">
+          <h3>图片存储</h3>
+          <label class="field"><span>存储位置</span>
+            <select id="mediaStorageMode" class="text-input" disabled>
+              <option value="server">本地服务端</option>
+              <option value="client">本地客户端（仅此浏览器）</option>
+              <option value="sqlite">本地 SQLite</option>
+              <option value="cloud">云端 SQLite（Turso/libSQL）</option>
+            </select>
+          </label>
+          <p id="mediaStorageHelp" class="drawer-copy">连接服务后读取图片存储设置。</p>
+          <div id="cloudSettingsPanel" class="stack-form" hidden>
+            <label class="field"><span>云端数据库 URL</span><input id="cloudDatabaseUrlInput" class="text-input" type="url" placeholder="libsql://your-database.turso.io" autocomplete="url" /></label>
+            <label class="field"><span>访问 Token</span><input id="cloudTokenInput" class="text-input" type="password" placeholder="已配置时留空可保留原 Token" autocomplete="new-password" /></label>
+          </div>
+          <label class="field"><span>图片保存形式</span>
+            <select id="mediaFormatSelect" class="text-input" disabled>
+              <option value="original">保留原格式</option>
+              <option value="base64">Base64</option>
+              <option value="transcode">转码后保存</option>
+            </select>
+          </label>
+          <div id="transcodeSettings" class="stack-form" hidden>
+            <label class="field"><span>转码格式</span><select id="mediaCodecSelect" class="text-input"><option value="jpeg">JPEG</option><option value="png">PNG</option><option value="webp">WebP</option></select></label>
+            <label id="mediaQualityField" class="field"><span>图片质量 <output id="mediaQualityValue">85</output></span><input id="mediaQualityInput" class="text-input" type="range" min="1" max="100" value="85" /></label>
+          </div>
+          <p id="mediaStorageModeHelp" class="drawer-copy"></p>
+          <button id="saveMediaStorageBtn" class="primary-button" type="button" disabled>保存图片存储设置</button>
+          <p id="mediaStorageStatus" class="form-status" role="status" aria-live="polite"></p>
+        </div>
+        <div class="danger-zone">
+          <span>危险操作</span>
+          <p>清空后无法恢复当前图库记录，请谨慎使用。</p>
+          <button id="clearBtn" class="icon-action-button is-danger" type="button" aria-label="清空图库" title="清空图库"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button>
+        </div>
+      </section>
+    </aside>
+
+    <dialog id="renameDialog" class="toolbar-settings-dialog" aria-labelledby="renameDialogTitle">
+      <h2 id="renameDialogTitle">重命名</h2>
+      <form id="renameForm" class="stack-form">
+        <label class="field"><span id="renameLabel">名称</span><input id="renameInput" class="text-input" type="text" maxlength="120" required /></label>
+        <p id="renameStatus" class="form-status" role="status" aria-live="polite"></p>
+        <div class="toolbar-settings-actions"><button type="button" class="outlined-button" data-rename-close>取消</button><button id="renameSubmit" type="submit" class="primary-button">保存</button></div>
+      </form>
+    </dialog>
+
+    <div id="systemContextMenu" class="system-context-menu" role="menu" aria-label="系统信息" hidden>
+      <div class="system-context-menu__summary">
+        <strong id="systemNameText">XinT 全景系统</strong>
+        <span id="systemVersionText">版本 v0.2.0</span>
+      </div>
+      <div class="system-context-menu__divider" role="separator"></div>
+      <a id="githubRepoLink" class="system-context-menu__link" href="https://github.com/XinTycd/XinT-Panorama-System" target="_blank" rel="noopener noreferrer" role="menuitem">
+        <span>进入 GitHub 仓库</span><span aria-hidden="true">↗</span>
+      </a>
+    </div>
+
     <script src="./vendor/three.min.js"></script>
+    <script src="./viewer/legacy-viewer.js"></script>
     <script src="./panorama-viewer.js"></script>
+    <script src="./client-media.js"></script>
+    <script src="./gallery-groups.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
