@@ -1,0 +1,86 @@
+# v0.2.0 candidate validation log
+
+## 2026-11-14 16:45 Asia/Shanghai
+
+- Worktree: `<RELEASE_WORKTREE>`, branch `codex/release-v0.2.0`, base `7d80ccf4e5075a83f8b769d21bb7146dcc3423a3`.
+- Runtime: Node.js `v24.14.1`; npm `11.11.0`.
+
+### Clean dependency install
+
+Command: `npm ci` — exit code `0`.
+
+```text
+added 8 packages, and audited 9 packages in 798ms
+2 packages are looking for funding
+found 0 vulnerabilities
+```
+
+### Test suite
+
+Command: `npm test` — exit code `0`.
+
+```text
+Backend tests passed
+sqlite tests passed
+Media storage tests passed
+Ops tests passed
+Legacy viewer behavior tests passed
+Embed control tests passed
+```
+
+Node printed its standard experimental `node:sqlite` warning during SQLite-backed test groups.
+
+### Configuration check
+
+Command: `npm run check:config` — exit code `0`.
+
+```text
+配置校验通过
+Config: <RELEASE_WORKTREE>/config.json
+Storage: <RELEASE_WORKTREE>/backend/storage
+Database: sqlite
+Database file: <RELEASE_WORKTREE>/backend/storage/panorama.sqlite
+Modes: database,external,upload
+```
+
+An earlier test attempt failed because copied assertions still expected package version `0.1.0` and a selectable viewer engine. The candidate assertions were corrected for version `0.2.0` and the fixed legacy renderer; the clean-install test run above passed.
+
+### Static checks and limits
+
+- `frontend/vendor/three.min.js` is byte-for-byte identical to the base commit version (648,280 bytes). The release candidate does not add or bundle PSV assets.
+- Browser smoke (main-session raw output appended below): single Chromium with software WebGL, isolated SQLite, and synthetic fixtures passed API boot, group/upload/project flows, legacy console and widget rendering, zoom-only controls, eight-item pagination, icon delete actions, built-in SVG preview, 390px layout, and absence of PSV requests or uncaught browser exceptions. The test-owned browser and service were closed.
+- Docker, real Turso-account, physical mobile-device, cross-browser, weak-network, and long-running performance validation were not performed.
+- Release version/date in candidate notes: `0.2.0` / `2025-05-16`. This release metadata does not change the actual validation date above.
+- Local Markdown link check: all relative file targets in README, changelog, deployment, API, embedding, and release notes exist. Anchor targets were not mechanically checked.
+- `git diff --check`: exit code `0`; Git reported only LF-to-CRLF working-copy warnings for files with repository line-ending settings.
+[2026-11-14 16:45:43 +08:00] node <TEMP>/xint-release-v020-smoke.js
+Context: isolated temporary SQLite and synthetic fixtures; single Chromium using software WebGL.
+PASS v0.2.0 API boot with isolated SQLite, groups, uploads and project fixtures
+PASS Legacy-only console: one original-renderer canvas and only +/- controls
+PASS Console group filtering, eight-item pagination and icon delete actions
+PASS Actual legacy-only preview screenshot with repository demo image
+PASS Project delete icon completes actual API deletion
+PASS Legacy-only widget loads SVG demo and zoom controls
+PASS 390px layout has no horizontal overflow
+PASS No PSV runtime requests or uncaught browser exceptions
+CLEANUP test-owned browser/service closed; main workspace and real data untouched.
+
+Exit code: 0
+Limitations: no real Turso account, real mobile devices, cross-browser, weak-network, long-run performance or Docker runtime validation.
+
+
+[2026-11-14 16:49:16 +08:00] Final review
+Final pre-commit review:
+- Branch: codex/release-v0.2.0; package and lock version: 0.2.0.
+- 11 Markdown files, 35 local relative-link targets: no missing targets.
+- All local console script references resolve to files.
+- No SQLite databases, uploaded payloads, encoded images, credentials, node_modules or backups in Git candidate paths.
+- No Photo Sphere Viewer, npm Three.js or esbuild packages in the release lockfile.
+- git diff --check and git diff --cached --check returned exit 0 (line-ending notices only).
+- Release version date requested by the user: 2025-05-16. Validation was actually performed on 2026-11-14; validation timestamps are not backdated.
+
+[2026-11-14 17:01:34 +08:00] Release date correction
+The user corrected the release and Git commit year to 2026. Release notes and changelog now use 2026-05-16. Validation entries above retain their actual 2026-11-14 dates.
+
+[2026-11-14 17:04:49 +08:00] Release date correction
+The user updated the requested release and Git commit date to 2026-06-16. Release notes and changelog use this date; actual validation timestamps remain 2026-11-14.
