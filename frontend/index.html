@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./vendor/psv.css" />
     <title>XinT Panorama Studio</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -260,6 +261,17 @@
           <p id="settingsStatus" class="form-status" role="status" aria-live="polite"></p>
         </div>
         <div class="drawer-divider"></div>
+        <div class="stack-form">
+          <h3>预览引擎</h3>
+          <label class="field"><span>全景渲染引擎</span>
+            <select id="viewerEngineSelect" class="text-input" disabled>
+              <option value="psv">Photo Sphere Viewer（默认）</option>
+              <option value="legacy">兼容球面引擎</option>
+            </select>
+          </label>
+          <p id="viewerEngineStatus" class="drawer-copy">连接服务后读取预览引擎设置。</p>
+        </div>
+        <div class="drawer-divider"></div>
         <div class="stack-form media-storage-settings">
           <h3>图片存储</h3>
           <label class="field"><span>存储位置</span>
@@ -310,7 +322,7 @@
     <div id="systemContextMenu" class="system-context-menu" role="menu" aria-label="系统信息" hidden>
       <div class="system-context-menu__summary">
         <strong id="systemNameText">XinT 全景系统</strong>
-        <span id="systemVersionText">版本 v0.2.0</span>
+        <span id="systemVersionText">版本 v0.2.1</span>
       </div>
       <div class="system-context-menu__divider" role="separator"></div>
       <a id="githubRepoLink" class="system-context-menu__link" href="https://github.com/XinTycd/XinT-Panorama-System" target="_blank" rel="noopener noreferrer" role="menuitem">
@@ -318,11 +330,13 @@
       </a>
     </div>
 
+    <script src="./vendor/psv.bundle.js"></script>
     <script src="./vendor/three.min.js"></script>
     <script src="./viewer/legacy-viewer.js"></script>
     <script src="./panorama-viewer.js"></script>
     <script src="./client-media.js"></script>
     <script src="./gallery-groups.js"></script>
+    <script src="./toolbar-settings.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

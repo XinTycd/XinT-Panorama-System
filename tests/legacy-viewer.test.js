@@ -62,8 +62,10 @@ const THREE = {
   CanvasTexture: class { constructor(image) { this.image = image; } dispose() {} }, SRGBColorSpace: "srgb",
   MathUtils: { degToRad: (degrees) => degrees * Math.PI / 180 }
 };
+let psvInstances = 0;
+class NeverPSV { constructor() { psvInstances += 1; throw new Error("wrong engine instantiated"); } }
 const window = {
-  document, THREE, Blob,
+  document, THREE, XinTPSV: { Viewer: NeverPSV }, Blob,
   matchMedia: () => ({ matches: false }), ResizeObserver: class { observe() {} disconnect() {} },
   requestAnimationFrame(callback) { const id = ++nextId; frames.set(id, callback); return id; },
   cancelAnimationFrame(id) { frames.delete(id); },
@@ -75,7 +77,7 @@ vm.runInNewContext(facadeSource, context, { filename: "panorama-viewer.js" });
 
 (async () => {
   const element = new Element();
-  const viewer = window.XinTPanoramaViewer.create({ element });
+  const viewer = window.XinTPanoramaViewer.create({ element, engine: "legacy" });
   assert.equal(viewer.getEngine(), "legacy");
   assert.equal(viewer.getCapabilities().director, false);
   assert.equal(viewer.getCapabilities().autorotate, false);
@@ -83,6 +85,7 @@ vm.runInNewContext(facadeSource, context, { filename: "panorama-viewer.js" });
   assert.equal(viewer.setAutorotate(true), false);
   assert.equal(viewer.playDirector([{ yaw: 0, duration: 1000 }]), false);
   assert.equal(element.dataset.viewerEngine, "legacy");
+  assert.equal(psvInstances, 0, "Configured legacy mode must not construct PSV");
   assert.deepEqual(element.children[0] && element.children[0].constructor.name, "Element");
   const geometry = new SphereGeometry();
   assert.equal(geometry.scaleArgs, null);
@@ -109,5 +112,6 @@ vm.runInNewContext(facadeSource, context, { filename: "panorama-viewer.js" });
   viewer.dispose();
   assert.equal(element.dataset.viewerEngine, "disposed");
   assert.equal(document.listeners.visibilitychange.length, 0);
+  assert.equal(psvInstances, 0);
   console.log("Legacy viewer behavior tests passed");
 })().catch((error) => { console.error(error); process.exitCode = 1; });

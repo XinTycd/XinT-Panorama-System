@@ -22,7 +22,10 @@ function createServer() {
     }
 
     streamFile(req, res, absolutePath, {
-      cacheControl: absolutePath.indexOf(path.join("frontend", "vendor")) > -1
+      cacheControl: absolutePath.endsWith(path.join("frontend", "vendor", "psv.bundle.js")) ||
+        absolutePath.endsWith(path.join("frontend", "vendor", "psv.css"))
+        ? "no-cache"
+        : absolutePath.indexOf(path.join("frontend", "vendor")) > -1
         ? "public, max-age=31536000, immutable"
         : "no-cache"
     });
@@ -30,10 +33,15 @@ function createServer() {
 }
 
 if (require.main === module) {
-  const server = createServer();
-  server.listen(PORT, HOST, function onListen() {
-    console.log("XinT-Panorama-System Frontend started");
-    console.log("Local: http://" + HOST + ":" + PORT);
+  require("./viewer-assets").ensureViewerAssets().then(() => {
+    const server = createServer();
+    server.listen(PORT, HOST, function onListen() {
+      console.log("XinT-Panorama-System Frontend started");
+      console.log("Local: http://" + HOST + ":" + PORT);
+    });
+  }).catch((error) => {
+    console.error(error.message);
+    process.exit(1);
   });
 }
 

@@ -1,5 +1,11 @@
 .git
 node_modules
+frontend/vendor/psv.bundle.js
+frontend/vendor/psv.css
+frontend/vendor/PSV-LICENSE
+frontend/vendor/THREE-LICENSE
+frontend/vendor/THIRD_PARTY_NOTICES.txt
+frontend/vendor/.psv-build-manifest.json
 backups
 tests/.tmp
 backend/storage/uploads

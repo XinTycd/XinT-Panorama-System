@@ -1,4 +1,5 @@
 const { applyRuntimeConfig } = require("../lib/runtime-config");
+const { ensureViewerAssets } = require("./viewer-assets");
 
 applyRuntimeConfig(process.argv.slice(2));
 
@@ -41,6 +42,7 @@ function close(definition) {
 }
 
 async function startAll() {
+  await ensureViewerAssets();
   await backend.initialize();
   for (const definition of servers) {
     await listen(definition);

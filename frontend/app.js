@@ -12,7 +12,8 @@
     projectActionId: 0,
     diagnosticRequestId: 0,
     viewerController: null,
-    viewerEngine: "legacy",
+    viewerEngine: "psv",
+    viewerEngineForced: false,
     maxTextureSize: 4096,
     projects: [],
     currentProjectId: null,
@@ -35,7 +36,7 @@
     galleryPageSize: 8,
     appInfo: {
       name: "XinT 全景系统",
-      version: "0.2.0",
+      version: "0.2.1",
       repositoryUrl: "https://github.com/XinTycd/XinT-Panorama-System"
     }
   };
@@ -185,6 +186,8 @@
     refs.drawerTitle = document.getElementById("drawerTitle");
     refs.drawerEyebrow = document.getElementById("drawerEyebrow");
     refs.settingsStatus = document.getElementById("settingsStatus");
+    refs.viewerEngineSelect = document.getElementById("viewerEngineSelect");
+    refs.viewerEngineStatus = document.getElementById("viewerEngineStatus");
     refs.mediaStorageMode = document.getElementById("mediaStorageMode");
     refs.mediaStorageHelp = document.getElementById("mediaStorageHelp");
     refs.cloudSettingsPanel = document.getElementById("cloudSettingsPanel");
@@ -222,7 +225,7 @@
     try {
       state.viewerController = XinTPanoramaViewer.create({
         element: refs.viewer,
-        engine: "legacy",
+        engine: state.viewerEngine,
         autorotate: state.autorotate,
         onViewChange: updateViewerTelemetry,
         onContextState: handleViewerContextState
@@ -231,7 +234,7 @@
       updateAutorotateButton();
     } catch (error) {
       state.viewerController = null;
-      setViewerState("error", "全景预览启动失败", error.message, "");
+      setViewerState("error", "预览引擎启动失败", error.message + "；可在设置中切换引擎。", "");
     }
   }
 
@@ -248,6 +251,7 @@
       refs.mediaQualityValue.textContent = refs.mediaQualityInput.value;
     });
     refs.saveMediaStorageBtn.addEventListener("click", saveMediaStorageSettings);
+    refs.viewerEngineSelect.addEventListener("change", saveViewerEngine);
     refs.refreshBtn.addEventListener("click", loadGallery);
     refs.clearBtn.addEventListener("click", clearGallery);
     refs.galleryGroupFilter.addEventListener("change", function onGalleryGroupChange() {
@@ -871,7 +875,12 @@
     try {
       var response = await fetchJson("/api/config");
       if (connectionId !== state.connectionId) return;
-      if (!response.viewer || response.viewer.engine !== "legacy") throw new Error("服务端未报告可用的全景查看器");
+      if (response.viewer && (response.viewer.engine === "psv" || response.viewer.engine === "legacy")) {
+        await applyViewerEngine(response.viewer, connectionId);
+      } else {
+        refs.viewerEngineStatus.textContent = "当前服务不支持读取预览引擎设置。";
+        refs.viewerEngineSelect.disabled = true;
+      }
       state.availableModes = Array.isArray(response.modes) ? response.modes : [];
       updateSourceAvailability(state.availableModes, "");
       refs.settingsStatus.textContent = "已连接到 " + state.apiBase;
@@ -900,6 +909,83 @@
         updateSourceAvailability(null, "无法读取可用添加方式。请检查服务地址后重试。");
         refs.settingsStatus.textContent = "连接失败：" + error.message;
       }
+    }
+  }
+
+  async function applyViewerEngine(settings, connectionId) {
+    if (connectionId !== state.connectionId) return;
+    state.viewerEngineForced = settings.forcedByEnvironment === true;
+    refs.viewerEngineSelect.value = settings.engine;
+    refs.viewerEngineSelect.disabled = state.viewerEngineForced;
+    refs.viewerEngineStatus.textContent = state.viewerEngineForced
+      ? "由 PANORAMA_VIEWER_ENGINE 环境变量固定为 " + settings.engine + "。"
+      : "设置保存在服务端；图库和嵌入式预览使用同一引擎。切换会保留当前图片与视角。";
+    if (settings.engine !== state.viewerEngine) return await switchViewerEngine(settings.engine, connectionId);
+    return true;
+  }
+
+  async function saveViewerEngine() {
+    var engine = refs.viewerEngineSelect.value;
+    var connectionId = state.connectionId;
+    if (state.pendingUploads.length) {
+      refs.viewerEngineSelect.value = state.viewerEngine;
+      refs.viewerEngineStatus.textContent = "请先完成或取消待上传图片，再切换预览引擎。";
+      return;
+    }
+    refs.viewerEngineSelect.disabled = true;
+    refs.viewerEngineStatus.textContent = "正在保存预览引擎设置…";
+    try {
+      var result = await fetchJson("/api/settings/viewer", { method: "PUT", body: JSON.stringify({ engine: engine }) });
+      if (connectionId !== state.connectionId) return;
+      if (!result.viewer || result.viewer.engine !== engine) throw new Error("服务端未确认预览引擎设置");
+      var switched = await applyViewerEngine(result.viewer, connectionId);
+      if (engine !== state.viewerEngine || switched === false) throw new Error("预览引擎已保存，但当前浏览器无法启动该引擎");
+      refs.viewerEngineStatus.textContent = "预览引擎已保存。嵌入式预览下次加载时使用此设置。";
+    } catch (error) {
+      refs.viewerEngineSelect.value = state.viewerEngine;
+      refs.viewerEngineStatus.textContent = "保存失败：" + error.message;
+    } finally {
+      if (!state.viewerEngineForced) refs.viewerEngineSelect.disabled = false;
+    }
+  }
+
+  async function switchViewerEngine(engine, connectionId) {
+    if (engine !== "psv" && engine !== "legacy") return;
+    var savedView = state.viewerController ? state.viewerController.getView() : { yaw: 180, pitch: 0, fov: 75 };
+    var item = state.currentIndex >= 0 ? state.items[state.currentIndex] : null;
+    var previousController = state.viewerController;
+    state.requestId += 1;
+    if (state.directorMode) stopDirectorMode();
+    state.viewerController = null;
+    if (previousController) previousController.dispose();
+    state.viewerEngine = engine;
+    refs.viewerPanel.classList.toggle("is-legacy", engine === "legacy");
+    state.viewerController = XinTPanoramaViewer.create({
+      element: refs.viewer,
+      engine: engine,
+      autorotate: false,
+      initialYaw: savedView.yaw,
+      initialPitch: savedView.pitch,
+      initialFov: savedView.fov,
+      onViewChange: updateViewerTelemetry,
+      onContextState: handleViewerContextState
+    });
+    state.maxTextureSize = state.viewerController.getMaxTextureSize();
+    state.autorotate = false;
+    updateAutorotateButton();
+    if (!item) return;
+    var requestId = ++state.requestId;
+    try {
+      var imageUrl = await resolveItemImageUrl(item, false);
+      if (!imageUrl) throw new Error("当前图片资源不可用");
+      var result = await state.viewerController.setPanorama(imageUrl);
+      if (connectionId !== state.connectionId || requestId !== state.requestId || result.stale) return;
+      state.viewerController.setView(savedView, 0);
+      setViewerState("ready", "全景图片已加载", "预览引擎：" + (engine === "psv" ? "Photo Sphere Viewer" : "兼容球面引擎"));
+      return true;
+    } catch (error) {
+      if (connectionId === state.connectionId && requestId === state.requestId) setViewerState("error", "预览引擎切换失败", error.message, "重新加载");
+      return false;
     }
   }
 

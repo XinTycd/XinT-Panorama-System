@@ -1,7 +1,7 @@
 const http = require("http");
 const path = require("path");
 const { URL } = require("url");
-const { applyRuntimeConfig, getModesFromEnv } = require("../lib/runtime-config");
+const { applyRuntimeConfig, getModesFromEnv, getViewerEngineDefault, isViewerEngineForcedByEnvironment, normalizeViewerEngine } = require("../lib/runtime-config");
 const packageInfo = require("../package.json");
 
 applyRuntimeConfig(process.argv.slice(2));
@@ -22,6 +22,22 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const APP_NAME = "XinT 全景系统";
 const APP_VERSION = packageInfo.version;
 const APP_REPOSITORY_URL = String(packageInfo.homepage || "").replace(/#.*$/, "");
+const VIEWER_SETTINGS_FILE = path.join(STORAGE_DIR, "viewer-settings.json");
+
+function readViewerSetting() {
+  try {
+    const saved = JSON.parse(require("fs").readFileSync(VIEWER_SETTINGS_FILE, "utf8"));
+    if (saved && (saved.engine === "psv" || saved.engine === "legacy")) return saved.engine;
+  } catch (error) { if (error.code !== "ENOENT") console.warn("无法读取 viewer-settings.json: " + error.message); }
+  return getViewerEngineDefault();
+}
+
+function getViewerSettings() {
+  const forced = isViewerEngineForcedByEnvironment();
+  const engine = forced ? normalizeViewerEngine(process.env.PANORAMA_VIEWER_ENGINE) : readViewerSetting();
+  return { engine, forcedByEnvironment: forced };
+}
+
 function baseUrlFromRequest(req) {
   return "http://" + req.headers.host;
 }
@@ -64,8 +80,26 @@ async function handleApi(req, res, urlObject) {
       modes: APP_MODES,
       database: getStoreInfo(),
       mediaStorage: getMediaStorage(),
-      viewer: { engine: "legacy" }
+      viewer: getViewerSettings()
     });
+    return;
+  }
+  if (req.method === "PUT" && urlObject.pathname === "/api/settings/viewer") {
+    if (!canChangeStorage(req)) {
+      sendJson(res, 403, { ok: false, message: "请从后端所在电脑的本地控制台修改预览引擎" });
+      return;
+    }
+    if (isViewerEngineForcedByEnvironment()) {
+      sendJson(res, 409, { ok: false, message: "PANORAMA_VIEWER_ENGINE 环境变量已锁定预览引擎" });
+      return;
+    }
+    const input = await parseBody(req);
+    let engine;
+    try { engine = normalizeViewerEngine(input && input.engine); }
+    catch (error) { error.statusCode = 400; throw error; }
+    require("fs").mkdirSync(STORAGE_DIR, { recursive: true });
+    require("fs").writeFileSync(VIEWER_SETTINGS_FILE, JSON.stringify({ engine }, null, 2) + "\n", "utf8");
+    sendJson(res, 200, { ok: true, viewer: getViewerSettings() });
     return;
   }
   if (req.method === "PUT" && urlObject.pathname === "/api/settings/media-storage") {
@@ -108,6 +142,11 @@ function serveStatic(req, res, urlObject) {
     "/embed.js": [path.join(PUBLIC_DIR, "embed.js"), "no-cache"],
     "/widget": [path.join(PUBLIC_DIR, "widget.html"), "no-cache"],
     "/assets/demo-panorama.svg": [path.join(PUBLIC_DIR, "demo-panorama.svg"), "public, max-age=3600"],
+    "/assets/psv.bundle.js": [path.join(__dirname, "..", "frontend", "vendor", "psv.bundle.js"), "no-cache"],
+    "/assets/psv.css": [path.join(__dirname, "..", "frontend", "vendor", "psv.css"), "no-cache"],
+    "/assets/PSV-LICENSE": [path.join(__dirname, "..", "frontend", "vendor", "PSV-LICENSE"), "public, max-age=3600"],
+    "/assets/THREE-LICENSE": [path.join(__dirname, "..", "frontend", "vendor", "THREE-LICENSE"), "public, max-age=3600"],
+    "/assets/THIRD_PARTY_NOTICES.txt": [path.join(__dirname, "..", "frontend", "vendor", "THIRD_PARTY_NOTICES.txt"), "public, max-age=31536000, immutable"],
     "/assets/panorama-viewer.js": [path.join(__dirname, "..", "frontend", "panorama-viewer.js"), "no-cache"],
     "/assets/legacy-viewer.js": [path.join(__dirname, "..", "frontend", "viewer", "legacy-viewer.js"), "no-cache"],
     "/assets/three.min.js": [path.join(__dirname, "..", "frontend", "vendor", "three.min.js"), "public, max-age=31536000, immutable"]
@@ -159,7 +198,7 @@ async function initializeApplication() {
 }
 
 if (require.main === module) {
-  initializeApplication().then(function onReady() {
+  require("../scripts/viewer-assets").ensureViewerAssets().then(initializeApplication).then(function onReady() {
     const server = createServer();
     server.listen(PORT, HOST, function onListen() {
       console.log("XinT-Panorama-System Backend started");

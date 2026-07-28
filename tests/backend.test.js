@@ -2,6 +2,7 @@ const assert = require("assert");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
+const packageInfo = require("../package.json");
 
 const TEST_STORAGE_DIR = path.join(__dirname, ".tmp", "storage-" + process.pid + "-" + Date.now());
 process.env.PANORAMA_STORAGE_DIR = TEST_STORAGE_DIR;
@@ -75,9 +76,16 @@ async function run() {
     const configPayload = JSON.parse(config.body);
     assert.strictEqual(config.statusCode, 200);
     assert.strictEqual(configPayload.app.name, "XinT 全景系统");
-    assert.strictEqual(configPayload.app.version, "0.2.0");
+    assert.strictEqual(configPayload.app.version, packageInfo.version);
     assert.strictEqual(configPayload.app.repositoryUrl, "https://github.com/XinTycd/XinT-Panorama-System");
-    assert.deepStrictEqual(configPayload.viewer, { engine: "legacy" });
+    assert.deepStrictEqual(configPayload.viewer, { engine: "psv", forcedByEnvironment: false });
+    const saveViewerEngine = await request(port, "/api/settings/viewer", { method: "PUT", body: JSON.stringify({ engine: "legacy" }) });
+    assert.strictEqual(saveViewerEngine.statusCode, 200);
+    assert.strictEqual(JSON.parse(saveViewerEngine.body).viewer.engine, "legacy");
+    const savedViewerConfig = await request(port, "/api/config");
+    assert.strictEqual(JSON.parse(savedViewerConfig.body).viewer.engine, "legacy");
+    const invalidViewerEngine = await request(port, "/api/settings/viewer", { method: "PUT", body: JSON.stringify({ engine: "planet" }) });
+    assert.strictEqual(invalidViewerEngine.statusCode, 400);
     const legacyScript = await request(port, "/assets/legacy-viewer.js");
     assert.strictEqual(legacyScript.statusCode, 200);
     const threeScript = await request(port, "/assets/three.min.js");

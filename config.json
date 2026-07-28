@@ -1,6 +1,6 @@
 {
   "modes": ["database", "external", "upload"],
-  "viewer": { "engine": "legacy" },
+  "viewer": { "engine": "psv" },
   "database": {
     "driver": "sqlite",
     "storageDir": "backend/storage"

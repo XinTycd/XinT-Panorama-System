@@ -1,5 +1,11 @@
 node_modules/
 dist/
+frontend/vendor/psv.bundle.js
+frontend/vendor/psv.css
+frontend/vendor/PSV-LICENSE
+frontend/vendor/THREE-LICENSE
+frontend/vendor/THIRD_PARTY_NOTICES.txt
+frontend/vendor/.psv-build-manifest.json
 .DS_Store
 Thumbs.db
 npm-debug.log*

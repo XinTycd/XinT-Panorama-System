@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/assets/psv.css" />
     <title>XinT-Panorama-System Widget</title>
     <style>
       :root {
@@ -105,6 +106,7 @@
       </div>
     </div>
 
+    <script src="/assets/psv.bundle.js"></script>
     <script src="/assets/three.min.js"></script>
     <script src="/assets/legacy-viewer.js"></script>
     <script src="/assets/panorama-viewer.js"></script>
@@ -143,22 +145,31 @@
 
         applyControlVisibility();
         bindEvents();
-        initViewer();
-        loadInitialData();
+        fetch(apiBase + "/api/config").then(toJson).then(function useConfiguredViewer(config) {
+          return config.viewer && (config.viewer.engine === "legacy" || config.viewer.engine === "psv") ? config.viewer.engine : "psv";
+        }).catch(function useDefaultViewerOnConfigFailure() {
+          return "psv";
+        }).then(function createConfiguredViewer(engine) {
+          initViewer(engine);
+          loadInitialData();
+        });
         window.addEventListener("pagehide", function disposeViewer(event) { if (!event.persisted && state.viewerController) state.viewerController.dispose(); }, { once: true });
 
-        function initViewer() {
-          viewerShell.classList.add("is-legacy");
-          ["previous", "next", "autorotate", "focus", "director", "reset", "fullscreen"].forEach(function hideLegacyControl(name) {
-            visibleControls[name] = false;
-          });
-          applyControlVisibility();
-          refs.statusText.hidden = !statusIsFeedback;
-          updateControlContainers();
-          state.autorotate = false;
+        function initViewer(engine) {
+          var legacy = engine === "legacy";
+          viewerShell.classList.toggle("is-legacy", legacy);
+          if (legacy) {
+            ["previous", "next", "autorotate", "focus", "director", "reset", "fullscreen"].forEach(function hideLegacyControl(name) {
+              visibleControls[name] = false;
+            });
+            applyControlVisibility();
+            refs.statusText.hidden = !statusIsFeedback;
+            updateControlContainers();
+          }
           state.viewerController = XinTPanoramaViewer.create({
             element: refs.viewer,
-            autorotate: false,
+            engine: engine,
+            autorotate: state.autorotate,
             onViewChange: updateViewControlState
           });
           state.maxTextureSize = state.viewerController.getMaxTextureSize();
