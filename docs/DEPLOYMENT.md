@@ -2,9 +2,11 @@
 
 ## 运行边界
 
-本项目支持单机、内网和 Docker Compose 部署。默认使用本地 SQLite；仅在选择 Turso 图片存储时连接外部云数据库。全景资源和项目数据保存在 `PANORAMA_STORAGE_DIR` 指定的本地卷中。
+本项目支持单机、内网和 Docker Compose 部署。默认使用本地 SQLite；仅选择 Turso 图片存储时才会连接外部云数据库。全景资源和项目数据保存在 `PANORAMA_STORAGE_DIR` 指定的本地卷中。
 
 运行需要 Node.js 24 或更高版本，以使用内置的 `node:sqlite`。SQLite 数据库固定为存储目录下的 `panorama.sqlite`；不要单独移动数据库文件而遗漏同目录上传资源。
+
+当前实现不包含用户身份、组织权限、审计、SLA 或企业对象存储编排。
 
 ## Docker Compose
 

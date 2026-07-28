@@ -1,0 +1,238 @@
+[2026-11-14 15:28:24 +08:00] node <TEMP>/xint-psv-integration-smoke.js (initial browser check)
+PASS Isolated SQLite/media/project fixtures
+DIAGNOSTICS {"errors":["resetView is not defined"],"ui":{"engine":{"viewerEngine":"psv","viewerCompatibility":"inactive"},"viewerState":"viewer-state is-loading","status":"等待连接","detail":"准备渲染引擎与全景资源","body":"XT\nXinT Panorama\nSTUDIO / 720\n资源库 0\n项目\n设置\n等待连接\n⛶\n\nCURRENT PANORAMA\n\n尚未选择全景图\n0 / 0\n来源: -\n嵌入接入\nLoading...\nXT\nXINT IMMERSIVE ENGINE\n正在加载全景图片\n准备渲染引擎与全景资源\nN\nNE\nE\nSE\nS\nSW\nW\nNW\n180° S\nYAW\n180°\nPITCH\n0°\nFOV\n75°\n分辨率: -\n←\n→\n−\n＋\n自动演示\n自动旋转\n⌖\n⚙工具栏\n拖动观察 · 滚轮缩放 · 按 D 自动演示\nXT\nSCENE DATA\n-\n来源\n-\n分组\n未分组\n文件大小\n-\n创建时间\n-\n\n-\n\n加入项目"}}
+Cleanup completed: test-owned Chrome and isolated service closed; user data untouched.
+page.waitForFunction: Timeout 15000ms exceeded.
+    at ready (<TEMP>\xint-psv-integration-smoke.js:22:14)
+    at <TEMP>\xint-psv-integration-smoke.js:59:11
+
+Exit code: 1
+Follow-up: restore missing resetView handler before retest.
+
+[2026-11-14 15:31:16 +08:00] node <TEMP>/xint-psv-integration-smoke.js (toolbar persistence regression)
+PASS Isolated SQLite/media/project fixtures
+PASS Console PSV-only, legacy URL normalized, idle rotation off
+PASS Console zoom: 60 -> 52
+PASS Shared-panorama scene identity and PSV hotspot projection: yaw 315
+PASS SQLite Base64 HTTP image rendered in console
+DIAGNOSTICS {"errors":[],"ui":{"engine":{"viewerEngine":"psv","viewerCompatibility":"inactive"},"viewerState":"viewer-state is-ready","status":"已就绪","detail":"服务端示例","body":"XT\nXinT Panorama\nSTUDIO / 720\n资源库 3\n项目\n设置\n已就绪\n⛶\n\nCURRENT PANORAMA\n\n服务端示例\n1 / 3\n来源: uploaded-base64\n嵌入接入\nXT\nXINT IMMERSIVE ENGINE\n全景图片已就绪\n服务端示例\nN\nNE\nE\nSE\nS\nSW\nW\nNW\n179° S\nYAW\n179°\nPITCH\n0°\nFOV\n75°\n01\n服务端示例\n02\nSQLite 示例\n03\nXinTycd Demo Panorama\n分辨率: 1024 × 512\n←\n→\n−\n＋\n自动演示\n自动旋转\n⌖\n⚙工具栏\n拖动观察 · 滚轮缩放 · 按 D 自动演示\nXT\nSCENE DATA\n1\n来源\nuploaded-base64\n分组\n演示资源\n文件大小\n11.22 KB\n创建时间\n2026-11-14 15:29:36\n\n-\n\n加入项目"}}
+Cleanup completed: test-owned Chrome and isolated service closed; user data untouched.
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+'flex' !== 'none'
+
+    at <TEMP>\xint-psv-integration-smoke.js:97:12
+
+Exit code: 1
+Follow-up: repair two malformed compound CSS selectors; add CSS parser check.
+
+[2026-11-14 15:32:45 +08:00] node <TEMP>/xint-psv-integration-smoke.js (demo SVG dimensions regression)
+PASS Isolated SQLite/media/project fixtures
+PASS Console PSV-only, legacy URL normalized, idle rotation off
+PASS Console zoom: 60 -> 52
+PASS Shared-panorama scene identity and PSV hotspot projection: yaw 315
+PASS SQLite Base64 HTTP image rendered in console
+PASS Toolbar excludes removed features and cookie survives reload
+DIAGNOSTICS {"errors":[],"ui":{"engine":{"viewerEngine":"psv","viewerCompatibility":"inactive"},"viewerState":"viewer-state is-error","status":"加载失败","detail":"资源可能不可访问或格式不受支持。","body":"XT\nXinT Panorama\nSTUDIO / 720\n资源库 3\n项目\n设置\n加载失败\n⛶\n\nCURRENT PANORAMA\n\nXinTycd Demo Panorama\n3 / 3\n来源: -\n嵌入接入\nXT\nXINT IMMERSIVE ENGINE\n当前场景暂时无法显示\n资源可能不可访问或格式不受支持。\n重新加载\nN\nNE\nE\nSE\nS\nSW\nW\nNW\n170° S\n01\n服务端示例\n02\nSQLite 示例\n03\nXinTycd Demo Panorama\n分辨率: -\n←\n→\n−\n＋\n自动演示\n自动旋转\n⌖\n⚙工具栏\n拖动观察 · 滚轮缩放 · 按 D 自动演示\nXT\nSCENE DATA\n3\n来源\nbackend-demo\n分组\n未分组\n文件大小\n-\n创建时间\n2026-11-14 15:31:17\n\n-\n\n加入项目"}}
+Cleanup completed: test-owned Chrome and isolated service closed; user data untouched.
+page.waitForFunction: Timeout 15000ms exceeded.
+    at ready (<TEMP>\xint-psv-integration-smoke.js:22:14)
+    at <TEMP>\xint-psv-integration-smoke.js:100:11
+
+Exit code: 1
+Follow-up: add explicit pixel dimensions to the built-in SVG demo.
+
+[2026-11-14; command time not individually captured] npm view @photo-sphere-viewer/core@5.15.1 version peerDependencies dependencies dist.tarball
+version 5.15.1; dependencies { three: '^0.185.1' }; no peerDependencies output.
+
+[2026-11-14; command time not individually captured] npm install --save-exact @photo-sphere-viewer/core@5.15.1; npm install --save-dev esbuild
+PASS core pinned 5.15.1; lock resolves three 0.185.1 and esbuild 0.28.2; audit reported 0 vulnerabilities.
+
+[2026-11-14; command time not individually captured] npm run build:vendor
+PASS generated frontend/vendor/psv.bundle.js, psv.css, PSV-LICENSE, THREE-LICENSE, THIRD_PARTY_NOTICES.txt.
+
+[2026-11-14; command time not individually captured] npm test
+PASS backend/sqlite/media-storage/ops regression tests; viewer-contract; viewer-adapter behavior; vendor HTTP routes; CSS parse/cookie hiding; embed-controls.
+
+[2026-11-14; command time not individually captured] npm test (after adding explicit intrinsic size to built-in SVG panorama)
+PASS all nine test groups. Generated bundle/routes still tested from local repo resources. Console/widget browser verification is being performed by the main session; not claimed complete here.
+[2026-11-14 15:49:36 +08:00] node <TEMP>/xint-psv-component-probe.js
+Context: isolated HTTP-origin Chromium with software WebGL; repository demo and synthetic four-quadrant PNG only.
+PASS PSV SVG MIME compatibility and actual demo decode: 4096x2048
+PASS PSV image direction yaw=45, vertical FOV=60, center RGB=223,52,52
+PASS PSV image direction yaw=135, vertical FOV=60, center RGB=30,210,30
+PASS PSV image direction yaw=225, vertical FOV=60, center RGB=30,30,220
+PASS PSV image direction yaw=315, vertical FOV=60, center RGB=220,210,30
+PASS PSV dispose and no uncaught browser exceptions
+CLEANUP test-owned browser closed
+
+Exit code: 0
+Scope: PSV component only; dual-engine configuration and full UI still pending validation.
+
+[2026-11-14; command time not individually captured] npm test
+PASS backend, sqlite, media-storage, ops, viewer-contract, PSV facade behavior, legacy viewer behavior, asset auto-build/routes, CSS parser/cookie hiding, embed controls, and environment-locked viewer config groups.
+
+Implementation notes: configurable viewer engines use priority PANORAMA_VIEWER_ENGINE > backend/storage/viewer-settings.json > config.json viewer.engine > psv. Console changes engine with a same-page dispose/recreate and restores the current image/view; pending uploads block a change. Widget reads /api/config before creating its selected renderer. Both facades are lazy; only the selected renderer is constructed. Legacy renderer is one inward sphere and one PerspectiveCamera, with no legacy projection modes or comparison UI.
+
+Browser scope: no browser run by this implementation agent. Main session is responsible for dual-engine console/widget verification.
+[2026-11-14 15:59:53 +08:00] node <TEMP>/xint-psv-integration-smoke.js (final configurable dual-engine UI verification)
+PASS Isolated SQLite/media/project fixtures
+PASS Console PSV-only, legacy URL normalized, idle rotation off
+PASS Console zoom: 60 -> 52
+PASS Shared-panorama scene identity and PSV hotspot projection: yaw 315
+PASS SQLite Base64 HTTP image rendered in console
+PASS Toolbar excludes removed features and cookie survives reload
+PASS README screenshot captured from actual UI using repository demo image
+PASS Embedded widget PSV-only and deprecated mode compatibility
+PASS Engine selector persists legacy and preserves selected image with one canvas
+PASS Legacy setting survives reload and is shared by widget
+PASS Switching backend setting to PSV restores widget PSV engine
+PASS Visual yaw convention and vertical FOV: 4 source-color quadrants / round trips
+PASS PSV adapter Data URL, Blob URL and SQLite media URL
+PASS clear/reload/dispose and post-dispose load rejection
+PASS Legacy visual yaw/FOV, real camera hotspot projection, one canvas and disposal
+PASS No uncaught exceptions or external CDN requests
+Browser smoke completed. Real Turso account, real mobile devices, weak-network and long-running performance were not tested.
+Cleanup completed: test-owned Chrome and isolated service closed; user data untouched.
+
+Exit code: 0
+
+[2026-11-14 15:59:53 +08:00] npm run test
+
+> xint-panorama-system@0.1.0 pretest
+> node scripts/ensure-viewer-assets.js
+
+
+> xint-panorama-system@0.1.0 test
+> node tests/backend.test.js && node tests/sqlite.test.js && node tests/media-storage.test.js && node tests/ops.test.js && node tests/viewer-contract.test.js && node tests/viewer-adapter.test.js && node tests/legacy-viewer.test.js && node tests/viewer-assets.test.js && node tests/viewer-css.test.js && node tests/embed-controls.test.js && node tests/viewer-engine-config.test.js
+
+(node:40072) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Backend tests passed
+(node:22648) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+sqlite tests passed
+(node:25444) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Media storage tests passed
+(node:11848) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Ops tests passed
+Viewer contract tests passed
+Viewer adapter behavior tests passed
+Legacy viewer behavior tests passed
+(node:28036) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Viewer asset route tests passed
+Viewer CSS tests passed
+Embed control tests passed
+Viewer engine config tests passed
+
+Exit code: 0
+
+[2026-11-14 15:59:57 +08:00] npm run check:config
+
+> xint-panorama-system@0.1.0 check:config
+> node scripts/check-config.js
+
+配置校验通过
+Config: <PROJECT_ROOT>\config.json
+Storage: <PROJECT_ROOT>\backend\storage
+Database: sqlite
+Database file: <PROJECT_ROOT>\backend\storage\panorama.sqlite
+Modes: database,external,upload
+
+Exit code: 0
+
+
+[2026-11-14; command time not individually captured] npm test (legacy preview simplification)
+PASS all 11 groups. Added behavior/contract coverage for disabled legacy autoplay/director timers, legacy-only zoom controls independent of toolbar cookie hiding, legacy hidden overlays/scene rail requests, and preserved widget error feedback.
+
+[2026-11-14; command time not individually captured] npm test (widget legacy CSS scope correction)
+PASS all 11 groups. Widget inline CSS now parses without esbuild warnings; mobile media query closes before legacy rules. Legacy control masking now applies hidden state to all widget controls, retaining only eligible zoom controls and transient loading/error status.
+
+[2026-11-14 16:27:53 +08:00] npm test; node --check frontend/app.js (regular viewer controls final pass)
+PASS: all 11 test groups; app.js syntax valid. No browser launched in this pass.
+
+
+[2026-11-14 16:28:51 +08:00] node tests/viewer-contract.test.js; node tests/viewer-css.test.js (legacy fullscreen final correction)
+PASS: legacy fullscreen is hidden and viewer CSS parses without warnings.
+
+[2026-11-14 16:30:25 +08:00] node <TEMP>/xint-professional-viewer-smoke.js (final professional controls and minimal legacy UI)
+PASS Isolated SQLite/media/project fixtures
+PASS Professional PSV view: standard controls, no HUD overlays, idle rotation off
+PASS Console zoom: 60 -> 52
+PASS Shared-panorama scene identity and PSV hotspot projection: yaw 315
+PASS SQLite Base64 HTTP image rendered in console
+PASS Toolbar excludes removed features and cookie survives reload
+PASS README screenshot captured from actual UI using repository demo image
+PASS 390px responsive viewport: no horizontal document overflow and usable zoom touch target
+PASS Embedded widget PSV-only and deprecated mode compatibility
+PASS Minimal legacy console: only +/- zoom, cookie-independent, no overlays/toolbar/auto hotkeys
+PASS Engine selector persists legacy and preserves selected image with one canvas
+PASS Minimal legacy widget: only +/- zoom; failed image feedback remains visible
+PASS Legacy setting survives reload and is shared by widget
+PASS Switching backend setting to PSV restores widget PSV engine and full controls
+PASS Visual yaw convention and vertical FOV: 4 source-color quadrants / round trips
+PASS PSV adapter Data URL, Blob URL and SQLite media URL
+PASS clear/reload/dispose and post-dispose load rejection
+PASS Legacy visual yaw/FOV, real camera hotspot projection, one canvas and disposal
+PASS No uncaught exceptions or external CDN requests
+Browser smoke completed. Real Turso account, real mobile devices, weak-network and long-running performance were not tested.
+Cleanup completed: test-owned Chrome and isolated service closed; user data untouched.
+
+Exit code: 0
+
+[2026-11-14 16:30:25 +08:00] npm run test
+
+> xint-panorama-system@0.1.0 pretest
+> node scripts/ensure-viewer-assets.js
+
+
+> xint-panorama-system@0.1.0 test
+> node tests/backend.test.js && node tests/sqlite.test.js && node tests/media-storage.test.js && node tests/ops.test.js && node tests/viewer-contract.test.js && node tests/viewer-adapter.test.js && node tests/legacy-viewer.test.js && node tests/viewer-assets.test.js && node tests/viewer-css.test.js && node tests/embed-controls.test.js && node tests/viewer-engine-config.test.js
+
+(node:13408) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Backend tests passed
+(node:38148) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+sqlite tests passed
+(node:30488) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Media storage tests passed
+(node:34620) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Ops tests passed
+Viewer contract tests passed
+Viewer adapter behavior tests passed
+Legacy viewer behavior tests passed
+(node:25456) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Viewer asset route tests passed
+Viewer CSS tests passed
+Embed control tests passed
+Viewer engine config tests passed
+
+Exit code: 0
+
+[2026-11-14 16:30:30 +08:00] npm run check:config
+
+> xint-panorama-system@0.1.0 check:config
+> node scripts/check-config.js
+
+配置校验通过
+Config: <PROJECT_ROOT>\config.json
+Storage: <PROJECT_ROOT>\backend\storage
+Database: sqlite
+Database file: <PROJECT_ROOT>\backend\storage\panorama.sqlite
+Modes: database,external,upload
+
+Exit code: 0
+
+[2026-11-14 16:38:48 +08:00] Final documentation and runtime status
+Documentation verification: 13 Markdown files, 62 local relative-link targets, zero missing targets, zero trailing-whitespace findings.
+git diff --check: exit 0; git diff --cached --check: exit 0 (Windows CRLF notices only).
+Final documentation cleanup removes obsolete intermediate comparison notes and unsupported double-click focus claims.
+Runtime limitation: both restarting the existing task-owned service and starting an additional persistent background service were rejected by automatic approval review. Returned reason: blocked by policy. No alternate process-control mechanism was used. Existing persistent services remain unchanged; isolated short-lived browser and API verification completed successfully.
+No automated Chrome processes were left running. User-owned Chrome sessions were not closed.

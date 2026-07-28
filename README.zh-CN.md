@@ -1,102 +1,135 @@
 # XinT Panorama System
 
-[English](README.md) | **简体中文**
+[English](./README.md) | **简体中文**
 
-一个用于自托管管理、浏览和嵌入 360° 全景资源的系统。
+自托管 360° 全景资源管理与预览系统。
 
-[快速开始](#快速开始) · [功能](#功能) · [配置](#配置) · [文档](#文档) · [参与贡献](CONTRIBUTING.md)
+[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white)](https://sqlite.org/)
+[![Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue)](./LICENSE)
+
+**版本 0.2.1 · 2026-07-29。** 查看器默认使用 Photo Sphere Viewer（PSV）5.15.1，也可选择简化的原球面 renderer；同一时间仅运行选定的一个引擎。桌面 Chrome 与 390px 响应式视口已检查；真实手机、其他浏览器、Turso、弱网长时运行和 Docker runtime 尚未验证。
+
+[快速开始](#快速开始) · [功能](#功能) · [部署与运维](./docs/DEPLOYMENT.md) · [文档](#文档) · [贡献](#贡献) · [安全](#安全)
 
 ## 项目背景
 
-XinT Panorama System 将全景图片、项目与场景引用、可嵌入预览放到同一套自托管流程中。项目起点是整理全景图片以及维护图库、项目场景和外部页面之间的资源引用时，手工处理比较分散。
+全景图片常散落在不同目录和链接里，项目中的场景与图片引用也不易一处维护；需要在网站或交付页面展示时，还得单独处理嵌入方式。XinT Panorama 把图库、项目场景、热点和网页预览放在一个可自行部署的系统中。
 
-本版更新了控制台和资源处理流程，并将元数据迁移到 SQLite，以简化本地部署。默认查看器采用标准球面全景渲染方式，提供拖动浏览和缩放控件。
+这次整理将运行数据库从 MySQL 改为 SQLite，减轻本地部署时的配置和维护负担；图片则可按使用场景保存在浏览器、本地服务端、SQLite 或 Turso。查看器默认使用 Photo Sphere Viewer，也可选择简化的原球面 renderer；项目保留图库、场景和热点等业务能力，暂时关闭特殊投影和双图比较。
 
-![使用内置演示全景图的控制台预览](docs/assets/legacy-preview.png)
+![XinT Panorama 控制台显示内置演示全景图](docs/assets/studio-preview.png)
 
-*截图使用仓库内置演示全景图和合成项目数据。*
+*控制台内置演示全景图预览。*
 
 ## 快速开始
 
-需要 Node.js 24 或更高版本及 npm。
+需要 Node.js 24 或更高版本。
 
 ```bash
 npm ci
 npm start
 ```
 
-控制台地址：<http://127.0.0.1:7211>；API 地址：<http://127.0.0.1:7210>。只校验配置而不启动服务，可运行 `npm run check:config`。
+打开控制台 <http://127.0.0.1:7211>；API 默认监听 <http://127.0.0.1:7210>。`npm start` 同时启动前后端。第一次启动会在 `backend/storage/panorama.sqlite` 初始化数据库；若该目录含旧版 `gallery.json` 或 `catalog.json`，会一次性迁移到 SQLite。迁移前请备份旧存储目录。
 
-Docker Compose 部署请参阅[部署指南](DEPLOYMENT.md#docker-compose)。
+Docker Compose、配置、备份和恢复说明见[部署指南](./docs/DEPLOYMENT.md)。
 
 ## 功能
 
-- 浏览全景图库、创建分组并筛选；客户端每页显示 8 项。
-- 创建项目和场景、放置热点，并在场景流程中引用图库全景图。
-- 通过脚本标签或独立 widget 地址嵌入全景查看器。
-- 为新保存的图片选择浏览器 IndexedDB、本地文件、本地 SQLite 或 Turso SQLite；元数据始终保存在本地 SQLite 数据库。
-- 根据存储位置选择保留源图片或转码为 JPEG、PNG、WebP，并设置适用的质量参数。
-- 使用附带脚本备份和恢复 SQLite 数据库及服务端图片文件。
+- 管理本地上传、远程链接或已有地址的全景资源；按命名分组筛选，控制台每页显示 8 项。
+- 使用 SQLite 保存图库、项目、场景、热点和发布记录；项目可导入/导出 JSON，并生成交付诊断与发布校验。
+- 使用全景查看器浏览图片，默认 PSV，也可配置选择简化的原球面 renderer。PSV 使用自定义图标工具栏，外观接近常见全景查看器，并关闭 PSV 原生 navbar；legacy 仅提供拖动观察与缩放按钮。查看器不显示罗盘、遥测、品牌、全景编号、分辨率或悬浮场景轨道。
+- 可配置 PSV 控制台工具栏按钮显示偏好，并通过浏览器 Cookie 保存；legacy 的两个缩放按钮始终显示。widget 控件通过嵌入参数配置，不使用控制台 Cookie。
+- 图片可保存到当前浏览器 IndexedDB、本地服务端文件、本地 SQLite 或 Turso 云端 SQLite；服务端和浏览器支持原格式、Base64 与 JPEG/PNG/WebP 转码。元数据始终保存在本地 SQLite。
+- 提供 `embed.js` 与 iframe widget，可将资源嵌入其他页面。
+- 提供 SQLite 与媒体文件备份/恢复脚本。
 
-## 查看器
+## 选择查看器引擎
 
-本版使用简化的球面查看器，支持拖动浏览及放大、缩小控件。旧版多投影视图和双图比较不包含在本版中。
-
-## 配置
-
-启动前可编辑 `config.json`。默认使用 SQLite 和本地存储：
+系统设置可选择预览引擎，默认 `psv`；也可选 `legacy` 使用简化的原球面 renderer。两个引擎均只提供标准全景浏览，不含多投影模式或双图比较。优先级为环境变量 `PANORAMA_VIEWER_ENGINE`、本地 `viewer-settings.json`、`config.json` 的 `viewer.engine`，最后默认 `psv`；环境变量强制时选择器会禁用。控制台保存后会在当前页面重建查看器并保留当前图片与视角；待上传队列非空时不能切换。widget 初始化时读取同一全局配置，已打开的 widget 不会跨刷新热同步。一次只运行一个引擎。widget 只显示操作图标，加载或错误时会显示必要反馈；旧 `brand`、`panorama-no`、`resolution` 控件 token 仍可解析，但不再显示对应 HUD。
 
 ```json
-{
-  "modes": ["database", "external", "upload"],
-  "viewer": { "engine": "legacy" },
-  "database": {
-    "driver": "sqlite",
-    "storageDir": "backend/storage"
-  },
-  "server": {
-    "backend": { "host": "127.0.0.1", "port": 7210 },
-    "frontend": { "host": "127.0.0.1", "port": 7211 }
-  }
-}
+{ "viewer": { "engine": "psv" } }
 ```
 
-本版查看器固定使用 `legacy`。`PANORAMA_CONFIG` 可指定其他配置文件；`PANORAMA_STORAGE_DIR`、`PANORAMA_HOST`、`PANORAMA_PORT`、`FRONTEND_HOST`、`FRONTEND_PORT` 可覆盖存储目录和监听地址。`PANORAMA_APP_MODES` 接受逗号分隔的 `database`、`external` 和 `upload`。不支持 MySQL；首次启动时会在适用情况下将旧 JSON 图库数据迁移到 SQLite。
+## 嵌入示例
+
+```html
+<div id="panorama"></div>
+<script
+  src="https://your-host.example/embed.js"
+  data-target="panorama"
+  data-panorama-no="1"
+></script>
+```
+
+完整参数和控件白名单见[嵌入说明](./docs/EMBEDDING.md)。通过 HTTPS 页面嵌入时，服务端也应使用 HTTPS。
 
 ## 图片存储
 
-图库、项目、场景和设置元数据保存在存储目录下的本地 `panorama.sqlite`。图片存储设置作用于新保存的图片：
-
-| 图片位置 | 图片数据 | 说明 |
+| 位置 | 图片内容 | 读取范围 |
 | --- | --- | --- |
-| 浏览器 | IndexedDB | 仅原浏览器和站点来源可读取，嵌入 widget 无法访问。 |
-| 本地服务端 | `uploads/` 文件，或 `encoded-images/` 中的 Base64 | 支持保留图片字节或转码。 |
-| 本地 SQLite | `panorama.sqlite` 中的 Base64 | 可选 Base64 或转码，不支持原格式存储。 |
-| Turso SQLite | 配置的 Turso 数据库中的 Base64 | 可选 Base64 或转码；需由部署者配置账号凭据和连接。 |
+| 浏览器 | IndexedDB | 同一浏览器来源；不能供 widget 读取 |
+| 本地服务端 | 原格式/转码文件或 Base64 | 当前 XinT 服务 |
+| 本地 SQLite | Base64，可转码后保存 | 当前 XinT 服务 |
+| Turso SQLite | Base64，可转码后保存 | 配置的 Turso 数据库 |
 
-SQLite 图片模式使用 Base64 数据，并可在保存前转码。转码可能改变保存的源图片副本；系统不承诺额外保留上传时的原始字节。云服务容量和成本取决于部署者所用的 Turso 方案。
+图片存储设置仅能从运行后端的电脑上的 localhost 控制台更改。Turso 需要自行配置数据库 URL 与写入令牌。完整细节见[部署指南](./docs/DEPLOYMENT.md)。
 
 ## 开发
 
 ```bash
 npm test
 npm run check:config
+npm run build:vendor
 ```
 
-测试使用临时存储和合成样本。本地启动应用请运行 `npm start`。运行数据写入配置的存储目录；请勿将该目录纳入源码控制，并由部署者自行纳入备份。
+开发环境要求 Node.js 24；`sharp` 用于图片转码。从源码首次运行时，`npm ci` 会安装构建依赖；`npm run build:vendor` 或应用启动流程会按锁定版本/hash生成缺失的 viewer 资源和许可文件。生产 Docker runtime 镜像已带这些资源，运行阶段不需要构建依赖。依赖版本见 `package.json` 与 `package-lock.json`。桌面 Chrome 已检查两个引擎、widget 与 390px 响应式视口；这不代表真实手机或跨浏览器验收。真实 Turso、弱网/长时运行和 Docker runtime 尚未验证。具体记录见[PSV 集成日志](./docs/logs/2026-11-14-psv-integration.log)与[开发日志](./docs/DEVELOPMENT_LOG.md)。
+
+### 选择查看器引擎
+
+设置页保存引擎选择；配置文件 `viewer.engine` 默认为 `psv`，可选 `legacy` 使用简化的原球面 renderer。两者都只显示标准全景，不含多个投影模式或双图比较。环境变量 `PANORAMA_VIEWER_ENGINE` 优先级最高，其次是本地设置、配置文件，最后默认 `psv`。控制台与 widget 使用相同选择，单次只创建所选的一个引擎：
+
+```json
+{ "viewer": { "engine": "psv" } }
+```
+
+## 代码结构
+
+```text
+backend/       API、SQLite、媒体存储与路由
+  public/      embed.js、widget.html
+frontend/      控制台、viewer facade、浏览器媒体模块；viewer/构建入口
+lib/           HTTP 与运行配置
+scripts/       启动、配置校验、备份与恢复
+tests/         API、数据库、媒体、运维、viewer 与 embed 测试
+docs/          API、嵌入、开发和迁移文档
+```
 
 ## 文档
 
-- [部署与运维](DEPLOYMENT.md)
-- [API 参考](docs/API.md)
-- [嵌入指南](docs/EMBEDDING.md)
-- [版本说明](docs/releases/v0.2.0-zh-CN.md)
-- [English README](README.md)
+- [API 参考](./docs/API.md)
+- [嵌入参数](./docs/EMBEDDING.md)
+- [部署、配置、存储与备份](./docs/DEPLOYMENT.md)
+- [文档索引](./docs/README.md)
+- [产品范围](./docs/PRODUCT.md)
+- [维护地图](./docs/PROJECT_CONTEXT.md)
+- [查看器说明](./docs/VIEWER_INNOVATION.md)
+- [查看器现代化计划](./docs/VIEWER_MODERNIZATION_PLAN.md)
+- [开发日志](./docs/DEVELOPMENT_LOG.md)
+- [变更记录](./CHANGELOG.md)
+- [v0.2.1 发布说明](./docs/releases/v0.2.1-zh-CN.md)
+- [v0.2.1 English release notes](./docs/releases/v0.2.1.md)
 
-## 参与贡献与安全
+## 贡献
 
-欢迎通过仓库的[问题跟踪器](https://github.com/XinTycd/XinT-Panorama-System/issues)反馈问题或贡献代码，详见[贡献指南](CONTRIBUTING.md)。安全问题请参阅[安全政策](SECURITY.md)。发布 fork 或版本前，请检查暂存文件清单，确认其中没有运行数据库、上传图片、凭据或备份。
+欢迎通过 [GitHub Issues](https://github.com/XinTycd/XinT-Panorama-System/issues) 报告问题或提出改进；提交代码前请阅读[贡献指南](./CONTRIBUTING.md)。
 
-## 许可证
+## 安全
 
-项目采用 [Apache License 2.0](LICENSE)。仓库中的 Three.js 浏览器构建保留了上游许可证声明，详见[第三方许可说明](THIRD_PARTY_NOTICES.md)。
+请勿在 Issue 或公开提交中包含真实数据库、图片、访问令牌或客户数据。报告安全问题请阅读[安全政策](./SECURITY.md)。
+
+## 许可
+
+本项目由 XinTycd 发布，使用 [Apache License 2.0](./LICENSE)。Photo Sphere Viewer 使用 MIT 许可；构建输出包含 PSV 与 Three.js 的许可文件及[第三方说明](./THIRD_PARTY_NOTICES.md)。

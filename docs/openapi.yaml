@@ -1,0 +1,191 @@
+openapi: 3.0.3
+info:
+  title: XinT Panorama Trusted Delivery API
+  version: 0.2.1
+  description: Project diagnostics, release creation and snapshot verification.
+servers:
+  - url: http://127.0.0.1:7210
+paths:
+  /api/projects/{projectId}/diagnostics:
+    get:
+      summary: Diagnose project readiness and asset references
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Diagnostic report
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, report]
+                properties:
+                  ok:
+                    type: boolean
+                  report:
+                    $ref: "#/components/schemas/DiagnosticReport"
+        "404":
+          description: Project not found
+  /api/projects/{projectId}/releases:
+    post:
+      summary: Create a release snapshot
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        "201":
+          description: Release created; warning diagnostics do not prevent publishing
+        "404":
+          description: Project not found
+        "422":
+          description: Diagnostic errors prevent release creation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, message, report]
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                  report:
+                    $ref: "#/components/schemas/DiagnosticReport"
+  /api/releases/{releaseId}/verify:
+    get:
+      summary: Verify a stored release snapshot and its local media
+      parameters:
+        - name: releaseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Verification result; remote and metadata-only assets remain unverified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  releaseId:
+                    type: string
+                  verification:
+                    $ref: "#/components/schemas/Verification"
+        "404":
+          description: Release not found
+components:
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    DiagnosticReport:
+      type: object
+      required: [schema, score, ready, offlineSafe, summary, stats, checks]
+      properties:
+        schema:
+          type: string
+          example: xint-trusted-delivery@1
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        ready:
+          type: boolean
+          description: True when the report contains no error-level checks; warnings remain publishable.
+        offlineSafe:
+          type: boolean
+        summary:
+          type: object
+          properties:
+            error:
+              type: integer
+            warning:
+              type: integer
+            success:
+              type: integer
+        stats:
+          type: object
+          properties:
+            scenes:
+              type: integer
+            hotspots:
+              type: integer
+            referencedAssets:
+              type: integer
+            remoteDependencies:
+              type: integer
+        checks:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              level:
+                type: string
+                enum: [error, warning, success]
+              title:
+                type: string
+              detail:
+                type: string
+              entityId:
+                type: string
+                nullable: true
+    Verification:
+      type: object
+      properties:
+        verified:
+          type: boolean
+          description: Snapshot and checked assets passed; unverified remote or metadata-only assets are not counted as failed.
+        snapshotVerified:
+          type: boolean
+        assetsVerified:
+          type: boolean
+          description: Compatibility aggregate; false when a checked asset fails.
+        allAssetsVerified:
+          type: boolean
+          description: True only when every asset has passed local file verification.
+        assetStatusCounts:
+          type: object
+          additionalProperties:
+            type: integer
+        unverifiedAssetCount:
+          type: integer
+        expectedDigest:
+          type: string
+        actualDigest:
+          type: string
+        assetResults:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              status:
+                type: string
+                enum: [local, remote, metadata-only, missing]
+              verified:
+                type: boolean
+                nullable: true
+              verification:
+                type: string
+                enum: [verified, failed, not-checked]
+              reason:
+                type: string
+                nullable: true

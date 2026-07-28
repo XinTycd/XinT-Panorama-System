@@ -1,102 +1,128 @@
 # XinT Panorama System
 
-[简体中文](README.zh-CN.md) | **English**
+**English** | [简体中文](./README.zh-CN.md)
 
-A self-hosted system for organizing, browsing, and embedding 360° panorama resources.
+A self-hosted system for managing and previewing 360° panorama assets.
 
-[Quick start](#quick-start) · [Features](#features) · [Configuration](#configuration) · [Documentation](#documentation) · [Contributing](CONTRIBUTING.md)
+[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white)](https://sqlite.org/)
+[![Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue)](./LICENSE)
+
+**Version 0.2.1 · 2026-07-29.** The viewer defaults to Photo Sphere Viewer (PSV) 5.15.1, with a simplified original spherical renderer as an option; only the selected engine runs at a time. Desktop Chrome and a 390px responsive viewport have been checked; real phones, other browsers, Turso, weak networks, long-running performance, and Docker runtime remain unverified.
 
 ## Project background
 
-XinT Panorama System brings panorama images, project and scene references, and embeddable previews into one self-hosted workflow. It started from the practical overhead of keeping panorama files organized while maintaining consistent references between galleries, project scenes, and external pages.
+Panorama images, project references, and web embeds are often managed in separate places. XinT Panorama brings the gallery, projects, scenes, hotspots, and embeddable viewer into one self-hosted app.
 
-This release updates the console and processing workflow while moving metadata storage to SQLite to simplify local deployment. The default viewer is a standard spherical panorama renderer, with drag navigation and zoom controls.
+This project migration replaces MySQL with SQLite to simplify local deployment. Images can be stored in the browser, on the local server, in SQLite, or in Turso. The viewer uses PSV by default, with a simplified original renderer available for compatibility. Both engines provide standard panorama viewing; custom projection modes and side-by-side comparison are currently disabled.
 
-![Console preview using the built-in demo panorama](docs/assets/legacy-preview.png)
+![XinT Panorama console showing the built-in demo panorama](docs/assets/studio-preview.png)
 
-*The preview uses the built-in demo panorama and synthetic project data.*
+*Console preview with the built-in demo panorama.*
 
 ## Quick start
 
-Requirements: Node.js 24 or newer and npm.
+Requires Node.js 24 or later.
 
 ```bash
 npm ci
 npm start
 ```
 
-Open the console at <http://127.0.0.1:7211>. The API listens at <http://127.0.0.1:7210>. To validate configuration without starting the servers, run `npm run check:config`.
+Open the console at <http://127.0.0.1:7211>. The API listens at <http://127.0.0.1:7210> by default. `npm start` launches both services. On first startup, the app creates `backend/storage/panorama.sqlite`; if it finds legacy `gallery.json` or `catalog.json` files in the storage directory, it migrates them once. Back up existing storage before migration.
 
-For Docker Compose deployment, see [DEPLOYMENT.md](DEPLOYMENT.md#docker-compose).
+For Docker Compose, configuration, backup, and restore instructions, see the [deployment guide](./docs/DEPLOYMENT.md) (Chinese).
 
 ## Features
 
-- Browse panorama images in a gallery, organize them into groups, and filter locally with eight items per page.
-- Create projects and scenes, place hotspots, and reference gallery panoramas in scene workflows.
-- Embed a panorama viewer using a script tag or a standalone widget URL.
-- Choose among browser IndexedDB, local files, local SQLite, and Turso SQLite for newly saved image data; metadata remains in the local SQLite database.
-- Preserve the source image or transcode uploads to JPEG, PNG, or WebP with a configurable quality setting where applicable.
-- Back up and restore the SQLite database and server-side media with the included scripts.
+- Add panoramas by uploading a file, registering an external image URL, or adding an existing image address.
+- Organize the gallery with named groups, client-side filters, and eight items per page.
+- Organize projects, scenes, and hotspots; import and export project JSON; inspect delivery diagnostics and release snapshots.
+- Browse panoramas with PSV by default, or select the simplified original spherical renderer. PSV uses a custom icon toolbar styled like a conventional panorama viewer, with its native navbar disabled. The legacy renderer offers drag-to-look and zoom buttons only.
+- Configure visible PSV console toolbar buttons; preferences are saved in a browser cookie. The legacy renderer keeps its two zoom buttons visible. Widget controls use embed parameters rather than this console cookie.
+- Choose among browser IndexedDB, local server files, local SQLite, and Turso SQLite for new image content. Server and browser storage support original formats, Base64, or JPEG/PNG/WebP transcoding.
+- Embed a panorama in another site with `embed.js` and an iframe widget.
+- Back up and restore SQLite and local media with the included scripts.
 
-## Viewer
+## Choose a viewer engine
 
-This release uses the simplified spherical renderer. It supports drag navigation and zoom in/out controls. The earlier multi-projection previews and comparison view are not part of this release.
-
-## Configuration
-
-Edit `config.json` before starting the service. The default configuration uses SQLite and local storage:
+Set `viewer.engine` in `config.json` to `psv` (the default) or `legacy` (the simplified original spherical renderer). The local console also provides an engine selector. The selection priority is `PANORAMA_VIEWER_ENGINE` environment variable, local `viewer-settings.json`, `config.json`, then the default `psv`. When forced by the environment, the selector is disabled. The console saves a new choice and recreates the viewer in the current page while preserving the image and view; changing engines is blocked while uploads are queued. The widget reads the same global setting when it loads. Reload an already open widget to apply a changed engine setting. Only one engine is initialized at a time.
 
 ```json
-{
-  "modes": ["database", "external", "upload"],
-  "viewer": { "engine": "legacy" },
-  "database": {
-    "driver": "sqlite",
-    "storageDir": "backend/storage"
-  },
-  "server": {
-    "backend": { "host": "127.0.0.1", "port": 7210 },
-    "frontend": { "host": "127.0.0.1", "port": 7211 }
-  }
-}
+{ "viewer": { "engine": "psv" } }
 ```
 
-The viewer setting is fixed to `legacy` in this release. `PANORAMA_CONFIG` selects another config file. `PANORAMA_STORAGE_DIR`, `PANORAMA_HOST`, `PANORAMA_PORT`, `FRONTEND_HOST`, and `FRONTEND_PORT` can override storage and listen addresses. `PANORAMA_APP_MODES` accepts `database`, `external`, and `upload` as a comma-separated list. MySQL is not supported; legacy JSON gallery data is migrated to SQLite on first startup when applicable.
+Both engines display the standard panorama view. Multiple projection modes and image comparison are disabled. The console toolbar and widget do not display compass, telemetry, brand, panorama-number, resolution, or floating scene-rail overlays. The widget accepts legacy `brand`, `panorama-no`, and `resolution` control tokens for parsing compatibility, but renders no corresponding HUD.
+
+## Embed example
+
+```html
+<div id="panorama"></div>
+<script
+  src="https://your-host.example/embed.js"
+  data-target="panorama"
+  data-panorama-no="1"
+></script>
+```
+
+See the [embedding reference](./docs/EMBEDDING.md) (Chinese) for all attributes and supported controls. Use HTTPS for both the host page and XinT service to avoid mixed-content blocks.
 
 ## Image storage
 
-Gallery, project, scene, and settings metadata are stored in the local `panorama.sqlite` database under the configured storage directory. The image storage setting applies to newly saved images:
-
-| Image location | Image data | Notes |
+| Location | Image content | Access |
 | --- | --- | --- |
-| Browser | IndexedDB | Readable only in the original browser and site origin; not available to embedded widgets. |
-| Local server | Files under `uploads/`, or Base64 under `encoded-images/` | Supports original bytes or transcoding. |
-| Local SQLite | Base64 in `panorama.sqlite` | Choose Base64 or transcoding; original-file mode is not available. |
-| Turso SQLite | Base64 in the configured Turso database | Choose Base64 or transcoding; account credentials and connectivity must be configured by the operator. |
+| Browser | IndexedDB | Same browser origin only; unavailable to the widget |
+| Local server | Original/transcoded files or Base64 | Served by the XinT instance |
+| Local SQLite | Base64, optionally transcoded before saving | Served by the XinT instance |
+| Turso SQLite | Base64, optionally transcoded before saving | Configured Turso database |
 
-SQLite image modes use Base64 data, optionally transcoded first. Transcoding can change the stored source copy; this system does not promise to preserve the uploaded byte stream separately. Cloud service capacity and cost depend on the operator's Turso plan.
+Gallery and project metadata always remain in local SQLite. Storage settings can only be changed from the local console on the machine running the backend. Turso requires your own database URL and write token. See the [deployment guide](./docs/DEPLOYMENT.md) (Chinese) for details.
 
 ## Development
 
 ```bash
 npm test
 npm run check:config
+npm run build:vendor
 ```
 
-Tests use temporary storage and synthetic fixtures. To run the application locally, use `npm start`. Runtime data is written under the configured storage directory; keep that directory out of source control and include it in operator-managed backups.
+Development requires Node.js 24. `sharp` is used for image transcoding. From a clean source checkout, `npm ci` installs the build dependencies; `npm run build:vendor` rebuilds locked viewer assets and license files, and application startup creates any missing generated assets. The Docker runtime image contains the generated assets and does not need dev dependencies. See `package.json` and `package-lock.json` for exact dependency versions. Desktop Chrome checks include the console, both engines, widget, and a 390px responsive viewport; this is not a real-phone or cross-browser test. Real Turso, weak-network and long-run behavior, and Docker runtime remain unverified. See the [PSV integration log](./docs/logs/2026-11-14-psv-integration.log) and [development log](./docs/DEVELOPMENT_LOG.md) for the verification record.
+
+## Project layout
+
+```text
+backend/       API, SQLite, media storage, and routes
+  public/      embed.js and widget.html
+frontend/      console, viewer facade, browser media, viewer build entry
+lib/           HTTP utilities and runtime configuration
+scripts/       startup, config checks, backup/restore, viewer assets
+tests/         API, database, media, operations, viewer, and embed tests
+docs/          API, embed, deployment planning, and development notes
+```
 
 ## Documentation
 
-- [Deployment and operations](DEPLOYMENT.md)
-- [API reference](docs/API.md)
-- [Embedding guide](docs/EMBEDDING.md)
-- [Release notes](docs/releases/v0.2.0.md)
-- [Simplified Chinese README](README.zh-CN.md)
+- [API reference](./docs/API.md) (Chinese)
+- [Embedding reference](./docs/EMBEDDING.md) (Chinese)
+- [Deployment, storage, backup, and restore](./docs/DEPLOYMENT.md) (Chinese)
+- [Documentation index](./docs/README.md)
+- [Product scope](./docs/PRODUCT.md) (Chinese)
+- [Maintenance map](./docs/PROJECT_CONTEXT.md) (Chinese)
+- [Viewer notes](./docs/VIEWER_INNOVATION.md) (Chinese)
+- [Viewer modernization plan](./docs/VIEWER_MODERNIZATION_PLAN.md) (Chinese)
+- [Development log](./docs/DEVELOPMENT_LOG.md) (Chinese)
+- [Changelog](./CHANGELOG.md)
+- [v0.2.1 release notes](./docs/releases/v0.2.1.md)
+- [v0.2.1 简体中文发布说明](./docs/releases/v0.2.1-zh-CN.md)
 
-## Contributing and security
+## Contributing
 
-Bug reports and contributions are welcome through the repository's [issue tracker](https://github.com/XinTycd/XinT-Panorama-System/issues) and [contribution guide](CONTRIBUTING.md). For security-sensitive reports, follow [SECURITY.md](SECURITY.md). Before publishing a fork or release, review the staged file list and confirm that it contains no runtime database, uploaded media, credentials, or backups.
+Bug reports and improvement ideas are welcome in [GitHub Issues](https://github.com/XinTycd/XinT-Panorama-System/issues). Please read the [contribution guide](./CONTRIBUTING.md) (Chinese) before submitting changes.
+
+## Security
+
+Do not include real databases, image files, access tokens, or customer data in issues or public commits. See the [security policy](./SECURITY.md) (Chinese) for reporting security issues.
 
 ## License
 
-The project is distributed under the [Apache License 2.0](LICENSE). The bundled Three.js browser build retains its upstream license notice; see [third-party notices](THIRD_PARTY_NOTICES.md).
+Copyright XinTycd. This project is licensed under the [Apache License 2.0](./LICENSE). Photo Sphere Viewer is MIT licensed. Generated viewer assets include the applicable license files; see [third-party notices](./THIRD_PARTY_NOTICES.md).

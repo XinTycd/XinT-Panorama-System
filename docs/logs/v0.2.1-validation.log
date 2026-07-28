@@ -1,0 +1,74 @@
+# v0.2.1 candidate validation log
+
+## 2026-11-14 17:32 Asia/Shanghai
+
+- Worktree: `D:\源码\开源项目\XinT-Panorama-System-release-v0.2.0`, branch `main`, parent commit `e74aa55dcd8654d6d83c1f50649d1ce268b8155a`.
+- Runtime: Node.js `v24.14.1`; npm `11.11.0`.
+- Requested release version/date: `0.2.1` / `2026-07-29`. The test and validation runs recorded below actually occurred on `2026-11-14`; no execution time is backdated.
+
+### Install and asset build
+
+Command: `npm ci` — exit code `0`.
+
+```text
+added 12 packages, and audited 13 packages in 1s
+found 0 vulnerabilities
+```
+
+Command: `npm run build:vendor` — exit code `0`.
+
+```text
+> xint-panorama-system@0.2.1 build:vendor
+> node scripts/build-viewer-vendor.js
+```
+
+The PSV dependency is locked at `5.15.1`; `esbuild` is a development dependency. The generated viewer bundles and copied license assets are ignored build outputs, not release source files.
+
+### Test suite
+
+The first `npm test` attempt exited `1`: the candidate still had the v0.2.0 config selecting `legacy`, while the v0.2.1 test contract expects default `psv`. The allowlisted source `config.json` was copied into the candidate and that command was rerun.
+
+Final command: `npm test` — exit code `0` (the package `pretest` also ran the missing-asset check).
+
+```text
+Backend tests passed
+sqlite tests passed
+Media storage tests passed
+Ops tests passed
+Viewer contract tests passed
+Viewer adapter behavior tests passed
+Legacy viewer behavior tests passed
+Viewer asset route tests passed
+Viewer CSS tests passed
+Embed control tests passed
+Viewer engine config tests passed
+```
+
+Node emitted its standard experimental `node:sqlite` warning in SQLite-backed test groups.
+
+### Configuration check
+
+Command: `npm run check:config` — exit code `0`.
+
+```text
+配置校验通过
+Config: <CANDIDATE_ROOT>/config.json
+Storage: <CANDIDATE_ROOT>/backend/storage
+Database: sqlite
+Database file: <CANDIDATE_ROOT>/backend/storage/panorama.sqlite
+Modes: database,external,upload
+```
+
+### Existing browser evidence and limits
+
+- This candidate does not include a new browser run. The included `2026-11-14-psv-integration.log` records the main-session Chrome smoke for the same viewer and console source, including both engines, widget, toolbar preferences, orientation/FOV, storage paths, switching, and cleanup. The current candidate only adds package/version and documentation changes beyond that frozen source.
+- `docs/assets/studio-preview.png` was visually inspected: it shows the built-in synthetic demo panorama and sample scene metadata, with no user-provided image.
+- Both copied raw logs were checked for private-key blocks, bearer tokens, long credential-like values, embedded Base64 image payloads, and non-example email addresses; none were detected.
+- Real mobile devices, cross-browser coverage, real Turso accounts, weak-network behavior, long-running performance, tiled-image delivery, and Docker runtime were not newly tested in this preparation.
+
+### Final review — 2026-11-14 17:38 Asia/Shanghai
+
+- Local Markdown link scan: 23 Markdown files and 110 relative file targets; no missing files. The check does not validate heading anchors or external URLs.
+- `git diff --check` and `git diff --cached --check` both exited `0` after staging the explicit allowlist.
+- The staged allowlist contains 52 paths. No staged or non-ignored candidate paths match runtime database, uploads, encoded images, credentials, node_modules, or backup path rules. `backend/storage` contains only `.gitkeep`; no generated PSV bundle, CSS, or license-copy build output is staged.
+- The staged files include the reviewed documentation move from root `DEPLOYMENT.md` to `docs/DEPLOYMENT.md`; root LICENSE is unchanged.
