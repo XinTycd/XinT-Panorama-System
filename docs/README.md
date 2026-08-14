@@ -24,11 +24,14 @@ This index groups the operational, maintenance, API, and planning documents for 
 - [Viewer modernization plan](VIEWER_MODERNIZATION_PLAN.md) (Chinese): implementation status and future work. Tiling, real-device coverage, and extended tour plugins remain unimplemented.
 - [Viewer integration log](logs/2026-11-14-psv-integration.log): actual browser and test evidence.
 - [Earlier verification log](logs/2026-11-14-verification.log): data-layer and operations checks from the prior phase.
-- [v0.2.1 validation log](logs/v0.2.1-validation.log): actual clean-install, tests, and configuration-check output for this candidate.
+- [v0.2.1 validation log](logs/v0.2.1-validation.log): clean-install, tests, and configuration-check output from that release.
+- [v0.2.2 candidate checks](logs/2026-11-14-v0.2.2-validation.log): test and configuration-check output from 2026-11-14.
 - [Development history](DEVELOPMENT_LOG.md) (Chinese): dated summaries with links to command output.
 
 ## Releases
 
+- [v0.2.2 — English](releases/v0.2.2.md)
+- [v0.2.2 — 简体中文](releases/v0.2.2-zh-CN.md)
 - [v0.2.1 — English](releases/v0.2.1.md)
 - [v0.2.1 — 简体中文](releases/v0.2.1-zh-CN.md)
 - [v0.2.0 — English](releases/v0.2.0.md)

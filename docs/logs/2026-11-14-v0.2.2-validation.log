@@ -1,0 +1,62 @@
+# v0.2.2 candidate checks (2026-11-14)
+
+## `npm test`
+
+```text
+
+> xint-panorama-system@0.2.2 pretest
+> node scripts/ensure-viewer-assets.js
+
+
+> xint-panorama-system@0.2.2 test
+> node tests/backend.test.js && node tests/sqlite.test.js && node tests/media-storage.test.js && node tests/ops.test.js && node tests/viewer-contract.test.js && node tests/viewer-adapter.test.js && node tests/legacy-viewer.test.js && node tests/viewer-assets.test.js && node tests/viewer-css.test.js && node tests/embed-controls.test.js && node tests/viewer-engine-config.test.js
+
+(node:14364) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Backend tests passed
+(node:33060) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+sqlite tests passed
+(node:6484) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Media storage tests passed
+(node:24360) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Ops tests passed
+Viewer contract tests passed
+Viewer adapter behavior tests passed
+Legacy viewer behavior tests passed
+(node:41936) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Viewer asset route tests passed
+Viewer CSS tests passed
+Embed control tests passed
+Viewer engine config tests passed
+```
+
+## `npm run check:config`
+
+```text
+
+> xint-panorama-system@0.2.2 check:config
+> node scripts/check-config.js
+
+配置校验通过
+Config: D:\源码\开源项目\XinT-Panorama-System-release-v0.2.0\config.json
+Storage: D:\源码\开源项目\XinT-Panorama-System-release-v0.2.0\backend\storage
+Database: sqlite
+Database file: D:\源码\开源项目\XinT-Panorama-System-release-v0.2.0\backend\storage\panorama.sqlite
+Modes: database,external,upload
+```
+
+## Local links, versions, and syntax
+
+```text
+Markdown relative links checked: 78
+Version metadata consistent: package=0.2.2, lock=0.2.2, root-lock=0.2.2, OpenAPI/UI=0.2.2
+node --check frontend/panorama-viewer.js: exit 0
+node --check frontend/app.js: exit 0
+node --check backend/public/embed.js: exit 0
+node --check extracted widget inline script: exit 0
+git diff --check: clean
+```
