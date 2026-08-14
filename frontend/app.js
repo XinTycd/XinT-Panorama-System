@@ -12,6 +12,7 @@
     projectActionId: 0,
     diagnosticRequestId: 0,
     viewerController: null,
+    viewerReady: false,
     viewerEngine: "psv",
     viewerEngineForced: false,
     maxTextureSize: 4096,
@@ -27,6 +28,8 @@
     embedControls: "default",
     embedHiddenControls: "",
     activeHotspotId: null,
+    hotspotNavigationTimer: 0,
+    hotspotNavigationId: 0,
     availableModes: null,
     mediaStorageSettings: null,
     galleryGroups: [],
@@ -36,7 +39,7 @@
     galleryPageSize: 8,
     appInfo: {
       name: "XinT 全景系统",
-      version: "0.2.1",
+      version: "0.2.2",
       repositoryUrl: "https://github.com/XinTycd/XinT-Panorama-System"
     }
   };
@@ -55,7 +58,13 @@
     renderGallery();
     updateEmbedExample();
     connectBackend();
-    window.addEventListener("pagehide", function disposeViewer(event) { if (!event.persisted && state.viewerController) state.viewerController.dispose(); }, { once: true });
+    window.addEventListener("pagehide", function disposeViewer(event) {
+      if (event.persisted) return;
+      cancelHotspotNavigation();
+      state.viewerReady = false;
+      if (state.viewerController) state.viewerController.dispose();
+      state.viewerController = null;
+    });
   }
 
   function createIconActionButton(kind, label, danger) {
@@ -230,6 +239,7 @@
         onViewChange: updateViewerTelemetry,
         onContextState: handleViewerContextState
       });
+      state.viewerReady = false;
       state.maxTextureSize = state.viewerController.getMaxTextureSize();
       updateAutorotateButton();
     } catch (error) {
@@ -296,9 +306,11 @@
     refs.autorotateBtn.addEventListener("click", toggleAutorotate);
     refs.resetBtn.addEventListener("click", resetView);
     refs.zoomOutBtn.addEventListener("click", function onZoomOut() {
+      if (!state.viewerReady || !state.viewerController) return;
       state.viewerController.zoomBy(8);
     });
     refs.zoomInBtn.addEventListener("click", function onZoomIn() {
+      if (!state.viewerReady || !state.viewerController) return;
       state.viewerController.zoomBy(-8);
     });
     refs.directorBtn.addEventListener("click", toggleDirectorMode);
@@ -362,8 +374,10 @@
       } else if (event.key.toLowerCase() === "d") {
         toggleDirectorMode();
       } else if (event.key === "+" || event.key === "=") {
+        if (!state.viewerReady || !state.viewerController || event.ctrlKey || event.metaKey || event.altKey) return;
         state.viewerController.zoomBy(-8);
       } else if (event.key === "-" || event.key === "_") {
+        if (!state.viewerReady || !state.viewerController || event.ctrlKey || event.metaKey || event.altKey) return;
         state.viewerController.zoomBy(8);
       } else if (event.key === " " || event.code === "Space") {
         event.preventDefault();
@@ -373,6 +387,7 @@
   }
 
   function toggleAutorotate() {
+    if (!state.viewerReady || !state.viewerController) return;
     state.autorotate = state.viewerController.toggleAutorotate();
     updateAutorotateButton();
   }
@@ -380,13 +395,19 @@
   function updateAutorotateButton() {
     if (!refs.autorotateBtn) return;
     refs.autorotateBtn.classList.toggle("active", state.autorotate);
-    refs.autorotateBtn.setAttribute("aria-pressed", state.autorotate ? "true" : "false");
+    setAttributeIfChanged(refs.autorotateBtn, "aria-pressed", state.autorotate ? "true" : "false");
     var label = state.autorotate ? "停止旋转" : "自动旋转";
-    refs.autorotateBtn.setAttribute("aria-label", label);
-    refs.autorotateBtn.title = label;
+    setAttributeIfChanged(refs.autorotateBtn, "aria-label", label);
+    if (refs.autorotateBtn.title !== label) refs.autorotateBtn.title = label;
+  }
+
+  function setAttributeIfChanged(element, name, value) {
+    value = String(value);
+    if (element.getAttribute(name) !== value) element.setAttribute(name, value);
   }
 
   function resetView() {
+    if (!state.viewerReady || !state.viewerController) return;
     if (state.directorMode) stopDirectorMode();
     state.viewerController.resetView();
     state.autorotate = state.viewerController.getAutorotate();
@@ -406,6 +427,7 @@
     state.apiBase = nextApiBase;
     refs.settingsStatus.textContent = "地址已保存，正在连接…";
     state.connectionId += 1;
+    cancelHotspotNavigation();
     var connectionId = state.connectionId;
     state.availableModes = null;
     state.galleryGroups = [];
@@ -615,6 +637,7 @@
   }
 
   async function selectProject(projectId) {
+    cancelHotspotNavigation();
     var connectionId = state.connectionId;
     var requestId = ++state.projectRequestId;
     state.projectActionId += 1;
@@ -955,6 +978,7 @@
     var item = state.currentIndex >= 0 ? state.items[state.currentIndex] : null;
     var previousController = state.viewerController;
     state.requestId += 1;
+    state.viewerReady = false;
     if (state.directorMode) stopDirectorMode();
     state.viewerController = null;
     if (previousController) previousController.dispose();
@@ -970,6 +994,7 @@
       onViewChange: updateViewerTelemetry,
       onContextState: handleViewerContextState
     });
+    var nextController = state.viewerController;
     state.maxTextureSize = state.viewerController.getMaxTextureSize();
     state.autorotate = false;
     updateAutorotateButton();
@@ -978,9 +1003,11 @@
     try {
       var imageUrl = await resolveItemImageUrl(item, false);
       if (!imageUrl) throw new Error("当前图片资源不可用");
-      var result = await state.viewerController.setPanorama(imageUrl);
-      if (connectionId !== state.connectionId || requestId !== state.requestId || result.stale) return;
-      state.viewerController.setView(savedView, 0);
+      if (connectionId !== state.connectionId || requestId !== state.requestId || state.viewerController !== nextController) return;
+      var result = await nextController.setPanorama(imageUrl);
+      if (connectionId !== state.connectionId || requestId !== state.requestId || state.viewerController !== nextController || result.stale) return;
+      nextController.setView(savedView, 0);
+      state.viewerReady = true;
       setViewerState("ready", "全景图片已加载", "预览引擎：" + (engine === "psv" ? "Photo Sphere Viewer" : "兼容球面引擎"));
       return true;
     } catch (error) {
@@ -1569,6 +1596,7 @@
   }
 
   async function selectScene(index) {
+    cancelHotspotNavigation();
     if (index < 0 || index >= state.items.length) {
       return;
     }
@@ -1578,6 +1606,7 @@
     var connectionId = state.connectionId;
     var requestedProjectId = state.currentProjectId;
     var requestedProject = state.currentProject;
+    var requestedController = state.viewerController;
     var requestedScene = arguments.length > 1 ? arguments[1] : null;
     var projectScenes = requestedProject && requestedProjectId === state.currentProjectId
       ? (requestedProject.scenes || [])
@@ -1594,6 +1623,7 @@
     }
     state.currentSceneId = requestedScene;
     state.currentIndex = index;
+    state.viewerReady = false;
     if (!state.viewerController) {
       setViewerState("error", "预览引擎未启动", "请在系统设置中选择可用的预览引擎。", "");
       return;
@@ -1609,8 +1639,9 @@
       var imageUrl = await resolveItemImageUrl(item, false);
       if (!imageUrl) throw new Error("这张图片保存在上传时的浏览器中，当前浏览器找不到本地副本；请在此浏览器重新上传。");
       if (connectionId !== state.connectionId || requestId !== state.requestId) return;
-      var loaded = await state.viewerController.setPanorama(imageUrl);
-      if (connectionId !== state.connectionId || requestId !== state.requestId) {
+      if (connectionId !== state.connectionId || requestId !== state.requestId || state.viewerController !== requestedController) return;
+      var loaded = await requestedController.setPanorama(imageUrl);
+      if (connectionId !== state.connectionId || requestId !== state.requestId || state.viewerController !== requestedController) {
         return;
       }
       if (loaded.stale) return;
@@ -1637,6 +1668,7 @@
           fov: projectScene.initialFov === null ? 72 : projectScene.initialFov
         }, 900);
       }
+      state.viewerReady = true;
       refs.resolutionText.textContent =
         "分辨率: " +
         loaded.originalWidth +
@@ -1653,6 +1685,7 @@
         return;
       }
       resetViewerSurface();
+      state.viewerReady = false;
       setViewerState(
         "error",
         "当前场景暂时无法显示",
@@ -1665,6 +1698,8 @@
   }
 
   function resetViewerSurface() {
+    cancelHotspotNavigation();
+    state.viewerReady = false;
     if (state.viewerController) state.viewerController.clear();
     refs.resolutionText.textContent = "分辨率: -";
     refs.sourceText.textContent = "来源: -";
@@ -1993,6 +2028,7 @@
   }
 
   function toggleDirectorMode() {
+    if (!state.viewerReady || !state.viewerController) return;
     if (state.directorMode) {
       stopDirectorMode();
       return;
@@ -2028,17 +2064,18 @@
 
   function stopDirectorMode() {
     state.directorMode = false;
-    state.viewerController.stopDirector();
+    if (state.viewerController) state.viewerController.stopDirector();
     updateDirectorButton();
   }
 
   function updateDirectorButton() {
     var label = state.directorMode ? "停止自动演示" : "自动演示";
     refs.directorBtn.classList.toggle("active", state.directorMode);
-    refs.directorBtn.setAttribute("aria-pressed", state.directorMode ? "true" : "false");
-    refs.directorBtn.setAttribute("aria-label", label);
-    refs.directorBtn.title = label;
-    refs.directorBtn.textContent = state.directorMode ? "Ⅱ" : "▶";
+    setAttributeIfChanged(refs.directorBtn, "aria-pressed", state.directorMode ? "true" : "false");
+    setAttributeIfChanged(refs.directorBtn, "aria-label", label);
+    if (refs.directorBtn.title !== label) refs.directorBtn.title = label;
+    var text = state.directorMode ? "Ⅱ" : "▶";
+    if (refs.directorBtn.textContent !== text) refs.directorBtn.textContent = text;
   }
 
   function updateViewerTelemetry(view) {
@@ -2106,20 +2143,33 @@
   }
 
   function updateHotspotPositions(view) {
-    if (!state.viewerController) return;
+    if (!state.viewerReady || !state.viewerController) return;
     Array.prototype.forEach.call(refs.hotspotLayer.children, function positionHotspot(element) {
       var yaw = Number(element.dataset.yaw) || 0;
       var pitch = Number(element.dataset.pitch) || 0;
       var projected = state.viewerController.project(yaw, pitch);
-      element.hidden = !projected.visible;
+      var hidden = !projected.visible;
+      if (element.hidden !== hidden) element.hidden = hidden;
       if (!projected.visible) return;
-      element.style.left = String(projected.x) + "px";
-      element.style.top = String(projected.y) + "px";
+      var x = Math.round(projected.x - 15);
+      var y = Math.round(projected.y - 15);
+      if (element.__xintHotspotX !== x || element.__xintHotspotY !== y) {
+        element.__xintHotspotX = x;
+        element.__xintHotspotY = y;
+        element.style.transform = "translate3d(" + x + "px, " + y + "px, 0)";
+      }
     });
   }
 
   function activateHotspot(hotspot) {
-    state.viewerController.setView({ yaw: hotspot.yaw, pitch: hotspot.pitch, fov: 46 }, 700);
+    cancelHotspotNavigation();
+    var navigationId = ++state.hotspotNavigationId;
+    var connectionId = state.connectionId;
+    var projectId = state.currentProjectId;
+    var sceneId = state.currentSceneId;
+    var controller = state.viewerController;
+    if (!controller) return;
+    controller.setView({ yaw: hotspot.yaw, pitch: hotspot.pitch, fov: 46 }, 700);
     if (hotspot.type === "scene" && hotspot.targetSceneId && state.currentProject) {
       var targetScene = (state.currentProject.scenes || []).find(function findTarget(scene) {
         return scene.id === hotspot.targetSceneId;
@@ -2129,7 +2179,9 @@
           return item.id === targetScene.panoramaId;
         });
         if (targetIndex >= 0) {
-          window.setTimeout(function moveToTargetScene() {
+          state.hotspotNavigationTimer = window.setTimeout(function moveToTargetScene() {
+            state.hotspotNavigationTimer = 0;
+            if (navigationId !== state.hotspotNavigationId || connectionId !== state.connectionId || projectId !== state.currentProjectId || sceneId !== state.currentSceneId || controller !== state.viewerController) return;
             selectScene(targetIndex, targetScene.id);
           }, 420);
         }
@@ -2137,6 +2189,12 @@
     } else if (hotspot.targetUrl) {
       window.open(hotspot.targetUrl, "_blank", "noopener,noreferrer");
     }
+  }
+
+  function cancelHotspotNavigation() {
+    state.hotspotNavigationId += 1;
+    if (state.hotspotNavigationTimer) window.clearTimeout(state.hotspotNavigationTimer);
+    state.hotspotNavigationTimer = 0;
   }
 
   function getHotspotTypeLabel(type) {

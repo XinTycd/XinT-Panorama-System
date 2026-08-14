@@ -91,7 +91,8 @@ button, a, summary { outline-offset: 3px; }
 .viewer-action:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .viewer-action[aria-pressed="true"] { background: rgba(255,255,255,0.17); }
 .hotspot-layer { position: absolute; z-index: 4; inset: 0; pointer-events: none; }
-.spatial-hotspot { position: absolute; display: flex; align-items: center; gap: 8px; padding: 0; transform: translate(-15px, -15px); border: 0; color: var(--cream); background: transparent; cursor: pointer; pointer-events: auto; text-align: left; }
+.spatial-hotspot { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 8px; padding: 0; transform: translate(-15px, -15px); border: 0; color: var(--cream); background: transparent; cursor: pointer; pointer-events: auto; text-align: left; }
+.spatial-hotspot[hidden] { display: none; }
 .spatial-hotspot__marker { position: relative; width: 31px; height: 31px; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid var(--signal); border-radius: 50%; background: rgba(9,13,12,0.68); box-shadow: 0 0 0 7px rgba(255,179,71,0.1); }
 .spatial-hotspot__marker i { position: absolute; inset: 4px; border: 1px solid rgba(255,179,71,0.38); border-radius: 50%; animation: hotspotOrbit 4s linear infinite; }
 .spatial-hotspot__marker b { color: var(--signal); font: 8px/1 "Cascadia Mono", Consolas, monospace; }

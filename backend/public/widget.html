@@ -138,7 +138,9 @@
           requestId: 0,
           maxTextureSize: 4096,
           autorotate: initialAutorotate,
-          viewerController: null
+          viewerController: null,
+          viewerReady: false,
+          pageHidden: false
         };
         var viewerShell = document.querySelector(".viewer-shell");
         var statusIsFeedback = true;
@@ -150,10 +152,21 @@
         }).catch(function useDefaultViewerOnConfigFailure() {
           return "psv";
         }).then(function createConfiguredViewer(engine) {
+          if (state.pageHidden) return;
           initViewer(engine);
           loadInitialData();
+        }).catch(function onViewerStartupError() {
+          state.viewerReady = false;
+          setWidgetStatus("全景查看器无法启动，请刷新页面或联系管理员", true);
         });
-        window.addEventListener("pagehide", function disposeViewer(event) { if (!event.persisted && state.viewerController) state.viewerController.dispose(); }, { once: true });
+        window.addEventListener("pagehide", function disposeViewer(event) {
+          if (event.persisted) return;
+          state.pageHidden = true;
+          state.viewerReady = false;
+          state.requestId += 1;
+          if (state.viewerController) state.viewerController.dispose();
+          state.viewerController = null;
+        });
 
         function initViewer(engine) {
           var legacy = engine === "legacy";
@@ -186,10 +199,12 @@
           });
           refs.autorotateBtn.addEventListener("click", toggleAutorotate);
           refs.zoomOutBtn.addEventListener("click", function onZoomOut() {
+            if (!state.viewerReady || !state.viewerController) return;
             state.viewerController.zoomBy(8);
             updateViewControlState();
           });
           refs.zoomInBtn.addEventListener("click", function onZoomIn() {
+            if (!state.viewerReady || !state.viewerController) return;
             state.viewerController.zoomBy(-8);
             updateViewControlState();
           });
@@ -272,25 +287,29 @@
         }
 
         function selectScene(index) {
-          if (index < 0 || index >= state.items.length) {
+          if (!state.viewerController || state.pageHidden || index < 0 || index >= state.items.length) {
             return;
           }
 
           var item = state.items[index];
+          var controller = state.viewerController;
           var requestId = ++state.requestId;
           state.currentIndex = index;
+          state.viewerReady = false;
           setWidgetStatus("加载中...", true);
 
-          state.viewerController.setPanorama(item.viewerUrl)
+          controller.setPanorama(item.viewerUrl)
             .then(function onLoaded(loaded) {
-              if (requestId !== state.requestId) return;
+              if (requestId !== state.requestId || controller !== state.viewerController) return;
 
               if (loaded.stale) return;
+              state.viewerReady = true;
               setWidgetStatus("已就绪: " + item.name, false);
             })
             .catch(function onError() {
-              if (requestId !== state.requestId) return;
-              state.viewerController.clear();
+              if (requestId !== state.requestId || controller !== state.viewerController) return;
+              state.viewerReady = false;
+              controller.clear();
               setWidgetStatus("加载失败", true);
             });
         }
@@ -303,6 +322,7 @@
         }
 
         function toggleAutorotate() {
+          if (!state.viewerReady || !state.viewerController) return;
           state.autorotate = state.viewerController.toggleAutorotate();
           updateAutorotateText();
           updateDirectorText();
@@ -311,11 +331,12 @@
         function updateAutorotateText() {
           var label = state.autorotate ? "停止旋转" : "自动旋转";
           refs.autorotateBtn.textContent = "↻";
-          refs.autorotateBtn.setAttribute("aria-label", label);
-          refs.autorotateBtn.title = label;
+          setAttributeIfChanged(refs.autorotateBtn, "aria-label", label);
+          if (refs.autorotateBtn.title !== label) refs.autorotateBtn.title = label;
         }
 
         function toggleFocus() {
+          if (!state.viewerReady || !state.viewerController) return;
           var view = state.viewerController.getView();
           var isFocused = view.fov <= 42;
           state.viewerController.stopDirector();
@@ -329,6 +350,7 @@
         }
 
         function toggleDirector() {
+          if (!state.viewerReady || !state.viewerController) return;
           if (state.viewerController.isDirectorPlaying()) {
             state.viewerController.stopDirector();
           } else {
@@ -356,9 +378,10 @@
           updateAutorotateText();
           var currentView = view || state.viewerController.getView();
           var focused = currentView.fov <= 42;
-          refs.focusBtn.setAttribute("aria-pressed", focused ? "true" : "false");
-          refs.focusBtn.setAttribute("aria-label", focused ? "退出聚焦" : "聚焦视野");
-          refs.focusBtn.title = focused ? "退出聚焦" : "聚焦视野";
+          setAttributeIfChanged(refs.focusBtn, "aria-pressed", focused ? "true" : "false");
+          setAttributeIfChanged(refs.focusBtn, "aria-label", focused ? "退出聚焦" : "聚焦视野");
+          var focusTitle = focused ? "退出聚焦" : "聚焦视野";
+          if (refs.focusBtn.title !== focusTitle) refs.focusBtn.title = focusTitle;
           updateDirectorText();
         }
 
@@ -369,9 +392,17 @@
           var isPlaying = state.viewerController.isDirectorPlaying();
           refs.directorBtn.textContent = isPlaying ? "Ⅱ" : "▶";
           refs.directorBtn.classList.toggle("active", isPlaying);
-          refs.directorBtn.setAttribute("aria-pressed", isPlaying ? "true" : "false");
-          refs.directorBtn.setAttribute("aria-label", isPlaying ? "停止自动演示" : "自动演示");
-          refs.directorBtn.title = isPlaying ? "停止自动演示" : "自动演示";
+          setAttributeIfChanged(refs.directorBtn, "aria-pressed", isPlaying ? "true" : "false");
+          var directorLabel = isPlaying ? "停止自动演示" : "自动演示";
+          setAttributeIfChanged(refs.directorBtn, "aria-label", directorLabel);
+          if (refs.directorBtn.title !== directorLabel) refs.directorBtn.title = directorLabel;
+          var directorText = isPlaying ? "Ⅱ" : "▶";
+          if (refs.directorBtn.textContent !== directorText) refs.directorBtn.textContent = directorText;
+        }
+
+        function setAttributeIfChanged(element, name, value) {
+          value = String(value);
+          if (element.getAttribute(name) !== value) element.setAttribute(name, value);
         }
 
         async function toggleFullscreen() {

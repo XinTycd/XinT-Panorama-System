@@ -25,10 +25,10 @@ assert.deepEqual(referencedIds.filter((id) => !htmlIds.includes(id)), [], "Every
 assert(!["compass", "sceneRail", "yawText", "pitchText", "fovText", "bearingText"].some((id) => htmlIds.includes(id)), "Viewer HUD and floating scene rail must be removed from the DOM");
 assert(!/compare|projection-switcher|mode-button|viewer-vignette|viewer-grid/i.test(html + css + app), "Removed compare and projection controls must not remain in the console");
 assert(!/compare|mode-button|modebar/i.test(widget), "Widget must not retain removed projection or comparison controls");
-assert(app.includes("state.viewerController.setPanorama(imageUrl)"), "Console scene loading must use the URL-based viewer API");
+assert(app.includes("requestedController.setPanorama(imageUrl)"), "Console scene loading must use the captured controller so async URL resolution cannot target a replacement engine");
 assert(app.includes("connectionId !== state.connectionId || requestId !== state.requestId"), "Console loads must be scoped to active connection and request");
 assert(app.includes("scene.id === state.currentSceneId && scene.panoramaId === currentItem.id"), "Project scene navigation must retain scene identity");
-assert(widget.includes("state.viewerController.setPanorama(item.viewerUrl)"), "Widget must load source URLs through the same adapter");
+assert(widget.includes("controller.setPanorama(item.viewerUrl)"), "Widget must load source URLs through the captured adapter instance");
 assert(widget.includes('params.get("autorotate") === "1"'), "Widget autorotation must require explicit autorotate=1");
 assert(html.includes("./vendor/psv.bundle.js") && html.includes("./vendor/psv.css"), "Console must load local PSV runtime and CSS");
 assert(widget.includes("/assets/psv.bundle.js") && widget.includes("/assets/psv.css"), "Widget must load the same local PSV runtime and CSS");

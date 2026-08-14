@@ -1,7 +1,7 @@
 {
   "name": "xint-panorama-system",
-  "version": "0.2.1",
-  "description": "Self-hosted 360 panorama gallery, project, and embedding system.",
+  "version": "0.2.2",
+  "description": "Self-hosted 720 panorama gallery, project, and embedding system.",
   "author": "XinTycd",
   "license": "Apache-2.0",
   "repository": {
