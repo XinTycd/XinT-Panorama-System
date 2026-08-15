@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.2 — 2026-08-15
+
+- Make panorama changes predictable: concurrent requests for the same image share a load, and only the latest selection can update the viewer.
+- Clean up temporary image URLs and viewer work when a load is cancelled, the page is hidden, or the viewer is closed.
+- Schedule rotation and view updates with the viewer render loop, and limit the drawing buffer by device pixel ratio and container size.
+- Present XinT Panorama as a self-hosted 720° panorama system for managing project scenes, hotspots, and website embeds.
+
+See the [English release notes](docs/releases/v0.2.2.md) and [简体中文版本](docs/releases/v0.2.2-zh-CN.md).
+
 ## v0.2.1 — 2026-07-29
 
 - Add Photo Sphere Viewer 5.15.1 as the default renderer and retain the simplified spherical renderer as an optional compatibility engine. Only the selected engine is initialized; console engine changes recreate the viewer in place and preserve its current image and view.
