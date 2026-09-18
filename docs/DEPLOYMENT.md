@@ -8,6 +8,30 @@
 
 当前实现不包含用户身份、组织权限、审计、SLA 或企业对象存储编排。
 
+## 仅部署嵌入服务
+
+宿主网站只使用嵌入查看器时，可只运行后端。源码部署需保留后端、`frontend/` 静态查看器源码和依赖：
+
+```bash
+npm ci
+npm run start:backend
+```
+
+后端默认监听 7210，提供 API、`/embed.js`、`/widget`、本地 PSV 资源和媒体服务。首次启动会在需要时构建 PSV 资源，因此源码部署仍需安装 lockfile 中的运行和构建依赖。管理控制台是可选的 7211 服务；运行 `npm start` 才会同时启动控制台和后端。它用于上传/整理资源、维护项目场景和热点、设置查看器并预览调试嵌入内容。
+
+## 反向代理与 HTTPS
+
+建议使用同一公开域名的 HTTPS 反向代理，将嵌入资源和 API 路径转发到后端 7210。至少需要按部署用途处理以下只读路径：
+
+- `/embed.js`、`/widget`、`/assets/`：脚本、widget 页面和本地查看器资源。
+- `/api/config`、`/api/panoramas/by-no`：widget 初始化和按编号读取单张图片。只有需要在 widget 中浏览图库列表时才开放 `/api/gallery`；该接口会公开可分享图库中的资源列表，按编号嵌入单张图片不需要它。
+- `/media/`：本地图片媒体。
+- `/api/panoramas/proxy`：仅在嵌入的图片使用远程 URL 时需要。
+
+如果前端使用 `/widget` 默认的 `location.origin`，或 iframe 里的 API 与 widget 同源，反代应让上述路径落到同一个服务地址。TLS 终止后，浏览器访问的页面和嵌入资源都应使用公开 HTTPS URL；不要让 widget 生成的图片请求降级到 HTTP。
+
+公开部署时应将管理写接口限制在受控网络或由前置网关实施身份验证。项目本身没有用户登录或角色权限；嵌入所需的只读路径可按实际访问方式开放，远程图片代理按需开放。若反代添加 CSP `frame-ancestors`，仅列出获准嵌入的宿主来源；宿主 CSP 的 `frame-src` 应允许 XinT 来源，脚本接入还需在 `script-src` 中允许该来源。详细参数见[嵌入说明](./EMBEDDING.md)。
+
 ## Docker Compose
 
 ```bash

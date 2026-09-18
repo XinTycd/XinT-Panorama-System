@@ -1,6 +1,6 @@
 # XinT Panorama System：维护地图
 
-本文记录当前代码结构和已实现行为，供维护者接手。产品范围与未来计划分别见 [PRODUCT.md](./PRODUCT.md) 和 [ROADMAP.md](./ROADMAP.md)。
+XinT Panorama 是以网站嵌入为核心的可自行部署 720° 全景查看器。后端默认在 7210 端口提供 API、widget 和静态查看器资源；控制台默认在 7211 端口运行，用于管理图片、项目场景和热点，以及预览和调试嵌入内容。widget 展示全景图片，不承载整个项目或发布快照。本文记录当前代码结构和已实现行为，供维护者接手；产品范围与未来计划分别见 [PRODUCT.md](./PRODUCT.md) 和 [ROADMAP.md](./ROADMAP.md)。
 
 ## 运行入口
 

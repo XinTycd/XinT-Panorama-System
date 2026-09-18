@@ -7,6 +7,8 @@ This index groups the operational, maintenance, API, and planning documents for 
 - [Deployment, configuration, storage, backup, and restore](DEPLOYMENT.md) (Chinese)
 - [API reference](API.md) (Chinese)
 - [Embedding guide](EMBEDDING.md) (Chinese)
+- [Icon system](ICONS.md): shared Phosphor SVG sprite, accessible use, and provenance.
+- [Device integration assessment](DEVICE_INTEGRATION.md): current still-image boundary and proposed camera/live-video paths.
 - [OpenAPI description](openapi.yaml)
 
 ## Architecture and product scope
@@ -30,6 +32,8 @@ This index groups the operational, maintenance, API, and planning documents for 
 
 ## Releases
 
+- [v0.2.3 — English](releases/v0.2.3.md)
+- [v0.2.3 — 简体中文](releases/v0.2.3-zh-CN.md)
 - [v0.2.2 — English](releases/v0.2.2.md)
 - [v0.2.2 — 简体中文](releases/v0.2.2-zh-CN.md)
 - [v0.2.1 — English](releases/v0.2.1.md)

@@ -27,7 +27,7 @@
 | GET | `/api/panoramas/by-no?no=1` | 按图库编号查询 |
 | POST | `/api/panoramas/create` | 注册已有图片地址/记录 |
 | POST | `/api/panoramas/register` | 注册远程图片链接 |
-| POST | `/api/panoramas/upload-base64` | 上传 Base64 Data URL；JSON body 上限 30 MiB |
+| POST | `/api/panoramas/upload-base64` | 上传 Base64 Data URL；JSON body 上限 30 MiB。默认返回图库 `items`，批量上传可用 `?includeItems=0` 仅返回 `ok` 和 `item` |
 | POST | `/api/panoramas/update` | 按 `id` 更新编号、分组、名称或描述 |
 | DELETE | `/api/panoramas/:id` | 删除图库记录；有项目场景引用时返回 409。不会删除图片媒体 |
 | GET | `/api/panoramas/proxy?url=...` | 受安全限制的远程图片代理 |
