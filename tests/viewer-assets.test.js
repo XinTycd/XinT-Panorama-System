@@ -59,6 +59,29 @@ async function main() {
   try {
     frontendUrl = await getServerUrl(frontend);
     backendUrl = await getServerUrl(backend);
+    const brandLogo = await fetch(frontendUrl + "/brand/xint-logo-white.svg");
+    assert.equal(brandLogo.status, 200, "Console brand mark should be served from the frontend namespace");
+    assert.match(brandLogo.headers.get("content-type"), /^image\/svg\+xml/, "Brand mark should use SVG MIME");
+    const consoleIcons = await fetch(frontendUrl + "/icons/sprite.svg");
+    const widgetIcons = await fetch(backendUrl + "/assets/icons.svg");
+    for (const response of [consoleIcons, widgetIcons]) {
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get("content-type"), /^image\/svg\+xml/);
+    }
+    const sprite = await consoleIcons.text();
+    assert.equal(await widgetIcons.text(), sprite, "Console and widget serve the same SVG symbols");
+    const symbols = new Set(Array.from(sprite.matchAll(/<symbol\b[^>]*\bid="([^"]+)"/g), (match) => match[1]));
+    for (const [file, prefix] of [
+      ["frontend/index.html", "./icons/sprite.svg#"],
+      ["frontend/gallery-groups.js", "./icons/sprite.svg#"],
+      ["backend/public/widget.html", "/assets/icons.svg#"]
+    ]) {
+      const source = fs.readFileSync(path.join(__dirname, "..", file), "utf8");
+      const references = Array.from(source.split(prefix).slice(1), (value) => value.match(/^[a-z][a-z-]+(?=")/)?.[0]).filter(Boolean);
+      assert(references.length > 0, file + " should reference the sprite");
+      for (const name of references) assert(symbols.has(name), file + " references missing symbol " + name);
+    }
+    for (const name of ["pause", "exit-fullscreen", "platforms", "module"]) assert(symbols.has(name), "Missing icon " + name);
     for (const [url, expectedType] of [
       [`${frontendUrl}/vendor/psv.bundle.js`, "javascript"],
       [`${frontendUrl}/vendor/psv.css`, "text/css"],

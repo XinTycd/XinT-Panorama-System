@@ -79,21 +79,22 @@ function stageUploadsClear() {
   };
 }
 
-function createUploadPath(name, extension) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  const safeStem = String(name || "panorama").replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/[. ]+$/g, "").replace(/^-|-$/g, "") || "panorama";
-  let absolutePath;
-  let fd;
+function sanitizeFileStem(name) {
+  return String(name || "panorama").replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/[. ]+$/g, "").replace(/^-|-$/g, "") || "panorama";
+}
+
+async function createUploadPathAsync(name, extension) {
+  await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+  const safeStem = sanitizeFileStem(name);
   for (;;) {
-    absolutePath = path.join(UPLOADS_DIR, safeStem + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10) + extension);
+    const absolutePath = path.join(UPLOADS_DIR, safeStem + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10) + extension);
     try {
-      fd = fs.openSync(absolutePath, "wx");
-      break;
+      const handle = await fs.promises.open(absolutePath, "wx");
+      return { absolutePath, fileName: path.basename(absolutePath), handle };
     } catch (error) {
       if (error.code !== "EEXIST") throw error;
     }
   }
-  return { absolutePath, fileName: path.basename(absolutePath), fd };
 }
 
-module.exports = { UPLOADS_DIR, resolveLocalMediaPath, safeLocalMediaPath, clearUploadsDirectory, stageUploadsClear, createUploadPath };
+module.exports = { UPLOADS_DIR, resolveLocalMediaPath, safeLocalMediaPath, clearUploadsDirectory, stageUploadsClear, createUploadPathAsync };

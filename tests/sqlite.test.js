@@ -164,13 +164,13 @@ async function run() {
     assert.strictEqual(media.safeLocalMediaPath("/media/uploads/" + encodeURIComponent(unicodeName)), unicodePath);
     assert.strictEqual(media.safeLocalMediaPath("/media/panorama.sqlite"), null);
     assert.strictEqual(media.safeLocalMediaPath("/media/uploads/missing.json"), null);
-    const uploadA = media.createUploadPath("同毫秒图", ".jpg");
-    const uploadB = media.createUploadPath("同毫秒图", ".jpg");
+    const uploadA = await media.createUploadPathAsync("同毫秒图", ".jpg");
+    const uploadB = await media.createUploadPathAsync("同毫秒图", ".jpg");
     assert.notStrictEqual(uploadA.absolutePath, uploadB.absolutePath);
-    fs.closeSync(uploadA.fd);
-    fs.closeSync(uploadB.fd);
-    fs.unlinkSync(uploadA.absolutePath);
-    fs.unlinkSync(uploadB.absolutePath);
+    await uploadA.handle.close();
+    await uploadB.handle.close();
+    await fs.promises.rm(uploadA.absolutePath);
+    await fs.promises.rm(uploadB.absolutePath);
     concurrent.sqlite.closeDatabase();
   } finally {
     delete process.env.PANORAMA_STORAGE_DIR;

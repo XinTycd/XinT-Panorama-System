@@ -2,7 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const { STORAGE_DIR, getDatabase } = require("./sqlite");
-const { createUploadPath, safeLocalMediaPath } = require("./media");
+const { createUploadPathAsync, safeLocalMediaPath } = require("./media");
 const { createHttpError } = require("./api-http");
 
 const SETTINGS_FILE = path.join(STORAGE_DIR, "media-settings.json");
@@ -176,12 +176,15 @@ async function saveServerImage(buffer, mime, name, storage) {
 
   let viewerPath;
   if (storage.mode === "server" && storage.format !== "base64") {
-    const upload = createUploadPath(name, EXTENSIONS[mime]);
+    const upload = await createUploadPathAsync(name, EXTENSIONS[mime]);
+    let handle = upload.handle;
     try {
-      try { fs.writeFileSync(upload.fd, buffer); }
-      finally { fs.closeSync(upload.fd); }
+      await handle.writeFile(buffer);
+      await handle.close();
+      handle = null;
     } catch (error) {
-      fs.rmSync(upload.absolutePath, { force: true });
+      if (handle) await handle.close().catch(() => {});
+      await fs.promises.rm(upload.absolutePath, { force: true }).catch(() => {});
       throw error;
     }
     viewerPath = "/media/uploads/" + encodeURIComponent(upload.fileName);
@@ -203,12 +206,19 @@ async function saveImagePayload(base64, mime, storage) {
     await cloudQuery(profile, "INSERT INTO xint_image_payloads (id, mime, base64) VALUES (?, ?, ?)", [id, mime, base64]);
     return "/media/cloud/" + storage.profileId + "/" + id;
   }
-  fs.mkdirSync(ENCODED_DIR, { recursive: true });
+  await fs.promises.mkdir(ENCODED_DIR, { recursive: true });
   const filePath = path.join(ENCODED_DIR, id + ".json");
+  let handle;
+  let created = false;
   try {
-    fs.writeFileSync(filePath, JSON.stringify({ mime, base64 }), { flag: "wx" });
+    handle = await fs.promises.open(filePath, "wx");
+    created = true;
+    await handle.writeFile(JSON.stringify({ mime, base64 }));
+    await handle.close();
+    handle = null;
   } catch (error) {
-    if (error.code !== "EEXIST") fs.rmSync(filePath, { force: true });
+    if (handle) await handle.close().catch(() => {});
+    if (created) await fs.promises.rm(filePath, { force: true }).catch(() => {});
     throw error;
   }
   return "/media/base64/" + id;

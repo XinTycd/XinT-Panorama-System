@@ -9,8 +9,8 @@
     galleryRequestId: 0,
     uploadRequestId: 0,
     projectRequestId: 0,
+    projectListRequestId: 0,
     projectActionId: 0,
-    diagnosticRequestId: 0,
     viewerController: null,
     viewerReady: false,
     viewerEngine: "psv",
@@ -22,11 +22,9 @@
     currentSceneId: null,
     activeDrawerPanel: null,
     pendingUploads: [],
-    deliveryReport: null,
     directorMode: false,
     viewerStateAction: null,
-    embedControls: "default",
-    embedHiddenControls: "",
+    embedPreset: "all",
     activeHotspotId: null,
     hotspotNavigationTimer: 0,
     hotspotNavigationId: 0,
@@ -39,17 +37,40 @@
     galleryPageSize: 8,
     appInfo: {
       name: "XinT 全景系统",
-      version: "0.2.2",
+      version: null,
       repositoryUrl: "https://github.com/XinTycd/XinT-Panorama-System"
     }
   };
 
   var refs = {};
+  var projectSceneActions = null;
+  var projectPlugins = null;
 
   document.addEventListener("DOMContentLoaded", init);
 
   function init() {
     cacheRefs();
+    projectPlugins = window.XinTConsolePlugins.create(localStorage, {
+      "project-workspace": {
+        onEnable: function enableProjects() { loadProjects(); },
+        onDisable: disableProjectWorkspace,
+        onChange: renderProjectPluginState
+      }
+    });
+    renderProjectPluginState();
+    projectSceneActions = window.XinTProjectSceneActions.create({
+      state: state,
+      request: fetchJson,
+      confirm: function confirmDelete(message) { return window.confirm(message); },
+      setSceneStatus: function setSceneStatus(message) { refs.sceneActionStatus.textContent = message; },
+      setStatus: setStatus,
+      setProjectDeleteButtonsDisabled: function disableDeleteButtons(disabled) {
+        refs.projectSceneList.querySelectorAll("[data-scene-delete]").forEach(function updateButton(button) { button.disabled = disabled; });
+      },
+      renderProjects: renderProjects,
+      renderProjectScenes: renderProjectScenes,
+      renderSpatialHotspots: renderSpatialHotspots
+    });
     initApiBase();
     initEmbedControls();
     initViewer();
@@ -73,9 +94,7 @@
     button.className = "icon-action-button" + (danger ? " is-danger" : "");
     button.title = label;
     button.setAttribute("aria-label", label);
-    button.innerHTML = kind === "edit"
-      ? '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>'
-      : '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg>';
+    button.innerHTML = '<svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#' + (kind === "edit" ? "edit" : "delete") + '"></use></svg>';
     return button;
   }
 
@@ -152,9 +171,14 @@
     refs.editDescriptionInput = document.getElementById("editDescriptionInput");
     refs.saveMetaBtn = document.getElementById("saveMetaBtn");
     refs.currentIndexText = document.getElementById("currentIndexText");
-    refs.embedExample = document.getElementById("embedExample");
-    refs.embedControlsInput = document.getElementById("embedControlsInput");
-    refs.embedHiddenControlsInput = document.getElementById("embedHiddenControlsInput");
+    refs.embedIframeCode = document.getElementById("embedIframeCode");
+    refs.embedScriptCode = document.getElementById("embedScriptCode");
+    refs.embedCodeBlocks = Array.prototype.slice.call(document.querySelectorAll("[data-embed-code]"));
+    refs.embedCopyButtons = Array.prototype.slice.call(document.querySelectorAll("[data-copy-embed]"));
+    refs.embedCodeFeedback = {
+      iframe: document.querySelector('[data-embed-feedback="iframe"]'),
+      script: document.querySelector('[data-embed-feedback="script"]')
+    };
     refs.embedPresetButtons = Array.prototype.slice.call(document.querySelectorAll("[data-embed-preset]"));
     refs.systemContextMenu = document.getElementById("systemContextMenu");
     refs.systemNameText = document.getElementById("systemNameText");
@@ -175,19 +199,6 @@
     refs.renameLabel = document.getElementById("renameLabel");
     refs.renameStatus = document.getElementById("renameStatus");
     refs.renameSubmit = document.getElementById("renameSubmit");
-    refs.releaseNameInput = document.getElementById("releaseNameInput");
-    refs.publishProjectBtn = document.getElementById("publishProjectBtn");
-    refs.inspectProjectBtn = document.getElementById("inspectProjectBtn");
-    refs.deliveryStatus = document.getElementById("deliveryStatus");
-    refs.deliverySummary = document.getElementById("deliverySummary");
-    refs.deliveryScore = document.getElementById("deliveryScore");
-    refs.deliveryReadinessBadge = document.getElementById("deliveryReadinessBadge");
-    refs.deliveryOfflineBadge = document.getElementById("deliveryOfflineBadge");
-    refs.deliverySceneCount = document.getElementById("deliverySceneCount");
-    refs.deliveryHotspotCount = document.getElementById("deliveryHotspotCount");
-    refs.deliveryAssetCount = document.getElementById("deliveryAssetCount");
-    refs.deliveryIssueCount = document.getElementById("deliveryIssueCount");
-    refs.deliveryCheckList = document.getElementById("deliveryCheckList");
     refs.currentSceneTitle = document.getElementById("currentSceneTitle");
     refs.workspaceDrawer = document.getElementById("workspaceDrawer");
     refs.drawerBackdrop = document.getElementById("drawerBackdrop");
@@ -203,6 +214,7 @@
     refs.cloudDatabaseUrlInput = document.getElementById("cloudDatabaseUrlInput");
     refs.cloudTokenInput = document.getElementById("cloudTokenInput");
     refs.mediaFormatSelect = document.getElementById("mediaFormatSelect");
+    refs.mediaFormatOriginalOption = refs.mediaFormatSelect.querySelector('option[value="original"]');
     refs.transcodeSettings = document.getElementById("transcodeSettings");
     refs.mediaCodecSelect = document.getElementById("mediaCodecSelect");
     refs.mediaQualityField = document.getElementById("mediaQualityField");
@@ -213,6 +225,8 @@
     refs.mediaStorageStatus = document.getElementById("mediaStorageStatus");
     refs.drawerPanels = Array.prototype.slice.call(document.querySelectorAll(".drawer-panel"));
     refs.drawerTriggers = Array.prototype.slice.call(document.querySelectorAll("[data-drawer-panel]"));
+    refs.pluginList = document.getElementById("pluginList");
+    refs.projectNavButtons = Array.prototype.slice.call(document.querySelectorAll("[data-project-entry]"));
   }
 
   function initApiBase() {
@@ -222,10 +236,10 @@
   }
 
   function initEmbedControls() {
-    state.embedControls = localStorage.getItem("xint-panorama-embed-controls") || "default";
-    state.embedHiddenControls = localStorage.getItem("xint-panorama-embed-hidden-controls") || "";
-    refs.embedControlsInput.value = state.embedControls;
-    refs.embedHiddenControlsInput.value = state.embedHiddenControls;
+    state.embedPreset = window.XinTEmbedPresets.fromLegacy(localStorage.getItem("xint-panorama-embed-controls"));
+    localStorage.setItem("xint-panorama-embed-controls", window.XinTEmbedPresets.controlsFor(state.embedPreset));
+    localStorage.removeItem("xint-panorama-embed-hidden-controls");
+    updateEmbedPresetButtons();
   }
 
   function initViewer() {
@@ -250,6 +264,14 @@
 
   function bindEvents() {
     refs.connectBtn.addEventListener("click", connectBackend);
+    refs.pluginList.addEventListener("click", function toggleConsolePlugin(event) {
+      var button = event.target.closest("[data-plugin-toggle]");
+      if (!button) return;
+      var pluginId = button.getAttribute("data-plugin-toggle");
+      projectPlugins.setEnabled(pluginId, !projectPlugins.isEnabled(pluginId));
+      var updatedToggle = refs.pluginList.querySelector('[data-plugin-toggle="' + pluginId + '"]');
+      if (updatedToggle) updatedToggle.focus();
+    });
     if (window.XinTGalleryGroups) {
       window.XinTGalleryGroups.bind(refs.manageGalleryGroupsBtn, fetchJson, loadGallery, function currentConnectionId() { return state.connectionId; });
     }
@@ -295,8 +317,6 @@
     refs.renameForm.addEventListener("submit", submitRename);
     refs.renameDialog.querySelector("[data-rename-close]").addEventListener("click", function closeRenameDialog() { refs.renameDialog.close(); });
     refs.addCurrentSceneBtn.addEventListener("click", addCurrentPanoramaAsScene);
-    refs.publishProjectBtn.addEventListener("click", publishCurrentProject);
-    refs.inspectProjectBtn.addEventListener("click", inspectCurrentProject);
     refs.prevBtn.addEventListener("click", function onPrev() {
       moveSelection(-1);
     });
@@ -315,11 +335,14 @@
     });
     refs.directorBtn.addEventListener("click", toggleDirectorMode);
     refs.viewerStateAction.addEventListener("click", handleViewerStateAction);
-    refs.embedControlsInput.addEventListener("input", updateEmbedControlConfiguration);
-    refs.embedHiddenControlsInput.addEventListener("input", updateEmbedControlConfiguration);
     refs.embedPresetButtons.forEach(function bindEmbedPreset(button) {
       button.addEventListener("click", function applyEmbedPresetFromButton() {
         applyEmbedPreset(button.getAttribute("data-embed-preset"));
+      });
+    });
+    refs.embedCopyButtons.forEach(function bindEmbedCopy(button) {
+      button.addEventListener("click", function copyEmbedSnippet() {
+        copyEmbedCode(button.getAttribute("data-copy-embed"));
       });
     });
     refs.fullscreenBtn.addEventListener("click", toggleFullscreen);
@@ -342,6 +365,10 @@
 
     document.addEventListener("keydown", function onKeydown(event) {
       if (event.key === "Escape") {
+        if (!refs.systemContextMenu.hidden) {
+          hideSystemContextMenu(true);
+          return;
+        }
         if (state.activeDrawerPanel) {
           closeDrawer();
           return;
@@ -355,7 +382,7 @@
       }
 
       var interactiveTarget = event.target?.closest?.(
-        "input, textarea, select, button, a, [role='slider'], [contenteditable='true']"
+        "input, textarea, select, button, a, pre, code, [data-embed-code], [role='slider'], [contenteditable='true']"
       );
       if (interactiveTarget) {
         return;
@@ -427,6 +454,8 @@
     state.apiBase = nextApiBase;
     refs.settingsStatus.textContent = "地址已保存，正在连接…";
     state.connectionId += 1;
+    state.appInfo = { name: "XinT 全景系统", version: null, repositoryUrl: "https://github.com/XinTycd/XinT-Panorama-System" };
+    renderAppInfo();
     cancelHotspotNavigation();
     var connectionId = state.connectionId;
     state.availableModes = null;
@@ -440,13 +469,10 @@
     state.galleryRequestId += 1;
     state.projectRequestId += 1;
     state.projectActionId += 1;
-    state.diagnosticRequestId += 1;
-    refs.inspectProjectBtn.disabled = false;
     state.requestId += 1;
     state.currentProjectId = null;
     state.currentProject = null;
     state.currentSceneId = null;
-    state.deliveryReport = null;
     state.projects = [];
     state.items = [];
     state.currentIndex = -1;
@@ -463,7 +489,6 @@
     renderGallery();
     renderProjects();
     renderProjectScenes();
-    renderDeliveryReport();
     localStorage.setItem("xint-panorama-system-api", state.apiBase);
     updateEmbedExample();
     loadAppInfo().finally(function loadGalleryAfterConfig() { if (state.connectionId === connectionId) loadGallery(); });
@@ -471,42 +496,44 @@
   }
 
   async function loadProjects() {
-    var connectionId = state.connectionId;
-    try {
-      var response = await fetchJson("/api/projects?limit=100");
-      if (connectionId !== state.connectionId) return;
-      state.projects = response.items || [];
-      var savedProjectId = localStorage.getItem("xint-panorama-system-project-id");
-      var hasCurrentProject = state.projects.some(function findCurrentProject(project) {
-        return project.id === state.currentProjectId;
-      });
-      var selectedProject = hasCurrentProject
-        ? state.currentProjectId
-        : state.projects.some(function findSavedProject(project) { return project.id === savedProjectId; })
-          ? savedProjectId
-          : state.projects[0] && state.projects[0].id;
+    if (!projectPlugins) return false;
+    return projectPlugins.runIfEnabled("project-workspace", async function loadEnabledProjects() {
+      var connectionId = state.connectionId;
+      var listRequestId = ++state.projectListRequestId;
+      try {
+        var response = await fetchJson("/api/projects?limit=100");
+        if (connectionId !== state.connectionId || listRequestId !== state.projectListRequestId || !projectPlugins.isEnabled("project-workspace")) return;
+        state.projects = response.items || [];
+        var savedProjectId = localStorage.getItem("xint-panorama-system-project-id");
+        var hasCurrentProject = state.projects.some(function findCurrentProject(project) {
+          return project.id === state.currentProjectId;
+        });
+        var selectedProject = hasCurrentProject
+          ? state.currentProjectId
+          : state.projects.some(function findSavedProject(project) { return project.id === savedProjectId; })
+            ? savedProjectId
+            : state.projects[0] && state.projects[0].id;
 
-      renderProjects();
-      if (selectedProject) {
-        await selectProject(selectedProject);
-      } else {
-        state.projectRequestId += 1;
+        renderProjects();
+        if (selectedProject) {
+          await selectProject(selectedProject);
+        } else {
+          state.projectRequestId += 1;
+          state.currentProjectId = null;
+          state.currentProject = null;
+          state.currentSceneId = null;
+          renderProjectScenes();
+        }
+      } catch (error) {
+        if (connectionId !== state.connectionId || listRequestId !== state.projectListRequestId || !projectPlugins.isEnabled("project-workspace")) return;
+        state.projects = [];
         state.currentProjectId = null;
         state.currentProject = null;
         state.currentSceneId = null;
-        state.deliveryReport = null;
+        renderProjects();
         renderProjectScenes();
       }
-    } catch (error) {
-      if (connectionId !== state.connectionId) return;
-      state.projects = [];
-      state.currentProjectId = null;
-      state.currentProject = null;
-      state.currentSceneId = null;
-      state.deliveryReport = null;
-      renderProjects();
-      renderProjectScenes();
-    }
+    });
   }
 
   async function createProject() {
@@ -541,24 +568,22 @@
     var message = "删除项目“" + project.name + "”及其全部场景、热点和发布版本？图库中的全景资源不会删除。";
     if (!window.confirm(message)) return;
     var connectionId = state.connectionId;
-    var wasCurrent = project.id === state.currentProjectId;
+    var pluginGeneration = projectPlugins.getGeneration();
     refs.projectActionStatus.textContent = "正在删除项目…";
     try {
       await fetchJson("/api/projects/" + encodeURIComponent(project.id), { method: "DELETE" });
-      if (connectionId !== state.connectionId) return;
+      if (connectionId !== state.connectionId || !projectPlugins.isEnabled("project-workspace") || pluginGeneration !== projectPlugins.getGeneration()) return;
       state.projects = state.projects.filter(function keepProject(item) { return item.id !== project.id; });
       refs.projectActionStatus.textContent = "项目及其场景、热点和发布版本已删除。";
-      if (wasCurrent) {
+      if (project.id === state.currentProjectId) {
         state.projectRequestId += 1;
         state.projectActionId += 1;
         state.currentProjectId = null;
         state.currentProject = null;
         state.currentSceneId = null;
         state.activeHotspotId = null;
-        state.deliveryReport = null;
         localStorage.removeItem("xint-panorama-system-project-id");
         refs.hotspotLayer.innerHTML = "";
-        renderDeliveryReport();
         var nextProject = state.projects[0];
         renderProjects();
         renderProjectScenes();
@@ -567,7 +592,7 @@
       } else renderProjects();
       setStatus("项目已删除");
     } catch (error) {
-      if (connectionId === state.connectionId) refs.projectActionStatus.textContent = "删除项目失败：" + error.message;
+      if (connectionId === state.connectionId && projectPlugins.isEnabled("project-workspace") && pluginGeneration === projectPlugins.getGeneration()) refs.projectActionStatus.textContent = "删除项目失败：" + error.message;
     }
   }
 
@@ -637,24 +662,21 @@
   }
 
   async function selectProject(projectId) {
+    if (!projectPlugins || !projectPlugins.isEnabled("project-workspace")) return;
     cancelHotspotNavigation();
     var connectionId = state.connectionId;
     var requestId = ++state.projectRequestId;
     state.projectActionId += 1;
-    state.diagnosticRequestId += 1;
-    refs.inspectProjectBtn.disabled = false;
     state.currentProjectId = projectId;
     state.currentProject = null;
     state.currentSceneId = null;
-    state.deliveryReport = null;
     refs.projectActionStatus.textContent = "";
     refs.sceneActionStatus.textContent = "";
     renderProjects();
     renderProjectScenes();
-    renderDeliveryReport();
     try {
       var response = await fetchJson("/api/projects/" + encodeURIComponent(projectId));
-      if (connectionId !== state.connectionId || requestId !== state.projectRequestId || state.currentProjectId !== projectId) return;
+      if (connectionId !== state.connectionId || requestId !== state.projectRequestId || state.currentProjectId !== projectId || !projectPlugins.isEnabled("project-workspace")) return;
       state.currentProject = response.project;
       localStorage.setItem("xint-panorama-system-project-id", projectId);
       renderProjects();
@@ -705,30 +727,8 @@
     }
   }
 
-  async function deleteProjectScene(scene) {
-    var project = state.currentProject;
-    if (!project) return;
-    var message = "删除场景“" + scene.name + "”及其热点？项目和图库中的全景资源会保留。";
-    if (!window.confirm(message)) return;
-    var connectionId = state.connectionId;
-    var projectId = project.id;
-    var wasCurrentScene = scene.id === state.currentSceneId;
-    refs.sceneActionStatus.textContent = "正在删除场景…";
-    try {
-      await fetchJson("/api/scenes/" + encodeURIComponent(scene.id), { method: "DELETE" });
-      if (connectionId !== state.connectionId || state.currentProjectId !== projectId) return;
-      state.activeHotspotId = null;
-      state.deliveryReport = null;
-      if (wasCurrentScene) state.currentSceneId = null;
-      await selectProject(projectId);
-      if (connectionId !== state.connectionId || state.currentProjectId !== projectId) return;
-      renderSpatialHotspots();
-      renderDeliveryReport();
-      refs.sceneActionStatus.textContent = "场景及关联热点已删除。";
-      setStatus("项目场景已删除");
-    } catch (error) {
-      if (connectionId === state.connectionId) refs.sceneActionStatus.textContent = "删除场景失败：" + error.message;
-    }
+  function deleteProjectScene(scene) {
+    return projectSceneActions.deleteScene(scene);
   }
 
   async function deletePanorama(item, index) {
@@ -762,9 +762,7 @@
       var pages = Math.max(1, Math.ceil(filteredEntries.length / state.galleryPageSize));
       state.galleryPage = Math.min(state.galleryPage, pages);
       state.activeHotspotId = null;
-      state.deliveryReport = null;
       renderGallery();
-      renderDeliveryReport();
       refs.hotspotLayer.innerHTML = "";
       if (wasCurrent && state.currentIndex >= 0) await selectScene(state.currentIndex);
       else if (wasCurrent) updateMeta(null);
@@ -777,127 +775,19 @@
     }
   }
 
-  async function publishCurrentProject() {
-    var connectionId = state.connectionId;
-    var projectId = state.currentProjectId;
-    var actionId = ++state.projectActionId;
-    if (!projectId) {
-      setStatus("请先创建或选择项目");
-      return;
-    }
-
-    try {
-      var response = await fetchJson("/api/projects/" + encodeURIComponent(projectId) + "/releases", {
-        method: "POST",
-        body: JSON.stringify({ name: refs.releaseNameInput.value.trim() || "控制台发布版本" })
-      });
-      if (connectionId !== state.connectionId || actionId !== state.projectActionId || projectId !== state.currentProjectId) return;
-      refs.releaseNameInput.value = "";
-      await selectProject(projectId);
-      if (connectionId !== state.connectionId || state.currentProjectId !== projectId) return;
-      var digest = response.release.snapshot && response.release.snapshot.integrity
-        ? response.release.snapshot.integrity.digest.slice(0, 10)
-        : "";
-      setStatus("已发布 v" + response.release.version + (digest ? " · " + digest : ""));
-    } catch (error) {
-      if (connectionId !== state.connectionId || actionId !== state.projectActionId || projectId !== state.currentProjectId) return;
-      if (error.payload && error.payload.report) {
-        state.deliveryReport = error.payload.report;
-        renderDeliveryReport();
-        openDrawer("insights");
-        setStatus(error.message || "发布前检查发现待处理项");
-        return;
-      }
-      setStatus("生成发布版本失败");
-    }
-  }
-
-  async function inspectCurrentProject() {
-    var connectionId = state.connectionId;
-    var projectId = state.currentProjectId;
-    var diagnosticRequestId = ++state.diagnosticRequestId;
-    if (!projectId) {
-      setStatus("请先创建或选择项目");
-      return;
-    }
-
-    refs.inspectProjectBtn.disabled = true;
-    setStatus("项目体检中...");
-    try {
-      var response = await fetchJson(
-        "/api/projects/" + encodeURIComponent(projectId) + "/diagnostics"
-      );
-      if (connectionId !== state.connectionId || diagnosticRequestId !== state.diagnosticRequestId ||
-          projectId !== state.currentProjectId) return;
-      state.deliveryReport = response.report;
-      renderDeliveryReport();
-      openDrawer("insights");
-      setStatus(response.report.ready ? "项目已达到交付基线" : "项目存在待处理项");
-    } catch (error) {
-      if (connectionId !== state.connectionId || diagnosticRequestId !== state.diagnosticRequestId) return;
-      setStatus("项目体检失败");
-    } finally {
-      if (connectionId === state.connectionId && diagnosticRequestId === state.diagnosticRequestId) refs.inspectProjectBtn.disabled = false;
-    }
-  }
-
-  function renderDeliveryReport() {
-    var report = state.deliveryReport;
-    if (!report) {
-      refs.deliveryStatus.textContent = "尚未检查";
-      refs.deliverySummary.textContent = "选择项目并运行体检后查看交付状态。";
-      refs.deliveryScore.textContent = "—";
-      refs.deliveryScore.className = "trust-score";
-      refs.deliveryReadinessBadge.textContent = "待检查";
-      refs.deliveryReadinessBadge.className = "trust-badge";
-      refs.deliveryOfflineBadge.textContent = "待检查";
-      refs.deliveryOfflineBadge.className = "trust-badge";
-      refs.deliverySceneCount.textContent = "0";
-      refs.deliveryHotspotCount.textContent = "0";
-      refs.deliveryAssetCount.textContent = "0";
-      refs.deliveryIssueCount.textContent = "0";
-      refs.deliveryCheckList.innerHTML = "";
-      return;
-    }
-
-    refs.deliveryStatus.textContent = report.ready ? "已达到交付基线" : "交付前需要处理";
-    refs.deliverySummary.textContent = report.ready
-      ? "项目结构和资源检查已通过，可以生成带完整性指纹的发布版本。"
-      : "系统发现影响交付质量的问题，请按风险顺序处理后重新检查。";
-    refs.deliveryScore.textContent = String(report.score);
-    refs.deliveryScore.className = "trust-score " + (report.ready ? "is-ready" : "has-errors");
-    refs.deliveryReadinessBadge.textContent = report.ready ? "可交付" : "需修复";
-    refs.deliveryReadinessBadge.className = "trust-badge " + (report.ready ? "is-positive" : "is-warning");
-    refs.deliveryOfflineBadge.textContent = report.offlineSafe ? "可离线运行" : "包含外部依赖";
-    refs.deliveryOfflineBadge.className = "trust-badge " + (report.offlineSafe ? "is-positive" : "is-warning");
-    refs.deliverySceneCount.textContent = String(report.stats.scenes);
-    refs.deliveryHotspotCount.textContent = String(report.stats.hotspots);
-    refs.deliveryAssetCount.textContent = String(report.stats.referencedAssets);
-    refs.deliveryIssueCount.textContent = String(report.summary.error + report.summary.warning);
-    refs.deliveryCheckList.innerHTML = "";
-
-    var levelWeight = { error: 0, warning: 1, success: 2 };
-    report.checks.slice().sort(function sortChecks(left, right) {
-      return levelWeight[left.level] - levelWeight[right.level];
-    }).forEach(function renderCheck(check) {
-      var item = document.createElement("article");
-      var title = document.createElement("strong");
-      var detail = document.createElement("span");
-      item.className = "delivery-check";
-      item.setAttribute("data-level", check.level);
-      title.textContent = check.title;
-      detail.textContent = check.detail;
-      item.appendChild(title);
-      item.appendChild(detail);
-      refs.deliveryCheckList.appendChild(item);
-    });
-  }
-
   async function loadAppInfo() {
     var connectionId = state.connectionId;
     try {
       var response = await fetchJson("/api/config");
       if (connectionId !== state.connectionId) return;
+      if (response.app) {
+        state.appInfo = {
+          name: response.app.name || state.appInfo.name,
+          version: response.app.version || null,
+          repositoryUrl: response.app.repositoryUrl || state.appInfo.repositoryUrl
+        };
+        renderAppInfo();
+      }
       if (response.viewer && (response.viewer.engine === "psv" || response.viewer.engine === "legacy")) {
         await applyViewerEngine(response.viewer, connectionId);
       } else {
@@ -916,16 +806,7 @@
         refs.mediaStorageHelp.textContent = "当前服务不支持读取图片存储设置。请升级后端服务。";
         refs.mediaStorageStatus.textContent = "图片存储设置不可用。";
       }
-      if (!response.app) {
-        return;
-      }
-
-      state.appInfo = {
-        name: response.app.name || state.appInfo.name,
-        version: response.app.version || state.appInfo.version,
-        repositoryUrl: response.app.repositoryUrl || state.appInfo.repositoryUrl
-      };
-      renderAppInfo();
+      if (!response.app) return;
     } catch (error) {
       if (connectionId === state.connectionId) {
         state.availableModes = null;
@@ -1036,17 +917,20 @@
     refs.mediaFormatSelect.disabled = false;
     refs.saveMediaStorageBtn.disabled = false;
     refs.mediaStorageStatus.textContent = "已读取图片存储设置。";
+    refs.mediaStorageHelp.textContent = "图片保存形式独立于存储位置；转码仅影响之后上传的图片。";
     updateMediaStorageForm();
   }
 
   function updateMediaStorageForm() {
     var mode = refs.mediaStorageMode.value || "server";
-    if ((mode === "sqlite" || mode === "cloud") && refs.mediaFormatSelect.value === "original") {
-      refs.mediaFormatSelect.value = "base64";
-    }
-    refs.cloudSettingsPanel.hidden = mode !== "cloud";
-    refs.transcodeSettings.hidden = refs.mediaFormatSelect.value !== "transcode";
-    refs.mediaQualityField.hidden = refs.mediaCodecSelect.value === "png";
+    var formState = window.XinTMediaStorageForm.getState(mode, refs.mediaFormatSelect.value, refs.mediaCodecSelect.value);
+    refs.mediaFormatSelect.value = formState.format;
+    refs.mediaFormatOriginalOption.disabled = !formState.originalAllowed;
+    refs.cloudSettingsPanel.hidden = !formState.cloudVisible;
+    refs.cloudDatabaseUrlInput.disabled = !formState.cloudVisible;
+    refs.cloudTokenInput.disabled = !formState.cloudVisible;
+    refs.transcodeSettings.hidden = !formState.transcodeVisible;
+    refs.mediaQualityField.hidden = !formState.qualityVisible;
     var descriptions = {
       server: "本地服务端：图片保存在服务端上传目录，适合单机或内网部署。",
       client: "本地客户端：图片保存在此浏览器的 IndexedDB，仅此浏览器可查看；清理浏览器数据后可能无法恢复。",
@@ -1114,37 +998,52 @@
 
   function renderAppInfo() {
     refs.systemNameText.textContent = state.appInfo.name;
-    refs.systemVersionText.textContent = "版本 v" + String(state.appInfo.version).replace(/^v/i, "");
+    refs.systemVersionText.textContent = state.appInfo.version
+      ? "版本 v" + String(state.appInfo.version).replace(/^v/i, "")
+      : "版本待获取";
     refs.githubRepoLink.href = state.appInfo.repositoryUrl;
   }
 
   function showSystemContextMenu(event) {
-    if (event.target && event.target.closest("input, textarea")) {
+    if (event.target && event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) {
       hideSystemContextMenu();
       return;
     }
 
     event.preventDefault();
+    state.systemContextMenuReturnFocus = document.activeElement;
     refs.systemContextMenu.hidden = false;
 
     var menuWidth = refs.systemContextMenu.offsetWidth;
     var menuHeight = refs.systemContextMenu.offsetHeight;
-    var left = Math.min(event.clientX, window.innerWidth - menuWidth - 12);
-    var top = Math.min(event.clientY, window.innerHeight - menuHeight - 12);
+    var left = Math.min(Math.max(12, event.clientX), Math.max(12, window.innerWidth - menuWidth - 12));
+    var top = Math.min(Math.max(12, event.clientY), Math.max(12, window.innerHeight - menuHeight - 12));
 
-    refs.systemContextMenu.style.left = Math.max(12, left) + "px";
-    refs.systemContextMenu.style.top = Math.max(12, top) + "px";
+    refs.systemContextMenu.style.left = left + "px";
+    refs.systemContextMenu.style.top = top + "px";
+    refs.githubRepoLink.focus();
   }
 
-  function hideSystemContextMenu() {
+  function hideSystemContextMenu(restoreFocus) {
+    var wasVisible = !refs.systemContextMenu.hidden;
     refs.systemContextMenu.hidden = true;
+    if (restoreFocus && wasVisible && state.systemContextMenuReturnFocus && state.systemContextMenuReturnFocus.focus) {
+      state.systemContextMenuReturnFocus.focus();
+    } else if (document.activeElement === refs.githubRepoLink) {
+      refs.githubRepoLink.blur();
+    }
+    state.systemContextMenuReturnFocus = null;
   }
 
   function openDrawer(panelName) {
+    if (panelName === "projects" && (!projectPlugins || !projectPlugins.isEnabled("project-workspace"))) {
+      if (projectPlugins) openDrawer("plugins");
+      return;
+    }
     var labels = {
       library: { eyebrow: "LIBRARY", title: "资源库" },
       projects: { eyebrow: "PROJECTS", title: "项目工作区" },
-      insights: { eyebrow: "INSPECTION", title: "交付检查" },
+      plugins: { eyebrow: "PLUGINS", title: "插件" },
       editor: { eyebrow: "PREVIEW INFO", title: "预览信息" },
       embed: { eyebrow: "EMBED", title: "嵌入接入" },
       settings: { eyebrow: "SETTINGS", title: "系统设置" }
@@ -1173,6 +1072,65 @@
     hideSystemContextMenu();
   }
 
+  function renderProjectPluginState() {
+    if (!refs.pluginList || !projectPlugins) return;
+    refs.pluginList.innerHTML = "";
+    projectPlugins.list().forEach(function renderPlugin(plugin) {
+      var card = document.createElement("article");
+      var icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      var use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+      var copy = document.createElement("div");
+      var name = document.createElement("strong");
+      var description = document.createElement("span");
+      var kind = document.createElement("span");
+      var toggle = document.createElement("button");
+      card.className = "plugin-card";
+      icon.setAttribute("class", "xint-icon plugin-card__icon");
+      icon.setAttribute("aria-hidden", "true");
+      icon.setAttribute("focusable", "false");
+      icon.setAttribute("viewBox", "0 0 256 256");
+      use.setAttribute("href", "./icons/sprite.svg#" + plugin.icon);
+      icon.appendChild(use);
+      copy.className = "plugin-card__copy";
+      name.textContent = plugin.name;
+      description.textContent = plugin.description;
+      kind.className = "plugin-card__kind";
+      kind.textContent = plugin.kind === "built-in" ? "内置" : "插件";
+      copy.append(name, description);
+      toggle.type = "button";
+      toggle.className = "plugin-action-button" + (plugin.enabled ? " plugin-action-button--disable" : " plugin-action-button--enable");
+      toggle.setAttribute("aria-label", (plugin.enabled ? "禁用" : "启用") + plugin.name);
+      toggle.setAttribute("data-plugin-toggle", plugin.id);
+      toggle.textContent = plugin.enabled ? "禁用" : "启用";
+      card.append(icon, copy, kind, toggle);
+      refs.pluginList.appendChild(card);
+    });
+    var enabled = projectPlugins.isEnabled("project-workspace");
+    refs.projectNavButtons.forEach(function showProjectEntry(button) { button.hidden = !enabled; });
+    refs.drawerPanels.forEach(function gateProjectPanel(panel) {
+      if (panel.getAttribute("data-panel") === "projects") panel.hidden = !enabled || panel.getAttribute("data-panel") !== state.activeDrawerPanel;
+    });
+  }
+
+  function disableProjectWorkspace() {
+    cancelHotspotNavigation();
+    state.projectRequestId += 1;
+    state.projectListRequestId += 1;
+    state.projectActionId += 1;
+    state.currentProjectId = null;
+    state.currentProject = null;
+    state.currentSceneId = null;
+    state.activeHotspotId = null;
+    state.projects = [];
+    refs.projectActionStatus.textContent = "";
+    refs.sceneActionStatus.textContent = "";
+    if (refs.renameDialog.open) refs.renameDialog.close();
+    renderProjects();
+    renderProjectScenes();
+    renderSpatialHotspots();
+    if (state.activeDrawerPanel === "projects") openDrawer("plugins");
+  }
+
   function closeDrawer() {
     state.activeDrawerPanel = null;
     refs.appShell.classList.remove("drawer-open");
@@ -1186,10 +1144,6 @@
   async function loadGallery() {
     var connectionId = state.connectionId;
     var galleryRequestId = ++state.galleryRequestId;
-    state.diagnosticRequestId += 1;
-    refs.inspectProjectBtn.disabled = false;
-    state.deliveryReport = null;
-    renderDeliveryReport();
     setStatus("连接中...");
     setViewerState("loading", "正在连接全景资源", "同步图库与查看器状态");
     try {
@@ -1203,6 +1157,7 @@
       renderGalleryGroupSelects();
       state.items = response.items || [];
       renderGallery();
+      updateEmbedExample();
 
       if (!state.items.length) {
         setStatus("图库为空");
@@ -1353,8 +1308,21 @@
 
   async function applyAddedItem(response, connectionId) {
     if (connectionId !== state.connectionId || !response) return;
-    state.galleryRequestId += 1;
-    if (Array.isArray(response.items)) state.items = response.items;
+    var galleryRequestId = ++state.galleryRequestId;
+    if (Array.isArray(response.items)) {
+      state.items = response.items;
+    } else {
+      try {
+        var gallery = await fetchJson("/api/gallery");
+        if (connectionId !== state.connectionId || galleryRequestId !== state.galleryRequestId) return;
+        state.items = gallery.items || [];
+      } catch (_) {
+        if (connectionId === state.connectionId && galleryRequestId === state.galleryRequestId) {
+          setStatus("资源已保存，刷新图库失败，请重新加载图库");
+        }
+        return false;
+      }
+    }
     var itemId = response.item && response.item.id;
     var index = state.items.findIndex(function findAddedItem(item) { return item.id === itemId; });
     state.galleryGroup = null;
@@ -1369,6 +1337,7 @@
       await selectScene(index);
     }
     if (connectionId === state.connectionId) setStatus("已添加到资源库");
+    return true;
   }
 
   async function saveCurrentMeta() {
@@ -1502,6 +1471,8 @@
     var totalCount = batch.length;
     var completed = 0;
     var latestResponse = null;
+    var galleryRefreshed = true;
+    var uploadPath = "/api/panoramas/upload-base64?includeItems=0";
     refs.uploadCancelBtn.disabled = true;
     try {
       while (batch.length && connectionId === state.connectionId && state.pendingUploads === batch) {
@@ -1515,7 +1486,7 @@
             break;
           }
           try {
-            response = await fetchJson("/api/panoramas/upload-base64", {
+            response = await fetchJson(uploadPath, {
               method: "POST",
               body: JSON.stringify({ name: upload.name, description: upload.description, group: upload.group, clientMediaId: clientMediaId })
             });
@@ -1526,7 +1497,7 @@
         } else {
           var dataUrl = await fileToDataUrl(upload.file);
           if (connectionId !== state.connectionId || state.pendingUploads !== batch) break;
-          response = await fetchJson("/api/panoramas/upload-base64", {
+          response = await fetchJson(uploadPath, {
             method: "POST",
             body: JSON.stringify({ name: upload.name, description: upload.description, group: upload.group, dataUrl: dataUrl })
           });
@@ -1546,11 +1517,11 @@
         clearPendingUploads();
       }
       if (latestResponse && connectionId === state.connectionId && state.pendingUploads === batch) {
-        await applyAddedItem(latestResponse, connectionId);
+        galleryRefreshed = await applyAddedItem(latestResponse, connectionId);
       } else if (latestResponse && connectionId === state.connectionId && !state.pendingUploads.length) {
-        await applyAddedItem(latestResponse, connectionId);
+        galleryRefreshed = await applyAddedItem(latestResponse, connectionId);
       }
-      if (connectionId === state.connectionId && !state.pendingUploads.length) setStatus("上传完成，共 " + completed + " 张");
+      if (galleryRefreshed && connectionId === state.connectionId && !state.pendingUploads.length) setStatus("上传完成，共 " + completed + " 张");
     } catch (error) {
       if (connectionId === state.connectionId && state.pendingUploads === batch) {
         refs.uploadProgress.textContent = "上传失败：" + error.message + "。剩余 " + state.pendingUploads.length + " 张，可重试。";
@@ -1624,6 +1595,7 @@
     state.currentSceneId = requestedScene;
     state.currentIndex = index;
     state.viewerReady = false;
+    renderProjectScenes();
     if (!state.viewerController) {
       setViewerState("error", "预览引擎未启动", "请在系统设置中选择可用的预览引擎。", "");
       return;
@@ -1660,6 +1632,7 @@
         });
       }
       state.currentSceneId = resolvedScene ? resolvedScene.id : null;
+      renderProjectScenes();
       var projectScene = getCurrentProjectScene();
       if (projectScene) {
         state.viewerController.setView({
@@ -1738,9 +1711,11 @@
       var actions = document.createElement("div");
       var edit = createIconActionButton("edit", "编辑全景图：" + (item.name || item.id), false);
       var remove = createIconActionButton("delete", "删除全景图：" + (item.name || item.id), true);
-      row.className = "gallery-row";
+      var selected = state.currentIndex === entry.index;
+      row.className = "gallery-row" + (selected ? " is-active" : "");
       select.type = "button";
-      select.className = "gallery-item" + (state.currentIndex === entry.index ? " active" : "");
+      select.className = "gallery-item";
+      select.setAttribute("aria-pressed", selected ? "true" : "false");
       var thumbWrap = document.createElement("span");
       var image = document.createElement("img");
       var copy = document.createElement("span");
@@ -1873,9 +1848,11 @@
       var select = document.createElement("button");
       var edit = createIconActionButton("edit", "重命名项目：" + project.name, false);
       var remove = createIconActionButton("delete", "删除项目：" + project.name, true);
-      row.className = "project-row";
+      var selected = project.id === state.currentProjectId;
+      row.className = "project-row" + (selected ? " is-active" : "");
       select.type = "button";
-      select.className = "project-item" + (project.id === state.currentProjectId ? " active" : "");
+      select.className = "project-item";
+      select.setAttribute("aria-pressed", selected ? "true" : "false");
       var title = document.createElement("strong");
       var detail = document.createElement("span");
       title.textContent = project.name;
@@ -1910,9 +1887,11 @@
       var select = document.createElement("button");
       var edit = createIconActionButton("edit", "重命名场景：" + scene.name, false);
       var remove = createIconActionButton("delete", "删除项目场景：" + scene.name, true);
-      row.className = "project-scene-row";
+      var selected = scene.id === state.currentSceneId;
+      row.className = "project-scene-row" + (selected ? " is-active" : "");
       select.type = "button";
       select.className = "project-scene-item";
+      select.setAttribute("aria-pressed", selected ? "true" : "false");
       var title = document.createElement("strong");
       var detail = document.createElement("span");
       title.textContent = scene.name;
@@ -1929,9 +1908,11 @@
         }
       });
       edit.addEventListener("click", function onRenameScene(event) { event.stopPropagation(); openRenameDialog("scene", scene); });
+      remove.dataset.sceneDelete = scene.id;
       remove.addEventListener("click", function onDeleteScene(event) { event.stopPropagation(); deleteProjectScene(scene); });
       var actions = document.createElement("div");
       actions.className = "gallery-row__actions";
+      remove.disabled = Boolean(projectSceneActions && projectSceneActions.isBusyForCurrentProject());
       actions.append(edit, remove);
       row.append(select, actions);
       refs.projectSceneList.appendChild(row);
@@ -1956,66 +1937,68 @@
 
   function updateEmbedExample() {
     var currentItem = state.currentIndex >= 0 ? state.items[state.currentIndex] : null;
-    var safeEmbedControls = sanitizeEmbedAttribute(state.embedControls);
-    var safeHiddenControls = sanitizeEmbedAttribute(state.embedHiddenControls);
-    var controlAttributes =
-      (safeEmbedControls ? ' data-controls="' + safeEmbedControls + '"' : "") +
-      (safeHiddenControls ? ' data-hide-controls="' + safeHiddenControls + '"' : "");
-    refs.embedExample.textContent =
-      "按编号嵌入：\n" +
-      '<div id="panorama-widget"></div>\n' +
-      '<script src="' +
-      state.apiBase +
-      '/embed.js" data-target="panorama-widget" data-api="' +
-      state.apiBase +
-      '"' +
-      (currentItem && currentItem.panoramaNo ? ' data-panorama-no="' + currentItem.panoramaNo + '"' : "") +
-      controlAttributes +
-      '><' +
-      "/script>\n\n" +
-      "按外部 URL 直接嵌入：\n" +
-      '<div id="panorama-widget-url"></div>\n' +
-      '<script src="' +
-      state.apiBase +
-      '/embed.js" data-target="panorama-widget-url" data-api="' +
-      state.apiBase +
-      '" data-image-url="https://example.com/panorama.jpg" data-image-name="外部全景图"' +
-      controlAttributes +
-      '><' +
-      "/script>";
+    var result;
+    try {
+      result = window.XinTEmbedCode.generate({
+        apiBase: state.apiBase,
+        item: currentItem,
+        clientOnly: isClientUpload(currentItem),
+        controls: window.XinTEmbedPresets.controlsFor(state.embedPreset)
+      });
+    } catch (_) {
+      result = { available: false, message: "服务地址无效，请检查系统设置。" };
+    }
+    var available = Boolean(result.available);
+    refs.embedIframeCode.textContent = available ? result.iframe : "";
+    refs.embedScriptCode.textContent = available ? result.script : "";
+    refs.embedCodeBlocks.forEach(function updateCodeBlock(block) { block.hidden = !available; });
+    refs.embedCopyButtons.forEach(function updateCopyButton(button) { button.disabled = !available; });
+    refs.embedCodeFeedback.iframe.textContent = available ? "" : result.message;
+    refs.embedCodeFeedback.script.textContent = available ? "" : result.message;
   }
 
-  function updateEmbedControlConfiguration() {
-    state.embedControls = refs.embedControlsInput.value.trim();
-    state.embedHiddenControls = refs.embedHiddenControlsInput.value.trim();
-    localStorage.setItem("xint-panorama-embed-controls", state.embedControls);
-    localStorage.setItem("xint-panorama-embed-hidden-controls", state.embedHiddenControls);
-    refs.embedPresetButtons.forEach(function clearEmbedPreset(button) {
-      button.classList.remove("active");
-    });
-    updateEmbedExample();
+  async function copyEmbedCode(kind) {
+    var code = kind === "iframe" ? refs.embedIframeCode : refs.embedScriptCode;
+    var feedback = refs.embedCodeFeedback[kind];
+    var block = code.closest("pre");
+    var copiedText = code.textContent;
+    if (!copiedText) return;
+    try {
+      if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") throw new Error("Clipboard API unavailable");
+      await navigator.clipboard.writeText(copiedText);
+      if (code.textContent === copiedText) feedback.textContent = "已复制代码。";
+    } catch (_) {
+      if (code.textContent !== copiedText) return;
+      block.focus();
+      try {
+        var selection = window.getSelection && window.getSelection();
+        if (selection && document.createRange) {
+          var range = document.createRange();
+          range.selectNodeContents(code);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      } catch (_) {
+        // Keep focus on the code block as a manual copy fallback.
+      }
+      feedback.textContent = "无法自动复制，代码已选中。请按 Ctrl+C（Mac 使用 ⌘C）。";
+    }
   }
 
   function applyEmbedPreset(preset) {
-    var presets = {
-      all: { controls: "all", hidden: "" },
-      compact: {
-        controls: "brand,status,zoom-in,zoom-out,autorotate,reset,fullscreen",
-        hidden: ""
-      },
-      none: { controls: "none", hidden: "" }
-    };
-    var selected = presets[preset] || presets.all;
-    refs.embedControlsInput.value = selected.controls;
-    refs.embedHiddenControlsInput.value = selected.hidden;
-    updateEmbedControlConfiguration();
-    refs.embedPresetButtons.forEach(function updateEmbedPreset(button) {
-      button.classList.toggle("active", button.getAttribute("data-embed-preset") === preset);
-    });
+    state.embedPreset = ["all", "compact", "none"].indexOf(preset) === -1 ? "all" : preset;
+    localStorage.setItem("xint-panorama-embed-controls", window.XinTEmbedPresets.controlsFor(state.embedPreset));
+    localStorage.removeItem("xint-panorama-embed-hidden-controls");
+    updateEmbedPresetButtons();
+    updateEmbedExample();
   }
 
-  function sanitizeEmbedAttribute(value) {
-    return String(value || "").toLowerCase().replace(/[^a-z0-9,-]/g, "");
+  function updateEmbedPresetButtons() {
+    refs.embedPresetButtons.forEach(function updateEmbedPreset(button) {
+      var selected = button.getAttribute("data-embed-preset") === state.embedPreset;
+      button.classList.toggle("active", selected);
+      button.setAttribute("aria-pressed", selected ? "true" : "false");
+    });
   }
 
   function moveSelection(delta) {
@@ -2074,8 +2057,7 @@
     setAttributeIfChanged(refs.directorBtn, "aria-pressed", state.directorMode ? "true" : "false");
     setAttributeIfChanged(refs.directorBtn, "aria-label", label);
     if (refs.directorBtn.title !== label) refs.directorBtn.title = label;
-    var text = state.directorMode ? "Ⅱ" : "▶";
-    if (refs.directorBtn.textContent !== text) refs.directorBtn.textContent = text;
+    setAttributeIfChanged(refs.directorBtn.querySelector("use"), "href", "./icons/sprite.svg#" + (state.directorMode ? "pause" : "play"));
   }
 
   function updateViewerTelemetry(view) {
@@ -2226,6 +2208,7 @@
     refs.fullscreenBtn.setAttribute("aria-pressed", active ? "true" : "false");
     refs.fullscreenBtn.setAttribute("aria-label", active ? "退出全屏" : "全屏预览");
     refs.fullscreenBtn.title = active ? "退出全屏" : "全屏预览";
+    refs.fullscreenBtn.querySelector("use").setAttribute("href", "./icons/sprite.svg#" + (active ? "exit-fullscreen" : "fullscreen"));
   }
 
   async function fetchJson(pathname, options) {

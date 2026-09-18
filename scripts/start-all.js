@@ -1,7 +1,4 @@
-const { applyRuntimeConfig } = require("../lib/runtime-config");
 const { ensureViewerAssets } = require("./viewer-assets");
-
-applyRuntimeConfig(process.argv.slice(2));
 
 const backend = require("../backend/index");
 const frontend = require("./frontend-server");

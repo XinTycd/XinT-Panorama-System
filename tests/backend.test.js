@@ -146,6 +146,7 @@ async function run() {
     const uploadPayload = JSON.parse(upload.body);
     assert.strictEqual(uploadPayload.item.panoramaNo, 2);
     assert.strictEqual(uploadPayload.item.description, "initial description");
+    assert.ok(Array.isArray(uploadPayload.items), "Upload responses include the gallery by default");
 
     const databaseRecord = await request(port, "/api/panoramas/create", {
       method: "POST",
@@ -549,6 +550,21 @@ async function run() {
     const releaseAfterGalleryClear = await request(port, "/api/releases/" + releasePayload.release.id + "/verify");
     assert.strictEqual(releaseAfterGalleryClear.statusCode, 200);
     assert.strictEqual(JSON.parse(releaseAfterGalleryClear.body).verification.verified, true);
+
+    const compactUpload = await request(port, "/api/panoramas/upload-base64?includeItems=0", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "compact-response",
+        dataUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9nK3sAAAAASUVORK5CYII="
+      })
+    });
+    assert.strictEqual(compactUpload.statusCode, 200);
+    const compactUploadPayload = JSON.parse(compactUpload.body);
+    assert.deepStrictEqual(Object.keys(compactUploadPayload).sort(), ["item", "ok"]);
+    const compactByNo = await request(port, "/api/panoramas/by-no?no=" + compactUploadPayload.item.panoramaNo);
+    assert.strictEqual(JSON.parse(compactByNo.body).item.id, compactUploadPayload.item.id);
+    const deleteCompactUpload = await request(port, "/api/panoramas/" + compactUploadPayload.item.id, { method: "DELETE" });
+    assert.strictEqual(deleteCompactUpload.statusCode, 200);
 
     console.log("Backend tests passed");
   } finally {

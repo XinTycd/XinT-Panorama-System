@@ -147,6 +147,8 @@ function serveStatic(req, res, urlObject) {
     "/assets/PSV-LICENSE": [path.join(__dirname, "..", "frontend", "vendor", "PSV-LICENSE"), "public, max-age=3600"],
     "/assets/THREE-LICENSE": [path.join(__dirname, "..", "frontend", "vendor", "THREE-LICENSE"), "public, max-age=3600"],
     "/assets/THIRD_PARTY_NOTICES.txt": [path.join(__dirname, "..", "frontend", "vendor", "THIRD_PARTY_NOTICES.txt"), "public, max-age=31536000, immutable"],
+    "/assets/icons.svg": [path.join(__dirname, "..", "frontend", "icons", "sprite.svg"), "no-cache"],
+    "/assets/icons/LICENSE.phosphor": [path.join(__dirname, "..", "frontend", "icons", "LICENSE.phosphor"), "public, max-age=3600"],
     "/assets/panorama-viewer.js": [path.join(__dirname, "..", "frontend", "panorama-viewer.js"), "no-cache"],
     "/assets/legacy-viewer.js": [path.join(__dirname, "..", "frontend", "viewer", "legacy-viewer.js"), "no-cache"],
     "/assets/three.min.js": [path.join(__dirname, "..", "frontend", "vendor", "three.min.js"), "public, max-age=31536000, immutable"]

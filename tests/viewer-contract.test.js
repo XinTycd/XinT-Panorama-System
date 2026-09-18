@@ -28,7 +28,7 @@ assert(!/compare|mode-button|modebar/i.test(widget), "Widget must not retain rem
 assert(app.includes("requestedController.setPanorama(imageUrl)"), "Console scene loading must use the captured controller so async URL resolution cannot target a replacement engine");
 assert(app.includes("connectionId !== state.connectionId || requestId !== state.requestId"), "Console loads must be scoped to active connection and request");
 assert(app.includes("scene.id === state.currentSceneId && scene.panoramaId === currentItem.id"), "Project scene navigation must retain scene identity");
-assert(widget.includes("controller.setPanorama(item.viewerUrl)"), "Widget must load source URLs through the captured adapter instance");
+assert(widget.includes("var controller = state.viewerController") && widget.includes("controller.setPanorama(resolveItemViewerUrl(item, apiBase))"), "Widget must load resolved source URLs through the captured adapter instance");
 assert(widget.includes('params.get("autorotate") === "1"'), "Widget autorotation must require explicit autorotate=1");
 assert(html.includes("./vendor/psv.bundle.js") && html.includes("./vendor/psv.css"), "Console must load local PSV runtime and CSS");
 assert(widget.includes("/assets/psv.bundle.js") && widget.includes("/assets/psv.css"), "Widget must load the same local PSV runtime and CSS");
@@ -44,7 +44,8 @@ assert(css.includes("border-radius: 8px") && css.includes("background: #111"), "
 assert(!/viewer-signature|viewer-help|viewer-resolution|viewer-topline|scene-rail|spatial-compass|viewer-telemetry/.test(html + css), "Viewer HUD overlays and floating scene rail must not be shipped");
 assert(html.includes('id="fullscreenBtn" class="viewer-action"') && html.includes('id="customizeToolbarBtn" class="viewer-action viewer-more-button"'), "Fullscreen and more tools must live in the accessible viewer toolbar");
 assert(html.includes('class="viewer-toolbar" role="toolbar"') && html.includes('aria-label="全景查看工具"'), "Console controls must expose a labeled toolbar landmark");
-assert(html.includes("可配置控件：previous、next、zoom-in、zoom-out、focus、director、autorotate、reset、fullscreen") && html.includes("新版查看器不显示这些叠加信息"), "Embed helper must describe current controls and legacy HUD token behavior");
+assert(html.includes('data-embed-preset="all"') && html.includes('data-embed-preset="compact"') && html.includes('data-embed-preset="none"'), "Embed console must expose only its three named control presets");
+assert(!html.includes("embedControlsInput") && !html.includes("embedHiddenControlsInput"), "Embed console must not expose hand-edited control tokens");
 assert(app.includes('state.viewerEngine === "legacy" && ["r", "d", " "]'), "Legacy keyboard shortcuts must not invoke hidden reset or demo controls");
 assert(widget.includes(".viewer-shell.is-legacy #zoomOutBtn") && widget.includes("statusIsFeedback"), "Legacy widget must show zoom controls and retain loading/error feedback");
 assert(!/viewer-top|brand-signature|panoramaNoText|resolutionText/.test(widget), "Widget must not display brand, number, or resolution HUD");

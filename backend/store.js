@@ -139,6 +139,13 @@ async function readGallery() {
   return selectGallery(getDatabase());
 }
 
+async function readItemByPanoramaNo(panoramaNo) {
+  const number = Number(panoramaNo);
+  if (!Number.isFinite(number)) return null;
+  const row = getDatabase().prepare("SELECT id, panorama_no, name, description, source_type, original_url, viewer_path, thumbnail_path, size, width, height, created_at, group_name FROM panoramas WHERE panorama_no = ?").get(number);
+  return row ? dbItemToGalleryItem(row) : null;
+}
+
 async function writeGallery(items) {
   try {
     return transaction(function replace(db) {
@@ -311,6 +318,7 @@ module.exports = {
   DB_DRIVER,
   initialize,
   readGallery,
+  readItemByPanoramaNo,
   writeGallery,
   getNextPanoramaNo,
   normalizeGalleryItems,

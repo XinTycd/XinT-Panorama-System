@@ -3,7 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="/assets/psv.css" />
     <title>XinT-Panorama-System Widget</title>
     <style>
       :root {
@@ -51,6 +50,7 @@
         width: 100%;
         height: 100%;
       }
+      #viewer .psv-loader-container { display: none !important; }
       #viewer canvas {
         display: block;
         width: 100%;
@@ -70,20 +70,25 @@
       .viewer-shell.is-legacy .toolbar { left: auto; right: 14px; bottom: 14px; gap: 8px; padding: 0; }
       .viewer-shell.is-legacy #zoomOutBtn:not([hidden]),
       .viewer-shell.is-legacy #zoomInBtn:not([hidden]) { width: 44px; min-width: 44px; height: 44px; min-height: 44px; justify-content: center; padding: 0; border-color: rgba(255,255,255,0.38); border-radius: 50%; color: var(--white); background: rgba(7,7,7,0.76); box-shadow: 0 4px 14px rgba(0,0,0,0.25); font-size: 0; }
-      .viewer-shell.is-legacy #zoomOutBtn:not([hidden])::before,
-      .viewer-shell.is-legacy #zoomInBtn:not([hidden])::before { font-size: 23px; line-height: 1; }
-      .viewer-shell.is-legacy #zoomOutBtn:not([hidden])::before { content: "−"; }
-      .viewer-shell.is-legacy #zoomInBtn:not([hidden])::before { content: "+"; }
       .viewer-shell, #viewer { background: #111; }
       .viewer-feedback { position: absolute; z-index: 4; top: 50%; left: 50%; max-width: calc(100% - 32px); padding: 9px 13px; transform: translate(-50%, -50%); border: 1px solid rgba(255,255,255,0.13); border-radius: 7px; color: rgba(255,255,255,0.92); background: rgba(24,24,24,0.82); font-size: 13px; text-align: center; overflow-wrap: anywhere; pointer-events: none; }
       .viewer-feedback[hidden] { display: none !important; }
       .toolbar { position: absolute; z-index: 5; left: 50%; right: auto; bottom: 12px; display: flex; align-items: center; max-width: calc(100% - 24px); flex-wrap: nowrap; gap: 6px; overflow-x: auto; padding: 6px; transform: translateX(-50%); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; background: rgba(28,28,28,0.78); box-shadow: 0 6px 20px rgba(0,0,0,0.22); backdrop-filter: blur(12px); scrollbar-width: none; }
       .toolbar::-webkit-scrollbar { display: none; }
+      .xint-icon { display: block; width: 20px; height: 20px; flex: none; pointer-events: none; }
       .button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; display: grid; place-items: center; justify-content: center; padding: 0; border: 1px solid transparent; border-radius: 7px; color: rgba(255,255,255,0.92); background: transparent; cursor: pointer; font-size: 21px; line-height: 1; }
       .button:hover, .button:focus-visible { border-color: rgba(255,255,255,0.14); background: rgba(255,255,255,0.12); }
       .button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
       .button[aria-pressed="true"] { background: rgba(255,255,255,0.16); }
       .viewer-shell.is-legacy .toolbar { left: auto; right: 12px; bottom: 12px; transform: none; }
+      .widget-system-context-menu { position: fixed; z-index: 12; width: min(280px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; padding: 8px; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; color: var(--text); background: rgba(28,28,28,0.9); box-shadow: 0 6px 20px rgba(0,0,0,0.28); backdrop-filter: blur(12px); }
+      .widget-system-context-menu__summary { display: flex; flex-direction: column; gap: 4px; padding: 9px 11px; }
+      .widget-system-context-menu__summary strong { font-size: 13px; font-weight: 650; }
+      .widget-system-context-menu__summary span { color: rgba(255,255,255,0.64); font-size: 11px; }
+      .widget-system-context-menu__divider { height: 1px; margin: 4px 0; background: rgba(255,255,255,0.14); }
+      .widget-system-context-menu__link { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 40px; padding: 8px 11px; border: 1px solid transparent; border-radius: 6px; color: rgba(255,255,255,0.9); text-decoration: none; font-size: 12px; }
+      .widget-system-context-menu__link:hover, .widget-system-context-menu__link:focus-visible { border-color: rgba(255,255,255,0.14); color: #fff; background: rgba(255,255,255,0.13); outline: none; }
+      .widget-system-context-menu__icon { display: block; width: 16px; height: 16px; flex: none; pointer-events: none; }
       @media (max-width: 640px) { .viewer-shell.is-legacy .toolbar { left: auto; right: 10px; } }
       </style>
   </head>
@@ -93,22 +98,29 @@
         <div id="viewer"></div>
         <div id="statusText" class="viewer-feedback" data-control="status" role="status" aria-live="polite">加载中...</div>
         <div class="toolbar" role="toolbar" aria-label="全景查看工具">
-          <button id="prevBtn" class="button" data-control="previous" type="button" aria-label="上一张" title="上一张">‹</button>
-          <button id="nextBtn" class="button" data-control="next" type="button" aria-label="下一张" title="下一张">›</button>
-          <button id="autorotateBtn" class="button" data-control="autorotate" type="button" aria-label="自动旋转" title="自动旋转" aria-pressed="false">↻</button>
-          <button id="zoomOutBtn" class="button" data-control="zoom-out" type="button" aria-label="缩小视野" title="缩小视野">−</button>
-          <button id="zoomInBtn" class="button" data-control="zoom-in" type="button" aria-label="放大细节" title="放大细节">+</button>
-          <button id="focusBtn" class="button" data-control="focus" type="button" aria-label="聚焦" title="聚焦" aria-pressed="false">⌕</button>
-          <button id="directorBtn" class="button" data-control="director" type="button" aria-label="自动演示" title="自动演示" aria-pressed="false">▶</button>
-          <button id="resetBtn" class="button" data-control="reset" type="button" aria-label="重置视角" title="重置视角">⟲</button>
-          <button id="fullscreenBtn" class="button" data-control="fullscreen" type="button" aria-label="全屏预览" title="全屏预览" aria-pressed="false">⛶</button>
+          <button id="prevBtn" class="button" data-control="previous" type="button" aria-label="上一张" title="上一张"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#previous"></use></svg></button>
+          <button id="nextBtn" class="button" data-control="next" type="button" aria-label="下一张" title="下一张"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#next"></use></svg></button>
+          <button id="autorotateBtn" class="button" data-control="autorotate" type="button" aria-label="自动旋转" title="自动旋转" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#refresh"></use></svg></button>
+          <button id="zoomOutBtn" class="button" data-control="zoom-out" type="button" aria-label="缩小视野" title="缩小视野"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#zoom-out"></use></svg></button>
+          <button id="zoomInBtn" class="button" data-control="zoom-in" type="button" aria-label="放大细节" title="放大细节"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#zoom-in"></use></svg></button>
+          <button id="focusBtn" class="button" data-control="focus" type="button" aria-label="聚焦" title="聚焦" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#focus"></use></svg></button>
+          <button id="directorBtn" class="button" data-control="director" type="button" aria-label="自动演示" title="自动演示" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#play"></use></svg></button>
+          <button id="resetBtn" class="button" data-control="reset" type="button" aria-label="重置视角" title="重置视角"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#retry"></use></svg></button>
+          <button id="fullscreenBtn" class="button" data-control="fullscreen" type="button" aria-label="全屏预览" title="全屏预览" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#fullscreen"></use></svg></button>
+        </div>
+        <div id="systemContextMenu" class="widget-system-context-menu" role="menu" aria-label="系统信息" hidden>
+          <div class="widget-system-context-menu__summary">
+            <strong id="systemNameText">芯添全景系统</strong>
+            <span id="systemVersionText">版本待获取</span>
+          </div>
+          <div class="widget-system-context-menu__divider" role="separator"></div>
+          <a id="githubRepoLink" class="widget-system-context-menu__link" href="https://github.com/XinTycd/XinT-Panorama-System" target="_blank" rel="noopener noreferrer" role="menuitem">
+            <span>进入 GitHub 仓库</span><svg class="widget-system-context-menu__icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#external"></use></svg>
+          </a>
         </div>
       </div>
     </div>
 
-    <script src="/assets/psv.bundle.js"></script>
-    <script src="/assets/three.min.js"></script>
-    <script src="/assets/legacy-viewer.js"></script>
     <script src="/assets/panorama-viewer.js"></script>
     <script>
       (function initWidget() {
@@ -131,6 +143,10 @@
           directorBtn: document.getElementById("directorBtn"),
           resetBtn: document.getElementById("resetBtn"),
           fullscreenBtn: document.getElementById("fullscreenBtn"),
+          systemContextMenu: document.getElementById("systemContextMenu"),
+          systemNameText: document.getElementById("systemNameText"),
+          systemVersionText: document.getElementById("systemVersionText"),
+          githubRepoLink: document.getElementById("githubRepoLink"),
         };
         var state = {
           items: [],
@@ -140,26 +156,33 @@
           autorotate: initialAutorotate,
           viewerController: null,
           viewerReady: false,
-          pageHidden: false
+          pageHidden: false,
+          systemContextMenuReturnFocus: null
         };
         var viewerShell = document.querySelector(".viewer-shell");
         var statusIsFeedback = true;
 
         applyControlVisibility();
         bindEvents();
+        var initialData = requestInitialData();
         fetch(apiBase + "/api/config").then(toJson).then(function useConfiguredViewer(config) {
+          renderAppInfo(config && config.app);
           return config.viewer && (config.viewer.engine === "legacy" || config.viewer.engine === "psv") ? config.viewer.engine : "psv";
         }).catch(function useDefaultViewerOnConfigFailure() {
           return "psv";
-        }).then(function createConfiguredViewer(engine) {
+        }).then(async function createConfiguredViewer(engine) {
+          if (state.pageHidden) return;
+          await loadEngineAssets(engine);
           if (state.pageHidden) return;
           initViewer(engine);
-          loadInitialData();
+          await loadInitialData(initialData);
         }).catch(function onViewerStartupError() {
+          if (state.pageHidden) return;
           state.viewerReady = false;
           setWidgetStatus("全景查看器无法启动，请刷新页面或联系管理员", true);
         });
         window.addEventListener("pagehide", function disposeViewer(event) {
+          hideSystemContextMenu(false);
           if (event.persisted) return;
           state.pageHidden = true;
           state.viewerReady = false;
@@ -167,6 +190,32 @@
           if (state.viewerController) state.viewerController.dispose();
           state.viewerController = null;
         });
+
+        function loadAsset(tag, url) {
+          return new Promise(function appendAsset(resolve, reject) {
+            var asset = document.createElement(tag);
+            asset.onload = resolve;
+            asset.onerror = reject;
+            if (tag === "script") asset.src = url;
+            else {
+              asset.rel = "stylesheet";
+              asset.href = url;
+            }
+            document.head.appendChild(asset);
+          });
+        }
+
+        function loadEngineAssets(engine) {
+          if (engine === "legacy") {
+            return loadAsset("script", "/assets/three.min.js").then(function loadLegacyViewer() {
+              return loadAsset("script", "/assets/legacy-viewer.js");
+            });
+          }
+          return Promise.all([
+            loadAsset("link", "/assets/psv.css"),
+            loadAsset("script", "/assets/psv.bundle.js")
+          ]);
+        }
 
         function initViewer(engine) {
           var legacy = engine === "legacy";
@@ -216,9 +265,82 @@
           });
           refs.fullscreenBtn.addEventListener("click", toggleFullscreen);
           document.addEventListener("fullscreenchange", updateFullscreenButton);
+          viewerShell.addEventListener("contextmenu", showSystemContextMenu);
+          document.addEventListener("click", function closeContextMenuFromOutside(event) {
+            if (!refs.systemContextMenu.hidden && !refs.systemContextMenu.contains(event.target)) hideSystemContextMenu(false);
+          });
+          document.addEventListener("keydown", function closeContextMenuWithEscape(event) {
+            if (event.key === "Escape" && !refs.systemContextMenu.hidden) {
+              event.preventDefault();
+              hideSystemContextMenu(true);
+            }
+          });
+          document.addEventListener("scroll", function closeContextMenuOnScroll(event) {
+            if (!refs.systemContextMenu.contains(event.target)) hideSystemContextMenu(false);
+          }, true);
+          window.addEventListener("resize", function closeContextMenuOnResize() {
+            hideSystemContextMenu(false);
+          });
+          window.addEventListener("blur", function closeContextMenuOnWindowBlur() {
+            hideSystemContextMenu(false);
+          });
+          refs.githubRepoLink.addEventListener("click", function closeContextMenuOnNavigation() {
+            hideSystemContextMenu(false);
+          });
         }
 
-        function loadInitialData() {
+        function renderAppInfo(app) {
+          app = app && typeof app === "object" ? app : {};
+          refs.systemNameText.textContent = typeof app.name === "string" && app.name.trim() ? app.name.trim() : "芯添全景系统";
+          refs.systemVersionText.textContent = typeof app.version === "string" && app.version.trim()
+            ? "版本 v" + app.version.trim().replace(/^v/i, "")
+            : "版本待获取";
+          if (typeof app.repositoryUrl === "string" && /^https?:\/\//i.test(app.repositoryUrl.trim())) {
+            refs.githubRepoLink.href = app.repositoryUrl.trim();
+          }
+        }
+
+        function showSystemContextMenu(event) {
+          if (event.target && event.target.closest && event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
+          if (event.target && !viewerShell.contains(event.target)) return;
+
+          event.preventDefault();
+          state.systemContextMenuReturnFocus = document.activeElement;
+          refs.systemContextMenu.hidden = false;
+          var margin = 12;
+          var menuWidth = Math.min(refs.systemContextMenu.offsetWidth, Math.max(0, window.innerWidth - margin * 2));
+          var menuHeight = Math.min(refs.systemContextMenu.offsetHeight, Math.max(0, window.innerHeight - margin * 2));
+          var left = Math.min(Math.max(margin, event.clientX), Math.max(margin, window.innerWidth - menuWidth - margin));
+          var top = Math.min(Math.max(margin, event.clientY), Math.max(margin, window.innerHeight - menuHeight - margin));
+          refs.systemContextMenu.style.left = left + "px";
+          refs.systemContextMenu.style.top = top + "px";
+          refs.githubRepoLink.focus();
+        }
+
+        function hideSystemContextMenu(restoreFocus) {
+          var wasVisible = !refs.systemContextMenu.hidden;
+          refs.systemContextMenu.hidden = true;
+          if (restoreFocus && wasVisible && state.systemContextMenuReturnFocus && state.systemContextMenuReturnFocus.focus) {
+            state.systemContextMenuReturnFocus.focus();
+          } else if (document.activeElement === refs.githubRepoLink && refs.githubRepoLink.blur) {
+            refs.githubRepoLink.blur();
+          }
+          state.systemContextMenuReturnFocus = null;
+        }
+
+        function requestInitialData() {
+          if (externalImageUrl) return Promise.resolve({});
+          var route = fixedPanoramaNo
+            ? "/api/panoramas/by-no?no=" + encodeURIComponent(fixedPanoramaNo)
+            : "/api/gallery";
+          return fetch(apiBase + route).then(toJson).then(function loaded(payload) {
+            return { payload: payload };
+          }, function unavailable() {
+            return {};
+          });
+        }
+
+        async function loadInitialData(initialData) {
           if (externalImageUrl) {
             hidePaging();
             state.items = [
@@ -234,43 +356,34 @@
             return;
           }
 
+          var result = await initialData;
+          if (state.pageHidden) return;
+          var payload = result.payload;
           if (fixedPanoramaNo) {
             hidePaging();
-            fetch(apiBase + "/api/panoramas/by-no?no=" + encodeURIComponent(fixedPanoramaNo))
-              .then(toJson)
-              .then(function onPayload(payload) {
-                state.items = payload.item ? [payload.item] : [];
-                if (!state.items.length) {
-                  throw new Error("not found");
-                }
-                if (state.items[0].sourceType === "client-upload") {
-                  state.items = [];
-                  setWidgetStatus("该图片仅在上传它的浏览器中可见", true);
-                  return;
-                }
-                selectScene(0);
-              })
-              .catch(function onError() {
-                setWidgetStatus("指定编号的全景图不存在", true);
-              });
-            return;
-          }
-
-          fetch(apiBase + "/api/gallery")
-            .then(toJson)
-            .then(function onPayload(payload) {
-              state.items = (payload.items || []).filter(function isShared(item) {
-                return item.sourceType !== "client-upload";
-              });
-              if (!state.items.length) {
-                setWidgetStatus("暂无可用全景图", true);
-                return;
-              }
-              selectScene(0);
-            })
-            .catch(function onError() {
+            if (!payload || !payload.item) {
+              setWidgetStatus("指定编号的全景图不存在", true);
+              return;
+            }
+            if (payload.item.sourceType === "client-upload") {
+              setWidgetStatus("该图片仅在上传它的浏览器中可见", true);
+              return;
+            }
+            state.items = [payload.item];
+          } else {
+            if (!payload) {
               setWidgetStatus("后端不可用", true);
+              return;
+            }
+            state.items = (payload.items || []).filter(function isShared(item) {
+              return item.sourceType !== "client-upload";
             });
+            if (!state.items.length) {
+              setWidgetStatus("暂无可用全景图", true);
+              return;
+            }
+          }
+          selectScene(0);
         }
 
         function hidePaging() {
@@ -298,7 +411,7 @@
           state.viewerReady = false;
           setWidgetStatus("加载中...", true);
 
-          controller.setPanorama(item.viewerUrl)
+          controller.setPanorama(resolveItemViewerUrl(item, apiBase))
             .then(function onLoaded(loaded) {
               if (requestId !== state.requestId || controller !== state.viewerController) return;
 
@@ -312,6 +425,13 @@
               controller.clear();
               setWidgetStatus("加载失败", true);
             });
+        }
+
+        function resolveItemViewerUrl(item, serviceBase) {
+          var viewerPath = item && typeof item.viewerPath === "string" ? item.viewerPath.trim() : "";
+          if (/^https?:\/\//i.test(viewerPath)) return viewerPath;
+          if (/^\/(?!\/)/.test(viewerPath)) return serviceBase.replace(/\/+$/, "") + viewerPath;
+          return item && item.viewerUrl || "";
         }
 
         function moveSelection(delta) {
@@ -330,7 +450,6 @@
 
         function updateAutorotateText() {
           var label = state.autorotate ? "停止旋转" : "自动旋转";
-          refs.autorotateBtn.textContent = "↻";
           setAttributeIfChanged(refs.autorotateBtn, "aria-label", label);
           if (refs.autorotateBtn.title !== label) refs.autorotateBtn.title = label;
         }
@@ -390,14 +509,12 @@
             return;
           }
           var isPlaying = state.viewerController.isDirectorPlaying();
-          refs.directorBtn.textContent = isPlaying ? "Ⅱ" : "▶";
+          setAttributeIfChanged(refs.directorBtn.querySelector("use"), "href", "/assets/icons.svg#" + (isPlaying ? "pause" : "play"));
           refs.directorBtn.classList.toggle("active", isPlaying);
           setAttributeIfChanged(refs.directorBtn, "aria-pressed", isPlaying ? "true" : "false");
           var directorLabel = isPlaying ? "停止自动演示" : "自动演示";
           setAttributeIfChanged(refs.directorBtn, "aria-label", directorLabel);
           if (refs.directorBtn.title !== directorLabel) refs.directorBtn.title = directorLabel;
-          var directorText = isPlaying ? "Ⅱ" : "▶";
-          if (refs.directorBtn.textContent !== directorText) refs.directorBtn.textContent = directorText;
         }
 
         function setAttributeIfChanged(element, name, value) {
@@ -424,7 +541,7 @@
           refs.fullscreenBtn.setAttribute("aria-pressed", active ? "true" : "false");
           refs.fullscreenBtn.setAttribute("aria-label", active ? "退出全屏" : "全屏预览");
           refs.fullscreenBtn.title = active ? "退出全屏" : "全屏预览";
-          refs.fullscreenBtn.textContent = "⛶";
+          refs.fullscreenBtn.querySelector("use").setAttribute("href", "/assets/icons.svg#" + (active ? "exit-fullscreen" : "fullscreen"));
         }
 
         function resolveVisibleControls(controlsValue, hiddenValue) {

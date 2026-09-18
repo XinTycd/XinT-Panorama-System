@@ -1,6 +1,6 @@
 const { getModesFromEnv } = require("../../lib/runtime-config");
 const { sendJson, parseBody } = require("../api-http");
-const { STORAGE_DIR, readGallery, writeGallery, makeId, upsertItem, updateItem, deleteItem, listGroups, createGroup, deleteGroup } = require("../store");
+const { STORAGE_DIR, readGallery, readItemByPanoramaNo, writeGallery, makeId, upsertItem, updateItem, deleteItem, listGroups, createGroup, deleteGroup } = require("../store");
 const { resolveLocalMediaPath } = require("../media");
 const { captureMediaStorage, saveServerImage, removeImagePayload } = require("../media-storage");
 const { isRemoteHttpUrl, assertSafeRemoteUrl, handleProxy } = require("../remote-image");
@@ -76,18 +76,17 @@ async function ensureDemoItem() {
   return items;
 }
 
-async function findItemByPanoramaNo(panoramaNo, items) {
+async function findItemByPanoramaNo(panoramaNo) {
   const normalizedNo = Number(panoramaNo);
   if (!Number.isFinite(normalizedNo)) return null;
-  const gallery = Array.isArray(items) ? items : await readGallery();
-  return gallery.find((item) => Number(item.panoramaNo) === normalizedNo) || null;
+  return readItemByPanoramaNo(normalizedNo);
 }
 
-async function isPanoramaNoTaken(panoramaNo, ignoreId, items) {
+async function isPanoramaNoTaken(panoramaNo, ignoreId) {
   const normalizedNo = Number(panoramaNo);
   if (!Number.isFinite(normalizedNo)) return false;
-  const gallery = Array.isArray(items) ? items : await readGallery();
-  return gallery.some((item) => item.id !== ignoreId && Number(item.panoramaNo) === normalizedNo);
+  const item = await readItemByPanoramaNo(normalizedNo);
+  return Boolean(item && item.id !== ignoreId);
 }
 
 async function handleGalleryApi(req, res, urlObject, baseUrl) {
@@ -137,8 +136,7 @@ async function handleGalleryApi(req, res, urlObject, baseUrl) {
     await assertSafeRemoteUrl(body.url);
     const requestedNo = parseOptionalPanoramaNo(body);
     if (!requestedNo.ok) return sendApiJson(res, 400, { ok: false, message: "panoramaNo 必须是正整数" });
-    const items = await readGallery();
-    if (requestedNo.value && await isPanoramaNoTaken(requestedNo.value, null, items)) {
+    if (requestedNo.value && await isPanoramaNoTaken(requestedNo.value, null)) {
       return sendApiJson(res, 409, { ok: false, message: "panoramaNo 已存在，请使用其他编号" });
     }
     const item = {
@@ -163,8 +161,7 @@ async function handleGalleryApi(req, res, urlObject, baseUrl) {
     const localPath = resolveLocalMediaPath(STORAGE_DIR, imageUrl);
     if (!isRemoteHttpUrl(imageUrl) && !localPath) return sendApiJson(res, 400, { ok: false, message: "图片地址必须是 http(s) URL 或 /media/uploads/ 下的本地图片" });
     if (isRemoteHttpUrl(imageUrl)) await assertSafeRemoteUrl(imageUrl);
-    const items = await readGallery();
-    if (requestedNo.value && await isPanoramaNoTaken(requestedNo.value, null, items)) {
+    if (requestedNo.value && await isPanoramaNoTaken(requestedNo.value, null)) {
       return sendApiJson(res, 409, { ok: false, message: "panoramaNo 已存在，请使用其他编号" });
     }
     const item = {
@@ -228,7 +225,9 @@ async function handleGalleryApi(req, res, urlObject, baseUrl) {
       }
       throw error;
     }
-    sendJson(res, 200, { ok: true, item: serializeItem(item, baseUrl), items: readGalleryPayload(baseUrl, await readGallery()) });
+    const response = { ok: true, item: serializeItem(item, baseUrl) };
+    if (urlObject.searchParams.get("includeItems") !== "0") response.items = readGalleryPayload(baseUrl, await readGallery());
+    sendJson(res, 200, response);
     return true;
   }
   if (req.method === "GET" && pathname === "/api/panoramas/proxy") {
