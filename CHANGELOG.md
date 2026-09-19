@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.3 — 2026-09-19
+
+- Add a local built-in plugin registry. The project workspace starts disabled and can be enabled or disabled in the console; its preference is stored in the current browser.
+- Refine project and gallery management, make storage settings respond to their selected mode, and make scene deletion refresh safely.
+- Generate copyable iframe and JavaScript embed examples for the selected panorama, and add the system information menu to the embedded viewer.
+- Reuse shared Phosphor icons across the console and viewer, and improve embedded startup by loading only the selected engine and requesting panorama metadata alongside configuration.
+- Reduce repeated startup and image lookup work, write local image files asynchronously, and refresh the gallery once per upload batch.
+- Keep application loading feedback while hiding the viewer's built-in spinner.
+
+See the [English release notes](docs/releases/v0.2.3.md) and [简体中文版本](docs/releases/v0.2.3-zh-CN.md).
+
 ## v0.2.2 — 2026-08-15
 
 - Make panorama changes predictable: concurrent requests for the same image share a load, and only the latest selection can update the viewer.
