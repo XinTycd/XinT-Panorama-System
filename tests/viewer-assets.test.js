@@ -82,18 +82,32 @@ async function main() {
       for (const name of references) assert(symbols.has(name), file + " references missing symbol " + name);
     }
     for (const name of ["pause", "exit-fullscreen", "platforms", "module"]) assert(symbols.has(name), "Missing icon " + name);
-    for (const [url, expectedType] of [
+    for (const [url, expectedType, cacheControl = "no-cache"] of [
       [`${frontendUrl}/vendor/psv.bundle.js`, "javascript"],
       [`${frontendUrl}/vendor/psv.css`, "text/css"],
       [`${backendUrl}/assets/psv.bundle.js`, "javascript"],
-      [`${backendUrl}/assets/psv.css`, "text/css"]
+      [`${backendUrl}/assets/psv.css`, "text/css"],
+      [`${frontendUrl}/vendor/three.min.js`, "javascript", "public, max-age=31536000, immutable"],
+      [`${backendUrl}/assets/three.min.js`, "javascript", "public, max-age=31536000, immutable"]
     ]) {
       const response = await fetch(url);
       assert.equal(response.status, 200, `${url} should be served`);
       assert(response.headers.get("content-type").includes(expectedType), `${url} should have a browser-readable MIME type`);
-      assert.equal(response.headers.get("cache-control"), "no-cache", `${url} should not retain an outdated unversioned viewer build`);
+      assert.equal(response.headers.get("cache-control"), cacheControl);
       const body = await response.arrayBuffer();
       assert(body.byteLength > 500, `${url} should return the built asset`);
+      const compressed = await fetch(url, { headers: { "Accept-Encoding": "br" } });
+      assert.equal(compressed.headers.get("content-encoding"), "br");
+      assert.equal(compressed.headers.get("vary"), "Accept-Encoding");
+      assert(Number(compressed.headers.get("content-length")) < body.byteLength);
+      assert.deepEqual(await compressed.arrayBuffer(), body);
+      const revalidated = await fetch(url, { headers: { "Accept-Encoding": "br", "If-None-Match": compressed.headers.get("etag") } });
+      assert.equal(revalidated.status, 304);
+      assert.equal(revalidated.headers.get("vary"), "Accept-Encoding");
+      const identity = await fetch(url, { headers: { "Accept-Encoding": "br;q=0", "If-None-Match": compressed.headers.get("etag") } });
+      assert.equal(identity.status, 200);
+      assert.equal(identity.headers.get("content-encoding"), null);
+      assert.deepEqual(await identity.arrayBuffer(), body);
     }
   } finally {
     if (frontend.listening) await close(frontend);

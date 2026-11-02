@@ -1,16 +1,23 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
+const { brotliCompress, constants } = require("node:zlib");
+const { promisify } = require("node:util");
+
+const compress = promisify(brotliCompress);
+const COMPRESSED_ASSETS = ["psv.bundle.js", "psv.css", "three.min.js"];
 
 const INPUTS = [
   "package-lock.json",
   "frontend/viewer/psv-entry.js",
+  "frontend/vendor/three.min.js",
   "scripts/build-viewer-vendor.js",
   "scripts/viewer-assets.js"
 ];
 const OUTPUTS = [
   "psv.bundle.js",
   "psv.css",
+  ...COMPRESSED_ASSETS.map((name) => name + ".br"),
   "PSV-LICENSE",
   "THREE-LICENSE",
   "THIRD_PARTY_NOTICES.txt"
@@ -68,6 +75,13 @@ async function buildViewerAssets(rootDir) {
     path.join(rootDir, "node_modules", "@photo-sphere-viewer", "core", "index.css"),
     path.join(vendorDir, "psv.css")
   );
+  for (const name of COMPRESSED_ASSETS) {
+    const source = fs.readFileSync(path.join(vendorDir, name));
+    const packed = await compress(source, {
+      params: { [constants.BROTLI_PARAM_MODE]: constants.BROTLI_MODE_TEXT, [constants.BROTLI_PARAM_QUALITY]: 6 }
+    });
+    fs.writeFileSync(path.join(vendorDir, name + ".br"), packed);
+  }
   fs.copyFileSync(
     path.join(rootDir, "node_modules", "@photo-sphere-viewer", "core", "LICENSE"),
     path.join(vendorDir, "PSV-LICENSE")

@@ -2,6 +2,7 @@ const assert = require("assert");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
+const sharp = require("sharp");
 const packageInfo = require("../package.json");
 
 const TEST_STORAGE_DIR = path.join(__dirname, ".tmp", "storage-" + process.pid + "-" + Date.now());
@@ -35,7 +36,7 @@ function request(port, pathname, options) {
         res.on("end", function onEnd() {
           resolve({
             statusCode: res.statusCode,
-            body: Buffer.concat(chunks).toString("utf8"),
+            body: Buffer.concat(chunks).toString(options?.encoding || "utf8"),
             headers: res.headers
           });
         });
@@ -131,6 +132,7 @@ async function run() {
     assert.strictEqual(failedGroupedUpload.statusCode, 400);
     assert.deepStrictEqual(fs.existsSync(uploadsDir) ? fs.readdirSync(uploadsDir).sort() : [], uploadsBeforeFailedGroup);
 
+    const panoramaFixture = await sharp({ create: { width: 640, height: 320, channels: 3, background: "#245453" } }).png().toBuffer();
     const upload = await request(port, "/api/panoramas/upload-base64", {
       method: "POST",
       body: JSON.stringify({
@@ -138,8 +140,7 @@ async function run() {
         description: "initial description",
         panoramaNo: 2,
         resequence: true,
-        dataUrl:
-          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9nK3sAAAAASUVORK5CYII="
+        dataUrl: "data:image/png;base64," + panoramaFixture.toString("base64")
       })
     });
     assert.strictEqual(upload.statusCode, 200);
@@ -147,6 +148,20 @@ async function run() {
     assert.strictEqual(uploadPayload.item.panoramaNo, 2);
     assert.strictEqual(uploadPayload.item.description, "initial description");
     assert.ok(Array.isArray(uploadPayload.items), "Upload responses include the gallery by default");
+    assert.notStrictEqual(uploadPayload.item.thumbnailPath, uploadPayload.item.viewerPath);
+    const thumbnailResponses = await Promise.all([1, 2].map(() =>
+      request(port, uploadPayload.item.thumbnailPath, { encoding: "latin1" })
+    ));
+    const thumbnail = thumbnailResponses[0];
+    assert.strictEqual(thumbnail.statusCode, 200);
+    assert.strictEqual(thumbnail.headers["content-type"], "image/webp");
+    assert.strictEqual(thumbnail.body.slice(8, 12), "WEBP");
+    const { width, height } = await sharp(Buffer.from(thumbnail.body, "latin1")).metadata();
+    assert.deepStrictEqual([width, height], [320, 160]);
+    assert.strictEqual(thumbnail.body, thumbnailResponses[1].body);
+    const head = await request(port, uploadPayload.item.thumbnailPath, { method: "HEAD" });
+    assert.strictEqual(head.headers["content-length"], thumbnail.headers["content-length"]);
+    assert.strictEqual(head.body, "");
 
     const databaseRecord = await request(port, "/api/panoramas/create", {
       method: "POST",
@@ -162,6 +177,7 @@ async function run() {
     assert.strictEqual(databasePayload.item.panoramaNo, 2001);
     assert.strictEqual(databasePayload.item.name, "database-panorama");
     assert.strictEqual(databasePayload.item.sourceType, "database-record");
+    assert.strictEqual(databasePayload.item.thumbnailUrl, "https://example.com/panorama.jpg");
     assert.strictEqual(databasePayload.item.group, "建筑");
 
     const missingGroupItem = await request(port, "/api/panoramas/create", {
@@ -563,8 +579,12 @@ async function run() {
     assert.deepStrictEqual(Object.keys(compactUploadPayload).sort(), ["item", "ok"]);
     const compactByNo = await request(port, "/api/panoramas/by-no?no=" + compactUploadPayload.item.panoramaNo);
     assert.strictEqual(JSON.parse(compactByNo.body).item.id, compactUploadPayload.item.id);
+    const fallbackThumbnail = await request(port, compactUploadPayload.item.thumbnailPath);
+    assert.strictEqual(fallbackThumbnail.statusCode, 302);
+    assert.strictEqual(fallbackThumbnail.headers.location, compactUploadPayload.item.viewerPath);
     const deleteCompactUpload = await request(port, "/api/panoramas/" + compactUploadPayload.item.id, { method: "DELETE" });
     assert.strictEqual(deleteCompactUpload.statusCode, 200);
+    assert.strictEqual((await request(port, compactUploadPayload.item.thumbnailPath)).statusCode, 404);
 
     console.log("Backend tests passed");
   } finally {

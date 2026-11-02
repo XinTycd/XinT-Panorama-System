@@ -142,8 +142,8 @@ function serveStatic(req, res, urlObject) {
     "/embed.js": [path.join(PUBLIC_DIR, "embed.js"), "no-cache"],
     "/widget": [path.join(PUBLIC_DIR, "widget.html"), "no-cache"],
     "/assets/demo-panorama.svg": [path.join(PUBLIC_DIR, "demo-panorama.svg"), "public, max-age=3600"],
-    "/assets/psv.bundle.js": [path.join(__dirname, "..", "frontend", "vendor", "psv.bundle.js"), "no-cache"],
-    "/assets/psv.css": [path.join(__dirname, "..", "frontend", "vendor", "psv.css"), "no-cache"],
+    "/assets/psv.bundle.js": [path.join(__dirname, "..", "frontend", "vendor", "psv.bundle.js"), "no-cache", true],
+    "/assets/psv.css": [path.join(__dirname, "..", "frontend", "vendor", "psv.css"), "no-cache", true],
     "/assets/PSV-LICENSE": [path.join(__dirname, "..", "frontend", "vendor", "PSV-LICENSE"), "public, max-age=3600"],
     "/assets/THREE-LICENSE": [path.join(__dirname, "..", "frontend", "vendor", "THREE-LICENSE"), "public, max-age=3600"],
     "/assets/THIRD_PARTY_NOTICES.txt": [path.join(__dirname, "..", "frontend", "vendor", "THIRD_PARTY_NOTICES.txt"), "public, max-age=31536000, immutable"],
@@ -151,10 +151,11 @@ function serveStatic(req, res, urlObject) {
     "/assets/icons/LICENSE.phosphor": [path.join(__dirname, "..", "frontend", "icons", "LICENSE.phosphor"), "public, max-age=3600"],
     "/assets/panorama-viewer.js": [path.join(__dirname, "..", "frontend", "panorama-viewer.js"), "no-cache"],
     "/assets/legacy-viewer.js": [path.join(__dirname, "..", "frontend", "viewer", "legacy-viewer.js"), "no-cache"],
-    "/assets/three.min.js": [path.join(__dirname, "..", "frontend", "vendor", "three.min.js"), "public, max-age=31536000, immutable"]
+    "/assets/three.min.js": [path.join(__dirname, "..", "frontend", "vendor", "three.min.js"), "public, max-age=31536000, immutable", true]
   };
   if (staticFiles[urlObject.pathname]) {
-    streamFile(req, res, staticFiles[urlObject.pathname][0], { cors: true, cacheControl: staticFiles[urlObject.pathname][1] });
+    const [filePath, cacheControl, brotli] = staticFiles[urlObject.pathname];
+    streamFile(req, res, filePath, { cors: true, cacheControl, brotli });
     return;
   }
   if (urlObject.pathname.indexOf("/media/") === 0) {

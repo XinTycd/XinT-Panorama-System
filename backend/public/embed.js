@@ -94,6 +94,7 @@
   function sanitizeControlList(value) {
     var allowed = {
       all: true,
+      compact: true,
       none: true,
       default: true,
       brand: true,

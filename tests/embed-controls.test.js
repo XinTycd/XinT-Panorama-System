@@ -30,7 +30,7 @@ controlKeys.forEach((key) => {
   assert(!widgetHtml.includes(`data-control="${removedHudToken}"`), `Removed HUD token ${removedHudToken} must not render a widget control`);
 });
 
-["all", "default", "none"].forEach((special) => {
+["all", "compact", "default", "none"].forEach((special) => {
   assert(embedSource.includes(`${special}: true`), `Embed whitelist is missing ${special}`);
   assert(widgetHtml.includes(`token === "${special}"`), `Widget parser is missing ${special}`);
 });
@@ -153,6 +153,9 @@ async function runWidgetImageResolutionCase({ item, expectedUrl, query, engine =
   const viewerShell = createWidgetElement(document);
   elements.systemContextMenu.hidden = true;
   const controls = ["statusText", "prevBtn", "nextBtn", "autorotateBtn", "zoomOutBtn", "zoomInBtn", "focusBtn", "directorBtn", "resetBtn", "fullscreenBtn"].map((id) => elements[id]);
+  ["status", "previous", "next", "autorotate", "zoom-out", "zoom-in", "focus", "director", "reset", "fullscreen"].forEach((name, index) => {
+    controls[index].setAttribute("data-control", name);
+  });
   toolbar.querySelectorAll = () => controls;
   elements.githubRepoLink.parentNode = elements.systemContextMenu;
   elements.githubRepoLink.href = "https://github.com/XinTycd/XinT-Panorama-System";
@@ -207,6 +210,10 @@ async function runWidgetImageResolutionCase({ item, expectedUrl, query, engine =
   assert.equal(elements.githubRepoLink.href, app && app.repositoryUrl || "https://github.com/XinTycd/XinT-Panorama-System");
 
   if (query.includes("controls=none")) assert.equal(toolbar.hidden, true, "none preset hides the toolbar without disabling context menus");
+  if (query.includes("controls=compact")) {
+    assert.deepEqual(controls.filter((control) => !control.hidden).map((control) => control.getAttribute("data-control")),
+      ["autorotate", "zoom-out", "zoom-in", "fullscreen"]);
+  }
   const canvasTarget = { parentNode: viewerShell, closest() { return null; } };
   let prevented = false;
   viewerShell.dispatch("contextmenu", { target: canvasTarget, clientX: 795, clientY: 595, preventDefault() { prevented = true; } });
@@ -272,7 +279,7 @@ async function runWidgetImageResolutionCase({ item, expectedUrl, query, engine =
   await runWidgetImageResolutionCase({
     item: { name: "Legacy response", viewerUrl: "http://legacy.example/panorama.jpg" },
     expectedUrl: "http://legacy.example/panorama.jpg",
-    query: "?panoramaNo=1",
+    query: "?panoramaNo=1&controls=compact",
     app: null
   });
   console.log("Embed control and widget URL resolution tests passed");

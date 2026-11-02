@@ -12,6 +12,9 @@ WORKDIR /app
 COPY . .
 COPY --from=build /app/frontend/vendor/psv.bundle.js ./frontend/vendor/psv.bundle.js
 COPY --from=build /app/frontend/vendor/psv.css ./frontend/vendor/psv.css
+COPY --from=build /app/frontend/vendor/psv.bundle.js.br ./frontend/vendor/psv.bundle.js.br
+COPY --from=build /app/frontend/vendor/psv.css.br ./frontend/vendor/psv.css.br
+COPY --from=build /app/frontend/vendor/three.min.js.br ./frontend/vendor/three.min.js.br
 COPY --from=build /app/frontend/vendor/PSV-LICENSE ./frontend/vendor/PSV-LICENSE
 COPY --from=build /app/frontend/vendor/THREE-LICENSE ./frontend/vendor/THREE-LICENSE
 COPY --from=build /app/frontend/vendor/THIRD_PARTY_NOTICES.txt ./frontend/vendor/THIRD_PARTY_NOTICES.txt

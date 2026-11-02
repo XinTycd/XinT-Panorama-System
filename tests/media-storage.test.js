@@ -59,6 +59,17 @@ async function run() {
       const saved = Buffer.from(await response.arrayBuffer());
       assert.equal((await sharp(saved).metadata()).width, 8);
       if (body.format !== "transcode") assert.deepEqual(saved, png);
+      const thumbnailResponse = await fetch(item.thumbnailUrl);
+      assert.equal(thumbnailResponse.status, 200);
+      const thumbnail = Buffer.from(await thumbnailResponse.arrayBuffer());
+      const thumbnailInfo = await sharp(thumbnail).metadata();
+      assert.equal(thumbnailInfo.width, 8, "Small images are not enlarged for thumbnails");
+      if (body.mode === "cloud") {
+        assert.equal(item.thumbnailUrl, item.viewerUrl);
+      } else {
+        assert.equal(thumbnailInfo.format, "webp");
+        assert.notEqual(item.thumbnailUrl, item.viewerUrl);
+      }
     }
     const payloadCount = (mode, format) => {
       if (mode === "sqlite") return getDatabase().prepare("SELECT COUNT(*) AS n FROM xint_image_payloads").get().n;

@@ -30,10 +30,13 @@ assert(app.includes("connectionId !== state.connectionId || requestId !== state.
 assert(app.includes("scene.id === state.currentSceneId && scene.panoramaId === currentItem.id"), "Project scene navigation must retain scene identity");
 assert(widget.includes("var controller = state.viewerController") && widget.includes("controller.setPanorama(resolveItemViewerUrl(item, apiBase))"), "Widget must load resolved source URLs through the captured adapter instance");
 assert(widget.includes('params.get("autorotate") === "1"'), "Widget autorotation must require explicit autorotate=1");
-assert(html.includes("./vendor/psv.bundle.js") && html.includes("./vendor/psv.css"), "Console must load local PSV runtime and CSS");
 assert(widget.includes("/assets/psv.bundle.js") && widget.includes("/assets/psv.css"), "Widget must load the same local PSV runtime and CSS");
-assert(html.includes("./viewer/legacy-viewer.js") && html.includes("./vendor/three.min.js"), "Console must include the local compatibility renderer");
 assert(widget.includes("/assets/legacy-viewer.js") && widget.includes("/assets/three.min.js"), "Widget must include the local compatibility renderer");
+assert(!/<script[^>]+src="\.\/(?:vendor\/(?:psv\.bundle\.js|three\.min\.js)|viewer\/legacy-viewer\.js)"/.test(html), "Console must not statically load unused engine assets");
+assert(!/<link[^>]+href="\.\/vendor\/psv\.css"/.test(html), "Console must not download PSV CSS before the configured engine is known");
+assert(app.includes('"./vendor/psv.css"') && app.includes('"./vendor/psv.bundle.js"'), "Console must lazily load local PSV assets");
+assert(app.includes('loadAsset("script", "./vendor/three.min.js").then') && app.includes('loadAsset("script", "./viewer/legacy-viewer.js")'), "Console must load the legacy dependency before its adapter");
+assert(html.indexOf("./panorama-viewer.js") < html.indexOf("./app.js"), "Console facade must load before app startup");
 assert(adapterSource.includes('options.engine || "psv"') && adapterSource.includes('=== "legacy"'), "Facade must select one configured engine per instance");
 assert(legacySource.includes("new THREE.SphereGeometry(500, 72, 48)") && legacySource.includes("geometry.scale(-1, 1, 1)"), "Compatibility renderer must use the original inward-facing sphere geometry");
 assert(!/createProjectionMaterial|createCrystalStage|CanvasTexture\(.*placeholder/i.test(legacySource), "Compatibility renderer must remain a single standard sphere");

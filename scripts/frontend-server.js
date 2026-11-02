@@ -21,14 +21,10 @@ function createServer() {
       return;
     }
 
-    streamFile(req, res, absolutePath, {
-      cacheControl: absolutePath.endsWith(path.join("frontend", "vendor", "psv.bundle.js")) ||
-        absolutePath.endsWith(path.join("frontend", "vendor", "psv.css"))
-        ? "no-cache"
-        : absolutePath.indexOf(path.join("frontend", "vendor")) > -1
-        ? "public, max-age=31536000, immutable"
-        : "no-cache"
-    });
+    const psvAsset = ["psv.bundle.js", "psv.css"].some((name) => absolutePath === path.join(ROOT_DIR, "vendor", name));
+    const brotli = psvAsset || absolutePath === path.join(ROOT_DIR, "vendor", "three.min.js");
+    const immutable = !psvAsset && absolutePath.startsWith(path.join(ROOT_DIR, "vendor") + path.sep);
+    streamFile(req, res, absolutePath, { brotli, cacheControl: immutable ? "public, max-age=31536000, immutable" : "no-cache" });
   });
 }
 

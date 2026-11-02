@@ -11,8 +11,11 @@
     projectRequestId: 0,
     projectListRequestId: 0,
     projectActionId: 0,
+    engineSwitchId: 0,
+    pendingViewerEngine: null,
     viewerController: null,
     viewerReady: false,
+    viewerConfigReady: false,
     viewerEngine: "psv",
     viewerEngineForced: false,
     maxTextureSize: 4096,
@@ -45,6 +48,7 @@
   var refs = {};
   var projectSceneActions = null;
   var projectPlugins = null;
+  var ensureViewerEngineAssets = createEngineAssetLoader(loadViewerAsset);
 
   document.addEventListener("DOMContentLoaded", init);
 
@@ -73,7 +77,6 @@
     });
     initApiBase();
     initEmbedControls();
-    initViewer();
     bindEvents();
     renderAppInfo();
     renderGallery();
@@ -242,23 +245,69 @@
     updateEmbedPresetButtons();
   }
 
-  function initViewer() {
+  function createEngineAssetLoader(loadAsset) {
+    var inFlight = Object.create(null);
+    return function ensureAssets(engine) {
+      if (inFlight[engine]) return inFlight[engine];
+      var promise;
+      if (engine === "legacy") {
+        promise = loadAsset("script", "./vendor/three.min.js").then(function loadLegacyViewer() {
+          return loadAsset("script", "./viewer/legacy-viewer.js");
+        });
+      } else {
+        promise = Promise.all([
+          loadAsset("link", "./vendor/psv.css"),
+          loadAsset("script", "./vendor/psv.bundle.js")
+        ]);
+      }
+      inFlight[engine] = Promise.resolve(promise).catch(function clearFailedAttempt(error) {
+        delete inFlight[engine];
+        throw error;
+      });
+      return inFlight[engine];
+    };
+  }
+
+  function loadViewerAsset(tag, path) {
+    return new Promise(function appendViewerAsset(resolve, reject) {
+      var asset = document.createElement(tag);
+      asset.onload = resolve;
+      asset.onerror = function viewerAssetFailed() {
+        if (asset.parentNode) asset.parentNode.removeChild(asset);
+        reject(new Error("无法加载查看器资源：" + path));
+      };
+      if (tag === "script") asset.src = path;
+      else {
+        asset.rel = "stylesheet";
+        asset.href = path;
+      }
+      document.head.appendChild(asset);
+    });
+  }
+
+  function initViewer(engine, initialView) {
     state.autorotate = false;
+    state.viewerEngine = engine || state.viewerEngine;
     refs.viewerPanel.classList.toggle("is-legacy", state.viewerEngine === "legacy");
     try {
       state.viewerController = XinTPanoramaViewer.create({
         element: refs.viewer,
         engine: state.viewerEngine,
         autorotate: state.autorotate,
+        initialYaw: initialView && initialView.yaw,
+        initialPitch: initialView && initialView.pitch,
+        initialFov: initialView && initialView.fov,
         onViewChange: updateViewerTelemetry,
         onContextState: handleViewerContextState
       });
       state.viewerReady = false;
       state.maxTextureSize = state.viewerController.getMaxTextureSize();
       updateAutorotateButton();
+      return true;
     } catch (error) {
       state.viewerController = null;
       setViewerState("error", "预览引擎启动失败", error.message + "；可在设置中切换引擎。", "");
+      return false;
     }
   }
 
@@ -454,6 +503,9 @@
     state.apiBase = nextApiBase;
     refs.settingsStatus.textContent = "地址已保存，正在连接…";
     state.connectionId += 1;
+    state.engineSwitchId += 1;
+    state.pendingViewerEngine = null;
+    state.viewerConfigReady = false;
     state.appInfo = { name: "XinT 全景系统", version: null, repositoryUrl: "https://github.com/XinTycd/XinT-Panorama-System" };
     renderAppInfo();
     cancelHotspotNavigation();
@@ -491,7 +543,11 @@
     renderProjectScenes();
     localStorage.setItem("xint-panorama-system-api", state.apiBase);
     updateEmbedExample();
-    loadAppInfo().finally(function loadGalleryAfterConfig() { if (state.connectionId === connectionId) loadGallery(); });
+    Promise.all([loadAppInfo(connectionId), loadGallery(true)]).then(function startInitialPanorama() {
+      if (state.connectionId !== connectionId || !state.viewerConfigReady || !state.viewerController || !state.items.length) return;
+      var initialIndex = state.currentIndex < 0 || state.currentIndex >= state.items.length ? 0 : state.currentIndex;
+      selectScene(initialIndex);
+    });
     loadProjects();
   }
 
@@ -775,8 +831,8 @@
     }
   }
 
-  async function loadAppInfo() {
-    var connectionId = state.connectionId;
+  async function loadAppInfo(connectionId) {
+    connectionId = connectionId === undefined ? state.connectionId : connectionId;
     try {
       var response = await fetchJson("/api/config");
       if (connectionId !== state.connectionId) return;
@@ -793,7 +849,10 @@
       } else {
         refs.viewerEngineStatus.textContent = "当前服务不支持读取预览引擎设置。";
         refs.viewerEngineSelect.disabled = true;
+        await ensureViewerInitialized("psv", connectionId);
       }
+      if (connectionId !== state.connectionId) return;
+      state.viewerConfigReady = true;
       state.availableModes = Array.isArray(response.modes) ? response.modes : [];
       updateSourceAvailability(state.availableModes, "");
       refs.settingsStatus.textContent = "已连接到 " + state.apiBase;
@@ -812,6 +871,8 @@
         state.availableModes = null;
         updateSourceAvailability(null, "无法读取可用添加方式。请检查服务地址后重试。");
         refs.settingsStatus.textContent = "连接失败：" + error.message;
+        await ensureViewerInitialized("psv", connectionId);
+        if (connectionId === state.connectionId) state.viewerConfigReady = true;
       }
     }
   }
@@ -819,13 +880,49 @@
   async function applyViewerEngine(settings, connectionId) {
     if (connectionId !== state.connectionId) return;
     state.viewerEngineForced = settings.forcedByEnvironment === true;
-    refs.viewerEngineSelect.value = settings.engine;
+    var engine = settings.engine === "legacy" ? "legacy" : "psv";
+    refs.viewerEngineSelect.value = engine;
     refs.viewerEngineSelect.disabled = state.viewerEngineForced;
     refs.viewerEngineStatus.textContent = state.viewerEngineForced
-      ? "由 PANORAMA_VIEWER_ENGINE 环境变量固定为 " + settings.engine + "。"
+      ? "由 PANORAMA_VIEWER_ENGINE 环境变量固定为 " + engine + "。"
       : "设置保存在服务端；图库和嵌入式预览使用同一引擎。切换会保留当前图片与视角。";
-    if (settings.engine !== state.viewerEngine) return await switchViewerEngine(settings.engine, connectionId);
+    if (state.viewerController && engine !== state.viewerEngine) return await switchViewerEngine(engine, connectionId);
+    if (!state.viewerController) return await ensureViewerInitialized(engine, connectionId);
     return true;
+  }
+
+  async function ensureViewerInitialized(engine, connectionId) {
+    if (connectionId !== state.connectionId) return false;
+    var initId = ++state.engineSwitchId;
+    if (state.viewerController && state.viewerEngine === engine) {
+      state.pendingViewerEngine = null;
+      return true;
+    }
+    state.pendingViewerEngine = engine;
+    try {
+      await ensureViewerEngineAssets(engine);
+      if (connectionId !== state.connectionId || initId !== state.engineSwitchId) return false;
+      if (state.viewerController) {
+        if (state.viewerEngine === engine) {
+          state.pendingViewerEngine = null;
+          return true;
+        }
+        return await switchViewerEngine(engine, connectionId);
+      }
+      state.viewerEngine = engine;
+      if (initViewer(engine)) {
+        state.pendingViewerEngine = null;
+        if (state.viewerConfigReady && state.items.length && state.currentIndex >= 0) selectScene(state.currentIndex);
+        return true;
+      }
+      throw new Error("无法创建查看器实例");
+    } catch (error) {
+      if (connectionId === state.connectionId && initId === state.engineSwitchId) {
+        state.viewerReady = false;
+        setViewerState("error", "查看器资源加载失败", error.message, "重新加载", "engine-reload");
+      }
+      return false;
+    }
   }
 
   async function saveViewerEngine() {
@@ -843,18 +940,38 @@
       if (connectionId !== state.connectionId) return;
       if (!result.viewer || result.viewer.engine !== engine) throw new Error("服务端未确认预览引擎设置");
       var switched = await applyViewerEngine(result.viewer, connectionId);
+      if (connectionId !== state.connectionId) return;
       if (engine !== state.viewerEngine || switched === false) throw new Error("预览引擎已保存，但当前浏览器无法启动该引擎");
       refs.viewerEngineStatus.textContent = "预览引擎已保存。嵌入式预览下次加载时使用此设置。";
     } catch (error) {
+      if (connectionId !== state.connectionId) return;
       refs.viewerEngineSelect.value = state.viewerEngine;
       refs.viewerEngineStatus.textContent = "保存失败：" + error.message;
     } finally {
-      if (!state.viewerEngineForced) refs.viewerEngineSelect.disabled = false;
+      if (connectionId === state.connectionId && !state.viewerEngineForced) refs.viewerEngineSelect.disabled = false;
     }
   }
 
   async function switchViewerEngine(engine, connectionId) {
     if (engine !== "psv" && engine !== "legacy") return;
+    if (connectionId !== state.connectionId) return false;
+    var switchId = ++state.engineSwitchId;
+    state.pendingViewerEngine = engine;
+    if (state.viewerController && engine === state.viewerEngine) {
+      state.pendingViewerEngine = null;
+      return true;
+    }
+    try {
+      await ensureViewerEngineAssets(engine);
+    } catch (assetError) {
+      if (connectionId === state.connectionId && switchId === state.engineSwitchId) {
+        state.viewerReady = false;
+        setViewerState("error", "查看器资源加载失败", assetError.message, "重新加载", "engine-reload");
+      }
+      return false;
+    }
+    if (connectionId !== state.connectionId || switchId !== state.engineSwitchId) return false;
+
     var savedView = state.viewerController ? state.viewerController.getView() : { yaw: 180, pitch: 0, fov: 75 };
     var item = state.currentIndex >= 0 ? state.items[state.currentIndex] : null;
     var previousController = state.viewerController;
@@ -865,21 +982,17 @@
     if (previousController) previousController.dispose();
     state.viewerEngine = engine;
     refs.viewerPanel.classList.toggle("is-legacy", engine === "legacy");
-    state.viewerController = XinTPanoramaViewer.create({
-      element: refs.viewer,
-      engine: engine,
-      autorotate: false,
-      initialYaw: savedView.yaw,
-      initialPitch: savedView.pitch,
-      initialFov: savedView.fov,
-      onViewChange: updateViewerTelemetry,
-      onContextState: handleViewerContextState
-    });
+    if (!initViewer(engine, savedView)) {
+      state.pendingViewerEngine = engine;
+      setViewerState("error", "预览引擎启动失败", "查看器实例无法创建。", "重新加载", "engine-reload");
+      return false;
+    }
+    state.pendingViewerEngine = null;
     var nextController = state.viewerController;
-    state.maxTextureSize = state.viewerController.getMaxTextureSize();
+    state.maxTextureSize = nextController.getMaxTextureSize();
     state.autorotate = false;
     updateAutorotateButton();
-    if (!item) return;
+    if (!item) return true;
     var requestId = ++state.requestId;
     try {
       var imageUrl = await resolveItemImageUrl(item, false);
@@ -1141,7 +1254,7 @@
     });
   }
 
-  async function loadGallery() {
+  async function loadGallery(deferInitialScene) {
     var connectionId = state.connectionId;
     var galleryRequestId = ++state.galleryRequestId;
     setStatus("连接中...");
@@ -1179,7 +1292,7 @@
         state.currentIndex = 0;
       }
 
-      await selectScene(state.currentIndex);
+      if (!deferInitialScene) await selectScene(state.currentIndex);
     } catch (error) {
       if (connectionId !== state.connectionId || galleryRequestId !== state.galleryRequestId) return;
       setStatus("连接失败");
@@ -1597,7 +1710,11 @@
     state.viewerReady = false;
     renderProjectScenes();
     if (!state.viewerController) {
-      setViewerState("error", "预览引擎未启动", "请在系统设置中选择可用的预览引擎。", "");
+      if (!state.viewerConfigReady) {
+        setViewerState("loading", "正在初始化查看器", item.name || "正在准备图片纹理");
+      } else if (state.viewerStateAction !== "engine-reload") {
+        setViewerState("error", "预览引擎未启动", "请检查查看器资源后重新加载。", "重新加载", "engine-reload");
+      }
       return;
     }
     renderGallery();
@@ -1610,7 +1727,6 @@
     try {
       var imageUrl = await resolveItemImageUrl(item, false);
       if (!imageUrl) throw new Error("这张图片保存在上传时的浏览器中，当前浏览器找不到本地副本；请在此浏览器重新上传。");
-      if (connectionId !== state.connectionId || requestId !== state.requestId) return;
       if (connectionId !== state.connectionId || requestId !== state.requestId || state.viewerController !== requestedController) return;
       var loaded = await requestedController.setPanorama(imageUrl);
       if (connectionId !== state.connectionId || requestId !== state.requestId || state.viewerController !== requestedController) {
@@ -1643,7 +1759,6 @@
       }
       state.viewerReady = true;
       refs.resolutionText.textContent =
-        "分辨率: " +
         loaded.originalWidth +
         " × " +
         loaded.originalHeight +
@@ -1674,7 +1789,7 @@
     cancelHotspotNavigation();
     state.viewerReady = false;
     if (state.viewerController) state.viewerController.clear();
-    refs.resolutionText.textContent = "分辨率: -";
+    refs.resolutionText.textContent = "-";
     refs.sourceText.textContent = "来源: -";
     refs.hotspotLayer.innerHTML = "";
   }
@@ -2270,7 +2385,19 @@
     }
     if (state.viewerStateAction === "reload") {
       loadGallery();
+      return;
     }
+    if (state.viewerStateAction === "engine-reload") retryViewerEngine();
+  }
+
+  async function retryViewerEngine() {
+    var connectionId = state.connectionId;
+    var engine = state.pendingViewerEngine || state.viewerEngine;
+    var ready = state.viewerController && state.viewerEngine !== engine
+      ? await switchViewerEngine(engine, connectionId)
+      : await ensureViewerInitialized(engine, connectionId);
+    if (connectionId !== state.connectionId || !ready) return;
+    if (state.currentIndex >= 0 && state.currentIndex < state.items.length) selectScene(state.currentIndex);
   }
 
   function formatBytes(bytes) {

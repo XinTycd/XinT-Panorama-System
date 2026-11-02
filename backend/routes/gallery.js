@@ -1,9 +1,10 @@
 const { getModesFromEnv } = require("../../lib/runtime-config");
 const { sendJson, parseBody } = require("../api-http");
-const { STORAGE_DIR, readGallery, readItemByPanoramaNo, writeGallery, makeId, upsertItem, updateItem, deleteItem, listGroups, createGroup, deleteGroup } = require("../store");
+const { STORAGE_DIR, readGallery, readItemById, readItemByPanoramaNo, writeGallery, makeId, upsertItem, updateItem, deleteItem, listGroups, createGroup, deleteGroup } = require("../store");
 const { resolveLocalMediaPath } = require("../media");
 const { captureMediaStorage, saveServerImage, removeImagePayload } = require("../media-storage");
 const { isRemoteHttpUrl, assertSafeRemoteUrl, handleProxy } = require("../remote-image");
+const { canGenerateThumbnail, readThumbnail } = require("../thumbnails");
 
 const APP_MODES = getModesFromEnv();
 
@@ -27,7 +28,9 @@ function parseOptionalPanoramaNo(body) {
 
 function serializeItem(item, baseUrl) {
   const viewerPath = String(item.viewerPath || "");
-  const thumbnailPath = item.thumbnailPath || viewerPath;
+  const thumbnailPath = canGenerateThumbnail(item)
+    ? "/api/panoramas/thumbnail?id=" + encodeURIComponent(item.id)
+    : item.thumbnailPath || viewerPath;
   return {
     id: item.id,
     panoramaNo: Number(item.panoramaNo) || null,
@@ -116,6 +119,26 @@ async function handleGalleryApi(req, res, urlObject, baseUrl) {
     const item = await findItemByPanoramaNo(urlObject.searchParams.get("no"));
     if (!item) return sendApiJson(res, 404, { ok: false, message: "指定编号的全景图不存在" });
     sendJson(res, 200, { ok: true, item: serializeItem(item, baseUrl) });
+    return true;
+  }
+  if ((req.method === "GET" || req.method === "HEAD") && pathname === "/api/panoramas/thumbnail") {
+    if (!galleryModeAllowed()) return rejectMode(res, "database/external/upload");
+    const item = readItemById(urlObject.searchParams.get("id") || "");
+    if (!canGenerateThumbnail(item)) return sendApiJson(res, 404, { ok: false, message: "缩略图不存在" });
+    const thumbnail = await readThumbnail(item);
+    if (!thumbnail) {
+      res.writeHead(302, { Location: item.viewerPath, "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" });
+      res.end();
+      return true;
+    }
+    res.writeHead(200, {
+      "Content-Type": "image/webp",
+      "Content-Length": thumbnail.length,
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "public, max-age=60",
+      "X-Content-Type-Options": "nosniff"
+    });
+    res.end(req.method === "HEAD" ? undefined : thumbnail);
     return true;
   }
   if (req.method === "POST" && pathname === "/api/gallery/seed-demo") {
@@ -238,7 +261,7 @@ async function handleGalleryApi(req, res, urlObject, baseUrl) {
   if (req.method === "POST" && pathname === "/api/panoramas/update") {
     if (!galleryModeAllowed()) return rejectMode(res, "database/external/upload");
     const body = await parseBody(req);
-    const existing = (await readGallery()).find((item) => item.id === body.id);
+    const existing = readItemById(body.id);
     if (!existing) return sendApiJson(res, 404, { ok: false, message: "指定全景图不存在" });
     const requestedNo = parseOptionalPanoramaNo(body);
     if (!requestedNo.ok) return sendApiJson(res, 400, { ok: false, message: "panoramaNo 必须是正整数" });

@@ -595,7 +595,7 @@
             if (Object.prototype.hasOwnProperty.call(allowed, token) && result.keys.indexOf(token) === -1) {
               result.keys.push(token);
             } else if (
-              (token === "all" || token === "none" || token === "default") &&
+              (token === "all" || token === "compact" || token === "none" || token === "default") &&
               result.specials.indexOf(token) === -1
             ) {
               result.specials.push(token);
@@ -615,6 +615,9 @@
           if (parsed.specials[0] === "all") {
             return allControls;
           }
+          if (parsed.specials[0] === "compact") {
+            return ["zoom-in", "zoom-out", "autorotate", "fullscreen"];
+          }
           if (parsed.specials[0] === "none") {
             return [];
           }
@@ -628,7 +631,7 @@
           if (parsed.specials.length !== 1 || parsed.specials[0] === "none") {
             return [];
           }
-          return parsed.specials[0] === "all" ? allControls : defaultControls;
+          return getBaseControls(parsed, allControls, defaultControls);
         }
 
         function applyControlVisibility() {

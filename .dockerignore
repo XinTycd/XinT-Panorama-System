@@ -2,6 +2,9 @@
 node_modules
 frontend/vendor/psv.bundle.js
 frontend/vendor/psv.css
+frontend/vendor/psv.bundle.js.br
+frontend/vendor/psv.css.br
+frontend/vendor/three.min.js.br
 frontend/vendor/PSV-LICENSE
 frontend/vendor/THREE-LICENSE
 frontend/vendor/THIRD_PARTY_NOTICES.txt

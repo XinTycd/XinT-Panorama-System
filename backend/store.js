@@ -139,6 +139,12 @@ async function readGallery() {
   return selectGallery(getDatabase());
 }
 
+function readItemById(id) {
+  if (typeof id !== "string" || !id) return null;
+  const row = getDatabase().prepare("SELECT * FROM panoramas WHERE id = ?").get(id);
+  return row ? dbItemToGalleryItem(row) : null;
+}
+
 async function readItemByPanoramaNo(panoramaNo) {
   const number = Number(panoramaNo);
   if (!Number.isFinite(number)) return null;
@@ -318,6 +324,7 @@ module.exports = {
   DB_DRIVER,
   initialize,
   readGallery,
+  readItemById,
   readItemByPanoramaNo,
   writeGallery,
   getNextPanoramaNo,
