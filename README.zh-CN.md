@@ -47,6 +47,8 @@ XinT Panorama System 为现有网站提供可自行部署的 720° 全景查看�
 
 iframe 将查看器脚本与样式隔离在独立页面中。嵌入不会重新编码全景图片；使用原格式存储或未转码的 Base64 存储可保留原始图片字节。图片转码是单独的存储选项。实际显示细节仍受浏览器、设备和可用纹理尺寸限制。
 
+![使用精简工具栏的嵌入式 720° 全景查看器](docs/assets/embed-preview.jpg)
+
 ## 快速开始
 
 需要 Node.js 24 或更高版本。只运行 API 和嵌入查看器时：
@@ -66,7 +68,7 @@ API、widget、嵌入脚本和查看器资源默认由 7210 端口提供。管�
 
 项目工作区是默认禁用的内置插件。在“插件”抽屉中使用“启用”和“禁用”按钮，可显示或隐藏项目和场景入口。状态保存在当前浏览器。
 
-![XinT Panorama 管理控制台中的内置演示全景图](docs/assets/studio-preview.png)
+![XinT Panorama 管理控制台](docs/assets/studio-preview.jpg)
 
 图库支持上传或登记图片 URL、分组与筛选，每页浏览 8 项。项目场景和热点可通过项目 JSON 导入或导出。
 
@@ -107,7 +109,8 @@ npm run build:vendor
 - [部署指南](./docs/DEPLOYMENT.md)
 - [API 参考](./docs/API.md)
 - [嵌入说明](./docs/EMBEDDING.md)
-- [变更记录](./CHANGELOG.md)，包括 [v0.2.3 发布说明](./docs/releases/v0.2.3-zh-CN.md)
+- [v0.2.4 发布说明](./docs/releases/v0.2.4-zh-CN.md)
+- [变更记录](./CHANGELOG.md)
 
 ## 贡献
 

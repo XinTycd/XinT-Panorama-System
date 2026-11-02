@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: XinT Panorama Trusted Delivery API
-  version: 0.2.3
+  version: 0.2.4
   description: Project diagnostics, release creation and snapshot verification.
 servers:
   - url: http://127.0.0.1:7210

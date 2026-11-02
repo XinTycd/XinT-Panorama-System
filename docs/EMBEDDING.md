@@ -72,13 +72,13 @@ Widget 默认从当前来源读取 API 配置和图库。需要指定服务根�
 | `data-aspect-ratio` | Script | iframe 宽高比，可写 `16:9` 或正数。默认 `16:9`。 |
 | `data-min-height` / `data-max-height` | Script | iframe 高度范围，单位像素；默认 280 / 960。 |
 | `data-autorotate` | Script | 对支持自动旋转的 PSV 引擎请求打开自动旋转；legacy 不启用。 |
-| `data-controls` | Script | 可见控件白名单，逗号分隔。 |
+| `data-controls` | Script | 可见控件，可填写 `all`、`compact`、`none` 或以逗号分隔的控件名。 |
 | `data-hide-controls` | Script | 隐藏控件列表，逗号分隔。 |
 | `api` | iframe query | XinT 服务根 URL；默认 `location.origin`，填写时不带 `/api`。 |
 | `panoramaNo` | iframe query | 显示图库中指定编号的图片。 |
 | `imageUrl` | iframe query | 显示远程图片 URL；经 XinT 图片代理加载。 |
 | `imageName` | iframe query | 直接图片 URL 模式的显示名称。 |
-| `controls` / `hideControls` | iframe query | 可见或隐藏控件列表。 |
+| `controls` / `hideControls` | iframe query | 可见或隐藏控件列表，使用与脚本方式相同的预设和控件名。 |
 
 旧 `data-mode`、`data-preview-mode` 属性仍可解析为标准全景视图；当前查看器没有多个投影模式。旧 `brand`、`panorama-no` 和 `resolution` HUD 控件 token 为兼容性保留，widget 不渲染相应叠层。控制台的工具栏 Cookie 设置不影响 widget。
 

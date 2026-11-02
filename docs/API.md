@@ -25,6 +25,7 @@
 | --- | --- | --- |
 | GET | `/api/gallery` | 查询全部图库记录 |
 | GET | `/api/panoramas/by-no?no=1` | 按图库编号查询 |
+| GET/HEAD | `/api/panoramas/thumbnail?id=...` | 支持的本地上传图片缩略图，最长边不超过 320 像素 |
 | POST | `/api/panoramas/create` | 注册已有图片地址/记录 |
 | POST | `/api/panoramas/register` | 注册远程图片链接 |
 | POST | `/api/panoramas/upload-base64` | 上传 Base64 Data URL；JSON body 上限 30 MiB。默认返回图库 `items`，批量上传可用 `?includeItems=0` 仅返回 `ok` 和 `item` |
@@ -48,6 +49,8 @@
 ```
 
 通过上传方式创建图片时，编号由服务端分配。资源可带可选 `group`；命名分组需先创建。服务端对组名 trim 后最多接受 64 个 Unicode 字符，空值表示未分组。
+
+支持的本地上传记录中，`thumbnailUrl` 返回 WebP 缩略图地址，`viewerUrl` 返回保存的全景图地址。缩略图按需生成并在进程内缓存。解码失败或生成队列已满时，缩略图地址会重定向到原图。远程图片、云端 SQLite 和浏览器存储沿用各自的图片地址。
 
 ## 项目、场景、热点
 

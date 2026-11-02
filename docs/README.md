@@ -28,10 +28,14 @@ This index groups the operational, maintenance, API, and planning documents for 
 - [Earlier verification log](logs/2026-11-14-verification.log): data-layer and operations checks from the prior phase.
 - [v0.2.1 validation log](logs/v0.2.1-validation.log): clean-install, tests, and configuration-check output from that release.
 - [v0.2.2 candidate checks](logs/2026-11-14-v0.2.2-validation.log): test and configuration-check output from 2026-11-14.
+- [v0.2.4 performance measurements](logs/2026-11-15-v0.2.4-performance.md) (Chinese)
+- [v0.2.4 validation output](logs/2026-11-15-v0.2.4-validation.log)
 - [Development history](DEVELOPMENT_LOG.md) (Chinese): dated summaries with links to command output.
 
 ## Releases
 
+- [v0.2.4 — English](releases/v0.2.4.md)
+- [v0.2.4 — 简体中文](releases/v0.2.4-zh-CN.md)
 - [v0.2.3 — English](releases/v0.2.3.md)
 - [v0.2.3 — 简体中文](releases/v0.2.3-zh-CN.md)
 - [v0.2.2 — English](releases/v0.2.2.md)

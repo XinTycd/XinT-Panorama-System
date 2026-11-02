@@ -47,6 +47,8 @@ For direct image embedding, use the widget's `imageUrl` query parameter; the wid
 
 The iframe keeps viewer scripts and styles separate from the host page. Embedding does not re-encode the panorama. Original image bytes can be kept with original-format storage, or with an untranscoded Base64 storage option; image transcoding is a separate storage setting. Displayed detail still depends on the browser, device, and available texture size.
 
+![Embedded 720° viewer with the compact toolbar](docs/assets/embed-preview.jpg)
+
 ## Quick start
 
 Requires Node.js 24 or later. To run the API and embeddable viewer without the console:
@@ -66,7 +68,7 @@ The console manages panorama images, gallery groups, project scenes, and hotspot
 
 The project workspace is a built-in console plugin and is disabled by default. Use the Enable and Disable buttons in the Plugins drawer to show or hide project and scene controls. Its state is stored in the current browser.
 
-![XinT Panorama management console with the built-in demo panorama](docs/assets/studio-preview.png)
+![XinT Panorama management console](docs/assets/studio-preview.jpg)
 
 Gallery images can be uploaded or registered by URL, grouped and filtered, and browsed eight per page. Project scenes and hotspots can be imported or exported as project JSON.
 
@@ -107,7 +109,8 @@ Development requires Node.js 24. `npm run build:vendor` creates the local viewer
 - [Deployment](./docs/DEPLOYMENT.md) (Chinese)
 - [API reference](./docs/API.md) (Chinese)
 - [Embedding guide](./docs/EMBEDDING.md) (Chinese)
-- [Changelog](./CHANGELOG.md), including the [v0.2.3 release notes](./docs/releases/v0.2.3.md)
+- [v0.2.4 release notes](./docs/releases/v0.2.4.md)
+- [Changelog](./CHANGELOG.md)
 
 ## Contributing
 
