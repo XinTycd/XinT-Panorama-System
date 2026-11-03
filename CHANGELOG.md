@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.4 — 2026-11-03
+
+- Load only the configured engine at console startup and request gallery metadata alongside configuration.
+- Serve precompressed viewer scripts and styles to browsers that accept Brotli.
+- Remove JSON response indentation to reduce API transfer size.
+- Use smaller WebP thumbnails for supported local uploads. The viewer continues to load the stored panorama.
+- Accept the `compact` toolbar preset in script and iframe embeds.
+- Refresh the console and embed screenshots in both README editions.
+- Remove the repeated resolution label from the console's scene details.
+
+See the [English release notes](docs/releases/v0.2.4.md) and [简体中文版本](docs/releases/v0.2.4-zh-CN.md).
+
 ## v0.2.3 — 2026-09-19
 
 - Add a local built-in plugin registry. The project workspace starts disabled and can be enabled or disabled in the console; its preference is stored in the current browser.
