@@ -10,9 +10,7 @@
 
 ## 项目背景
 
-随着 [Insta360](https://store.insta360.com/product/virtual_tour_kit)、[RICOH THETA](https://www.ricoh360.com/tours/) 等消费级全景设备和导览套装，以及 DJI 的 [Osmo 360](https://www.dji.com/360) 相机普及，个人创作者和小型团队也更容易拍摄完整的空间影像。房产展示、场地介绍和[施工现场记录](https://www.ricoh.com/-/Media/Ricoh/Sites/com/release/2021/pdf/0113_1.pdf)等应用，也带来了通过网页远程查看空间、分享全景内容的需求。
-
-XinT Panorama System 为现有网站提供可自行部署的 720° 全景查看器。通过脚本或 iframe 嵌入，查看器在独立 frame 中运行；控制台用于资源管理、查看器配置和嵌入效果调试。
+DJI Osmo 360、Insta360 这类消费级全景相机越来越常见，个人创作者和小团队拍全景不再是大工程。房产展示、场地介绍、旅游导览、施工记录等场景，最后往往都要把全景内容放到网站上，让访客直接点开看。XinT Panorama System 提供的是一套可自行部署的 720° 全景查看器，通过 iframe 或 JavaScript 嵌进现有网站。它还配了一个控制台，用来管理全景资源、配置查看器、调试嵌入效果，开发者可以把拍好的内容接进自己的业务里。
 
 ## 嵌入网站
 
@@ -47,7 +45,7 @@ XinT Panorama System 为现有网站提供可自行部署的 720° 全景查看�
 
 iframe 将查看器脚本与样式隔离在独立页面中。嵌入不会重新编码全景图片；使用原格式存储或未转码的 Base64 存储可保留原始图片字节。图片转码是单独的存储选项。实际显示细节仍受浏览器、设备和可用纹理尺寸限制。
 
-![使用精简工具栏的嵌入式 720° 全景查看器](docs/assets/embed-preview.jpg)
+![使用精简工具栏的嵌入式 720° 全景查看器](docs/assets/embed-preview-cc0-cb0de530.jpg)
 
 ## 快速开始
 
@@ -68,7 +66,9 @@ API、widget、嵌入脚本和查看器资源默认由 7210 端口提供。管�
 
 项目工作区是默认禁用的内置插件。在“插件”抽屉中使用“启用”和“禁用”按钮，可显示或隐藏项目和场景入口。状态保存在当前浏览器。
 
-![XinT Panorama 管理控制台](docs/assets/studio-preview.jpg)
+![XinT Panorama 管理控制台](docs/assets/studio-preview-cc0-c68ed218.jpg)
+
+截图全景图：[Rural Landscape](https://polyhaven.com/a/rural_landscape)，作者 Sergej Majboroda，Poly Haven（[CC0](https://polyhaven.com/license)）。
 
 图库支持上传或登记图片 URL、分组与筛选，每页浏览 8 项。项目场景和热点可通过项目 JSON 导入或导出。
 

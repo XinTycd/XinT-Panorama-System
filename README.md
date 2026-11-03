@@ -10,9 +10,7 @@ Self-hosted 720° panorama viewer for embedding in websites.
 
 ## Project background
 
-Consumer 360 camera options include virtual-tour bundles from [Insta360](https://store.insta360.com/product/virtual_tour_kit), [RICOH THETA](https://www.ricoh360.com/tours/) cameras, and DJI's [Osmo 360](https://www.dji.com/360). These devices have made it easier for individual creators and small teams to capture complete views of a space. Real estate listings, venue introductions, and [construction-site records](https://www.ricoh.com/-/Media/Ricoh/Sites/com/release/2021/pdf/0113_1.pdf) have also created a need to view and share those spaces remotely on the web.
-
-XinT Panorama System provides a self-hosted 720° panorama viewer that can be embedded in an existing website. Add it with a script or iframe; it runs in its own frame. The console is for resource management, viewer configuration, and embed previews.
+Consumer 360° cameras such as the DJI Osmo 360 and Insta360 are becoming more common, making panorama capture a manageable task for individual creators and small teams. For property listings, venue introductions, tourism guides, and construction records, panorama content often needs to end up on a website where visitors can open it directly. XinT Panorama System provides a self-hosted 720° panorama viewer that embeds in an existing website through an iframe or JavaScript. It also includes a console for managing panorama resources, configuring the viewer, and debugging embeds, so developers can bring captured content into their own applications.
 
 ## Embed in a website
 
@@ -47,7 +45,7 @@ For direct image embedding, use the widget's `imageUrl` query parameter; the wid
 
 The iframe keeps viewer scripts and styles separate from the host page. Embedding does not re-encode the panorama. Original image bytes can be kept with original-format storage, or with an untranscoded Base64 storage option; image transcoding is a separate storage setting. Displayed detail still depends on the browser, device, and available texture size.
 
-![Embedded 720° viewer with the compact toolbar](docs/assets/embed-preview.jpg)
+![Embedded 720° viewer with the compact toolbar](docs/assets/embed-preview-cc0-cb0de530.jpg)
 
 ## Quick start
 
@@ -68,7 +66,9 @@ The console manages panorama images, gallery groups, project scenes, and hotspot
 
 The project workspace is a built-in console plugin and is disabled by default. Use the Enable and Disable buttons in the Plugins drawer to show or hide project and scene controls. Its state is stored in the current browser.
 
-![XinT Panorama management console](docs/assets/studio-preview.jpg)
+![XinT Panorama management console](docs/assets/studio-preview-cc0-c68ed218.jpg)
+
+Panorama: [Rural Landscape](https://polyhaven.com/a/rural_landscape) by Sergej Majboroda, Poly Haven ([CC0](https://polyhaven.com/license)).
 
 Gallery images can be uploaded or registered by URL, grouped and filtered, and browsed eight per page. Project scenes and hotspots can be imported or exported as project JSON.
 
