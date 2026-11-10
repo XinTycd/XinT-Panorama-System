@@ -19,27 +19,32 @@
 
 发送到 `PUT /api/settings/viewer`；设置只记录引擎选择。设置在存储目录的 `viewer-settings.json`。环境变量强制选择时，写请求返回 409；非本机来源返回 403。控制台保存后在当前页面释放并重建所选引擎，同时保留当前图片与视角；待上传队列非空时不能切换。widget 初始化时读取同一全局配置，已打开的 widget 标签页不会跨刷新热同步。
 
+## 控制台偏好
+
+控制台服务（默认端口 7211）提供同源管理接口 `GET` 与 `PUT /api/console-settings`。它不属于默认端口 7210 上的公开图库、嵌入或项目 API。接口读写 `PANORAMA_STORAGE_DIR/console-settings.json`，字段包括 `apiBase`、`plugins`、`embedPreset` 和 `toolbarHidden`；`PUT` 接收字段补丁，只更新请求中提供的字段并保留其他设置。请求必须来自回环客户端并满足同源校验；写入必须使用 JSON。接口不开放 CORS。控制台语言偏好保存在浏览器，不包含在此配置文件中。
+
 ## 图库和分组
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/api/gallery` | 查询全部图库记录 |
 | GET | `/api/panoramas/by-no?no=1` | 按图库编号查询 |
-| GET/HEAD | `/api/panoramas/thumbnail?id=...` | 支持的本地上传图片缩略图，最长边不超过 320 像素 |
+| GET/HEAD | `/api/panoramas/preview?id=...` | 获取移除元数据、保留解码像素和原尺寸的无损派生预览 |
+| GET/HEAD | `/api/panoramas/thumbnail?id=...` | 获取安全预览的 WebP 缩略图，最长边不超过 320 像素 |
 | POST | `/api/panoramas/create` | 注册已有图片地址/记录 |
 | POST | `/api/panoramas/register` | 注册远程图片链接 |
 | POST | `/api/panoramas/upload-base64` | 上传 Base64 Data URL；JSON body 上限 30 MiB。默认返回图库 `items`，批量上传可用 `?includeItems=0` 仅返回 `ok` 和 `item` |
 | POST | `/api/panoramas/update` | 按 `id` 更新编号、分组、名称或描述 |
 | DELETE | `/api/panoramas/:id` | 删除图库记录；有项目场景引用时返回 409。不会删除图片媒体 |
-| GET | `/api/panoramas/proxy?url=...` | 受安全限制的远程图片代理 |
+| GET | `/api/panoramas/proxy?url=...` | 已退役，返回 410；请先将远程图片导入图库，再按编号嵌入 |
 | GET/POST/DELETE | `/api/gallery/groups` | 查询、创建、删除命名分组；删除组内资源移至未分组，空组保留 |
 | POST | `/api/gallery/clear` | 清除图库记录，不删除媒体或发布快照 |
 | POST | `/api/gallery/seed-demo` | 添加演示记录 |
 
-图片注册请求示例：
+远程图片注册请求示例（服务端获取并保存源文件）：
 
 ```json
-{"name":"大厅","imageUrl":"https://example.com/panorama.jpg"}
+{"name":"大厅","url":"https://example.com/panorama.jpg"}
 ```
 
 上传请求示例：
@@ -50,7 +55,9 @@
 
 通过上传方式创建图片时，编号由服务端分配。资源可带可选 `group`；命名分组需先创建。服务端对组名 trim 后最多接受 64 个 Unicode 字符，空值表示未分组。
 
-支持的本地上传记录中，`thumbnailUrl` 返回 WebP 缩略图地址，`viewerUrl` 返回保存的全景图地址。缩略图按需生成并在进程内缓存。解码失败或生成队列已满时，缩略图地址会重定向到原图。远程图片、云端 SQLite 和浏览器存储沿用各自的图片地址。
+图库项的公开预览地址为 `/api/panoramas/preview?id=...`，缩略图地址为 `/api/panoramas/thumbnail?id=...`。远程原图代理已关闭；`/widget?imageUrl=...` 不再加载外部图片，需先调用 `/api/panoramas/register` 或 `/api/panoramas/create` 导入，再使用 `panoramaNo`。
+
+图库响应中的 `viewerPath`、`viewerUrl` 与 `thumbnailUrl` 指向受保护的预览端点，不返回存储源路径或原始 URL。服务端仅为可解码的静态图片生成移除元数据的无损派生图，保留解码像素和尺寸；缩略图也由派生图生成。原始媒体保存在所选本地、SQLite 或云端存储中。浏览器专属图片没有服务端预览 URL。解码失败、源文件不存在或处理队列已满时，请求返回错误，不回退发送原图。
 
 ## 项目、场景、热点
 

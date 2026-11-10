@@ -65,6 +65,6 @@ Vendored file: `frontend/vendor/three.min.js`. Its original license header is re
 
 Copyright 2010-2023 Three.js Authors. This version is distributed under the MIT License; the MIT terms reproduced in the preceding Three.js section apply.
 
-## Poly Haven Rural Landscape screenshots
+## Poly Haven image shown in README screenshots
 
-The README screenshots use Rural Landscape by Sergej Majboroda, Poly Haven. The image is available under CC0. Source: https://polyhaven.com/a/rural_landscape. License: https://polyhaven.com/license.
+The README example screenshots depict the “Rural Landscape” panorama by Sergej Majboroda, sourced from https://polyhaven.com/a/rural_landscape and licensed under CC0 (https://polyhaven.com/license). The repository screenshots contain rendered image pixels; the original 8192 × 4096 source JPEG is not distributed in this repository.

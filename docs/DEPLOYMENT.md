@@ -6,7 +6,7 @@
 
 运行需要 Node.js 24 或更高版本，以使用内置的 `node:sqlite`。SQLite 数据库固定为存储目录下的 `panorama.sqlite`；不要单独移动数据库文件而遗漏同目录上传资源。
 
-当前实现不包含用户身份、组织权限、审计、SLA 或企业对象存储编排。
+当前实现不包含用户身份、组织权限、审计、SLA 或企业对象存储编排。控制台服务的 API 地址、插件状态、嵌入预设和工具栏显示偏好保存在 `PANORAMA_STORAGE_DIR/console-settings.json`；此同源设置接口只接受回环控制台请求，不开放 CORS。该文件不保存云端数据库令牌。
 
 ## 仅部署嵌入服务
 
@@ -25,12 +25,11 @@ npm run start:backend
 
 - `/embed.js`、`/widget`、`/assets/`：脚本、widget 页面和本地查看器资源。
 - `/api/config`、`/api/panoramas/by-no`：widget 初始化和按编号读取单张图片。只有需要在 widget 中浏览图库列表时才开放 `/api/gallery`；该接口会公开可分享图库中的资源列表，按编号嵌入单张图片不需要它。
-- `/media/`：本地图片媒体。
-- `/api/panoramas/proxy`：仅在嵌入的图片使用远程 URL 时需要。
+- `/api/panoramas/preview`、`/api/panoramas/thumbnail`：图库的安全派生图片。不要公开 `/media/` 原始媒体路径；`/api/panoramas/proxy` 已退役并返回 410。
 
 如果前端使用 `/widget` 默认的 `location.origin`，或 iframe 里的 API 与 widget 同源，反代应让上述路径落到同一个服务地址。TLS 终止后，浏览器访问的页面和嵌入资源都应使用公开 HTTPS URL；不要让 widget 生成的图片请求降级到 HTTP。
 
-公开部署时应将管理写接口限制在受控网络或由前置网关实施身份验证。项目本身没有用户登录或角色权限；嵌入所需的只读路径可按实际访问方式开放，远程图片代理按需开放。若反代添加 CSP `frame-ancestors`，仅列出获准嵌入的宿主来源；宿主 CSP 的 `frame-src` 应允许 XinT 来源，脚本接入还需在 `script-src` 中允许该来源。详细参数见[嵌入说明](./EMBEDDING.md)。
+公开部署时应将管理写接口限制在受控网络或由前置网关实施身份验证。项目本身没有用户登录或角色权限；嵌入所需的只读路径可按实际访问方式开放。若反代添加 CSP `frame-ancestors`，仅列出获准嵌入的宿主来源；宿主 CSP 的 `frame-src` 应允许 XinT 来源，脚本接入还需在 `script-src` 中允许该来源。详细参数见[嵌入说明](./EMBEDDING.md)。
 
 ## Docker Compose
 
@@ -114,19 +113,12 @@ docker compose start
 
 旧版 JSON 备份也可恢复：清单需标识本应用，并且备份内包含 `gallery.json` 或 `catalog.json`。脚本会在临时目录先迁移并验证 JSON 数据，再替换当前存储目录；损坏数据不会覆盖现有存储。完成后核对图库和项目，再清理保留的旧目录。
 
-## 远程图片安全策略
+## 远程图片导入安全策略
 
-远程图片代理仅接受无用户名和密码的 `http` / `https` 地址，并执行以下限制：
-
-- 拒绝本机、内网、链路本地、保留和多播地址。
-- 每次重定向重新校验目标地址，最多允许 3 次重定向。
-- 仅代理 `image/*` 响应，默认最大 30 MB，默认超时 10 秒。
-- 可通过环境变量配置允许来源与资源上限。
+远程图片导入仅接受 HTTPS 地址，并校验 DNS 解析结果，拒绝本机、内网、链路本地、保留和多播地址。每次重定向都会重新校验目标，最多允许 3 次重定向；响应必须为 `image/*`，源大小上限固定为 30 MiB，请求总时限固定为 10 秒。原图代理已退役并返回 410，不提供公开的远程原图转发。
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `PANORAMA_REMOTE_IMAGE_ALLOWLIST` | 空 | 逗号分隔的允许域名；设置后仅允许这些域名及其子域名 |
-| `PANORAMA_REMOTE_IMAGE_MAX_BYTES` | `31457280` | 远程图片最大响应体字节数 |
-| `PANORAMA_REMOTE_IMAGE_TIMEOUT_MS` | `10000` | 远程图片请求超时毫秒数 |
 
-生产环境建议明确设置 `PANORAMA_REMOTE_IMAGE_ALLOWLIST`，并关闭不需要的 `external` 运行模式。
+生产环境建议设置 `PANORAMA_REMOTE_IMAGE_ALLOWLIST`，并关闭不需要的 `external` 运行模式。

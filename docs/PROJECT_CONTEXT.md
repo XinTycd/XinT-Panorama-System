@@ -5,13 +5,14 @@ XinT Panorama 是以网站嵌入为核心的可自行部署 720° 全景查看�
 ## 运行入口
 
 - `scripts/start-all.js` 读取运行配置并启动 API 与前端静态服务。
-- `backend/index.js` 负责健康检查、图库 API、远程图片代理与静态媒体分发。
+- `backend/index.js` 负责健康检查、图库 API、媒体设置和静态资源路由；`backend/protected-preview.js` 读取私有原始媒体并生成受保护的派生预览和缩略图。
 - `backend/routes/projects.js` 负责项目、场景、热点、诊断、发布与验证 API。
 - `backend/api-http.js` 处理 JSON 请求体和带 CORS 的 API 响应。
-- `backend/routes/gallery.js` 实现图库与分组 API；`backend/media.js` 管理安全媒体路径，`backend/media-storage.js` 统一客户端/服务端/SQLite/Turso 图片保存策略，`backend/remote-image.js` 处理远程代理。
+- `backend/routes/gallery.js` 实现图库与分组 API；`backend/media.js` 管理安全媒体路径，`backend/media-storage.js` 统一客户端/服务端/SQLite/Turso 图片保存策略，`backend/remote-image.js` 校验 HTTPS 来源、DNS 地址和安全查找。
 - `backend/sqlite.js` 管理 schema v3 与迁移；`backend/store.js` 管图库和分组，`backend/project-store.js` 管项目领域数据。
 - `frontend/client-media.js` 处理浏览器 IndexedDB 图片，`frontend/gallery-groups.js` 管分组操作，`frontend/toolbar-settings.js` 管工具栏偏好。
 - `frontend/app.js` 提供图库与项目控制台；`frontend/panorama-viewer.js` 是控制台与 widget 共用的 viewer facade；`frontend/viewer/` 配置 PSV bundle 入口并包含简化 legacy renderer，`frontend/vendor/` 存放本地构建产物。
+- `lib/console-settings.js` 校验并原子保存服务端控制台偏好；`scripts/frontend-server.js` 仅为同源回环控制台提供设置读写接口。
 - `backend/public/embed.js` 与 `backend/public/widget.html` 提供嵌入式体验；静态服务从 `/assets/psv.bundle.js`、`/assets/psv.css` 提供与控制台相同的本地 viewer 资源。
 
 ## 数据与存储

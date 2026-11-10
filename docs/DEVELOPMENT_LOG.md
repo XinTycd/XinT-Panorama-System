@@ -131,3 +131,10 @@
 按用户指定将 v0.2.4 发布日期及提交日期设为 2026-11-03，新增双语发布说明，并更新变更记录、文档索引、产品版本、路线图基线和 README 发布链接。场景信息保留分辨率字段标题，值只显示尺寸；无图片时显示“-”。本次执行日期为 2026-11-15，未改历史验证日志。
 
 发布前重新截取 README 中的控制台与嵌入页图片，使用本机山景全景；两种语言的控制台截图说明均改为管理控制台，性能记录注明场景信息仅显示分辨率数值。
+
+## v0.2.5 — 2026-11-11
+
+- Keep stored panorama media and source URLs private; generate metadata-free lossless previews and thumbnails, validate HTTPS remote imports, and retire the raw-image proxy.
+- Persist API address, plugin state, embed preset, and toolbar visibility in server-side console settings while retaining language locally.
+- Add localized console interfaces and improve copy feedback and control presentation.
+- Validation: `npm test` and `npm run check:config` passed in the clean v0.2.4 release worktree. See [v0.2.5 validation output](./logs/v0.2.5-validation.log).
