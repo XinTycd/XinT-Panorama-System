@@ -5,8 +5,8 @@
 
   function makeServiceUrl(apiBase, relativePath) {
     const root = String(apiBase || "").trim().replace(/\/+$/, "");
+    if (!window.XinTI18n || !window.XinTI18n.isSecureServiceUrl(root)) throw new Error("Insecure service URL");
     const base = new URL(root + "/");
-    if (base.protocol !== "http:" && base.protocol !== "https:") throw new Error("Service URL must use HTTP or HTTPS");
     const url = new URL(relativePath, base);
     return { root: root, url: url };
   }
@@ -23,7 +23,8 @@
       root = makeServiceUrl(options.apiBase, "embed.js").root;
       scriptUrl = escapeAttribute(new URL("embed.js", new URL(root + "/")).toString());
     } catch (_) {
-      return { available: false, message: "服务地址无效，请检查系统设置。" };
+      const message = window.XinTI18n ? window.XinTI18n.t("error.secureServiceUrl") : "Remote services must use HTTPS. HTTP is allowed only for localhost, 127.0.0.1, or ::1.";
+      return { available: false, message: message };
     }
     const item = options.item;
     const panoramaNumber = Number(item.panoramaNo);
@@ -34,6 +35,7 @@
     service.url.searchParams.set("panoramaNo", panoramaNo);
     service.url.searchParams.set("controls", controls);
     service.url.searchParams.set("api", service.root);
+    if (["zh-CN", "zh-TW", "en"].indexOf(options.language) >= 0) service.url.searchParams.set("lang", options.language);
     const widgetUrl = escapeAttribute(service.url.toString());
     const escapedRoot = escapeAttribute(root);
     const escapedNo = escapeAttribute(panoramaNo);
@@ -54,6 +56,7 @@
         '  data-api="' + escapedRoot + '"\n' +
         '  data-panorama-no="' + escapedNo + '"\n' +
         '  data-controls="' + escapedControls + '"\n' +
+        (["zh-CN", "zh-TW", "en"].indexOf(options.language) >= 0 ? '  data-lang="' + escapeAttribute(options.language) + '"\n' : "") +
         '><' + '/script>'
     };
   }

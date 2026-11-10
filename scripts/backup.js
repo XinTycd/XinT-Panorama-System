@@ -32,6 +32,7 @@ async function main() {
       recursive: true,
       filter: function excludeDatabaseAndTransientFiles(source) {
         const base = path.basename(source).toLowerCase();
+        if (path.resolve(source) === path.join(sourceDir, "protected-previews")) return false;
         return base !== "panorama.sqlite" && !/-wal$|-shm$|-journal$/.test(base);
       }
     });

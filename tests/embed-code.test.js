@@ -4,7 +4,19 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "frontend", "embed-code.js"), "utf8");
-const window = {};
+const window = {
+  XinTI18n: {
+    isSecureServiceUrl(value) {
+      try {
+        const url = new URL(String(value || "").trim());
+        if (url.username || url.password || url.search || url.hash) return false;
+        if (url.protocol === "https:") return true;
+        return url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname.toLowerCase());
+      } catch { return false; }
+    },
+    t(key) { return key === "error.secureServiceUrl" ? "Secure service required" : key; }
+  }
+};
 vm.runInNewContext(source, { window, URL });
 const generate = window.XinTEmbedCode.generate;
 
@@ -14,6 +26,14 @@ assert.equal(empty.message, "请先选择全景图。");
 assert.equal(generate({ apiBase: "https://example.test", item: { panoramaNo: 7 }, clientOnly: true }).available, false);
 assert.equal(generate({ apiBase: "https://example.test", item: { name: "No number" } }).available, false);
 assert.equal(generate({ apiBase: "ftp://example.test", item: { panoramaNo: 7 } }).available, false, "Only HTTP(S) service addresses can be embedded");
+for (const unsafeApiBase of ["http://panorama.example", "http://localhost.evil", "https://user:pass@panorama.example", "https://panorama.example/?token=x"]) {
+  const result = generate({ apiBase: unsafeApiBase, item: { panoramaNo: 7 } });
+  assert.equal(result.available, false, "Unsafe service root is rejected: " + unsafeApiBase);
+  assert.equal(result.message, "Secure service required");
+}
+for (const localApiBase of ["http://localhost:7210", "http://127.0.0.1:7210", "http://[::1]:7210"]) {
+  assert.equal(generate({ apiBase: localApiBase, item: { panoramaNo: 7 } }).available, true, "Loopback HTTP remains available for local development");
+}
 assert.equal(generate({ apiBase: "https://example.test", item: { panoramaNo: 0 } }).available, false);
 assert.equal(generate({ apiBase: "https://example.test", item: { panoramaNo: 1.5 } }).available, false);
 assert.equal(generate({ apiBase: "https://example.test", item: { panoramaNo: Number.MAX_SAFE_INTEGER + 1 } }).available, false);

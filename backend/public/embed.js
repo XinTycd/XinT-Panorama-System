@@ -9,6 +9,7 @@
   var panoramaNo = script.getAttribute("data-panorama-no");
   var imageUrl = script.getAttribute("data-image-url") || script.getAttribute("data-src-url");
   var imageName = script.getAttribute("data-image-name") || script.getAttribute("data-title");
+  var language = script.getAttribute("data-lang");
   var autorotate = script.getAttribute("data-autorotate");
   var mode = script.getAttribute("data-mode") || script.getAttribute("data-preview-mode");
   var controls = sanitizeControlList(script.getAttribute("data-controls"));
@@ -17,6 +18,14 @@
   var minHeight = Number(script.getAttribute("data-min-height")) || 280;
   var maxHeight = Number(script.getAttribute("data-max-height")) || 960;
   var container = targetId ? document.getElementById(targetId) : null;
+
+  if (!isSecureServiceUrl(apiBase)) {
+    if (container) {
+      container.textContent = secureServiceMessage(language);
+      container.setAttribute("role", "status");
+    }
+    return;
+  }
 
   if (!container) {
     container = document.createElement("div");
@@ -30,6 +39,9 @@
   }
   if (imageName) {
     iframeUrl += "&imageName=" + encodeURIComponent(imageName);
+  }
+  if (["zh-CN", "zh-TW", "en"].indexOf(language) >= 0) {
+    iframeUrl += "&lang=" + encodeURIComponent(language);
   }
   if (panoramaNo && !imageUrl) {
     iframeUrl += "&panoramaNo=" + encodeURIComponent(panoramaNo);
@@ -89,6 +101,24 @@
 
     var numeric = Number(value);
     return numeric > 0 ? numeric : null;
+  }
+
+  function isSecureServiceUrl(value) {
+    try {
+      var url = new URL(String(value || "").trim());
+      if (url.username || url.password || url.search || url.hash) return false;
+      if (url.protocol === "https:") return true;
+      if (url.protocol !== "http:") return false;
+      var hostname = url.hostname.toLowerCase();
+      return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]" || hostname === "::1";
+    } catch (_) { return false; }
+  }
+
+  function secureServiceMessage(selectedLanguage) {
+    if (window.XinTI18n && typeof window.XinTI18n.t === "function") return window.XinTI18n.t("error.secureServiceUrl");
+    if (selectedLanguage === "zh-TW") return "遠端服務必須使用 HTTPS；HTTP 僅允許 localhost、127.0.0.1 或 ::1。";
+    if (selectedLanguage === "zh-CN") return "远程服务必须使用 HTTPS；HTTP 仅允许 localhost、127.0.0.1 或 ::1。";
+    return "Remote services must use HTTPS. HTTP is allowed only for localhost, 127.0.0.1, or ::1.";
   }
 
   function sanitizeControlList(value) {

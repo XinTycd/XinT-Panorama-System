@@ -1,7 +1,9 @@
 const crypto = require("crypto");
 const fs = require("fs");
 const { resolveLocalMediaPath } = require("./media");
+const { STORAGE_DIR } = require("./sqlite");
 const { mediaReference, hasLocalImagePayload, readImagePayload } = require("./media-storage");
+const protectedPreview = require("./protected-preview");
 
 const INTEGRITY_SCHEMA = "xint-trusted-delivery@1";
 
@@ -26,9 +28,9 @@ function digestValue(value) {
 function isRemoteAsset(item) {
   const viewerPath = String(item && item.viewerPath || "");
   const originalUrl = String(item && item.originalUrl || "");
+  if (/^private:\/\/[0-9a-f-]{36}$/i.test(viewerPath) || resolveLocalMediaPath(STORAGE_DIR, viewerPath)) return false;
   return /^https?:\/\//i.test(viewerPath) ||
-    /^https?:\/\//i.test(originalUrl) ||
-    String(item && item.sourceType || "") === "remote-url";
+    /^https?:\/\//i.test(originalUrl);
 }
 
 function isCloudImage(item) {
@@ -302,7 +304,13 @@ async function buildAssetManifest(projectPackage, galleryItems, storageDir) {
     const ref = mediaReference(item.viewerPath);
     let checksum = null;
     let status = isRemoteAsset(item) || ref?.mode === "cloud" ? "remote" : "metadata-only";
-    if (ref && ["base64", "sqlite"].includes(ref.mode)) {
+    if (/^private:\/\//i.test(String(item.viewerPath || ""))) {
+      try {
+        const source = await protectedPreview.readSource(item);
+        status = "local";
+        checksum = crypto.createHash("sha256").update(source.buffer).digest("hex");
+      } catch (_) { status = "missing"; }
+    } else if (ref && ["base64", "sqlite"].includes(ref.mode)) {
       try {
         const image = await readImagePayload(item.viewerPath);
         status = image ? "local" : "missing";
@@ -402,7 +410,10 @@ async function verifyReleaseSnapshot(snapshot, storageDir) {
     try {
       const ref = mediaReference(asset.viewerPath);
       let currentChecksum;
-      if (ref && ["base64", "sqlite"].includes(ref.mode)) {
+      if (/^private:\/\//i.test(String(asset.viewerPath || ""))) {
+        const source = await protectedPreview.readSource(asset);
+        currentChecksum = crypto.createHash("sha256").update(source.buffer).digest("hex");
+      } else if (ref && ["base64", "sqlite"].includes(ref.mode)) {
         const image = await readImagePayload(asset.viewerPath);
         if (image) currentChecksum = crypto.createHash("sha256").update(image.buffer).digest("hex");
       } else {

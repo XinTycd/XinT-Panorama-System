@@ -3,8 +3,9 @@ const { sendJson, parseBody } = require("../api-http");
 const { STORAGE_DIR, readGallery, readItemById, readItemByPanoramaNo, writeGallery, makeId, upsertItem, updateItem, deleteItem, listGroups, createGroup, deleteGroup } = require("../store");
 const { resolveLocalMediaPath } = require("../media");
 const { captureMediaStorage, saveServerImage, removeImagePayload } = require("../media-storage");
-const { isRemoteHttpUrl, assertSafeRemoteUrl, handleProxy } = require("../remote-image");
-const { canGenerateThumbnail, readThumbnail } = require("../thumbnails");
+const { isRemoteHttpUrl, assertSafeRemoteUrl } = require("../remote-image");
+const protectedPreview = require("../protected-preview");
+const { streamFile } = require("../../lib/http");
 
 const APP_MODES = getModesFromEnv();
 
@@ -27,10 +28,10 @@ function parseOptionalPanoramaNo(body) {
 }
 
 function serializeItem(item, baseUrl) {
-  const viewerPath = String(item.viewerPath || "");
-  const thumbnailPath = canGenerateThumbnail(item)
-    ? "/api/panoramas/thumbnail?id=" + encodeURIComponent(item.id)
-    : item.thumbnailPath || viewerPath;
+  const clientMatch = /^\/media\/client\/([0-9a-f-]{36})$/i.exec(String(item.viewerPath || ""));
+  const clientOnly = item.sourceType === "client-upload" || Boolean(clientMatch);
+  const viewerPath = clientOnly ? null : "/api/panoramas/preview?id=" + encodeURIComponent(item.id);
+  const thumbnailPath = clientOnly ? null : "/api/panoramas/thumbnail?id=" + encodeURIComponent(item.id);
   return {
     id: item.id,
     panoramaNo: Number(item.panoramaNo) || null,
@@ -38,11 +39,12 @@ function serializeItem(item, baseUrl) {
     name: item.name,
     description: item.description || "",
     sourceType: item.sourceType,
-    originalUrl: item.originalUrl || null,
+    originalUrl: null,
     viewerPath,
     thumbnailPath,
-    viewerUrl: viewerPath.indexOf("http") === 0 ? viewerPath : baseUrl + viewerPath,
-    thumbnailUrl: thumbnailPath.indexOf("http") === 0 ? thumbnailPath : baseUrl + thumbnailPath,
+    viewerUrl: viewerPath ? baseUrl + viewerPath : null,
+    thumbnailUrl: thumbnailPath ? baseUrl + thumbnailPath : null,
+    clientMediaId: clientMatch ? clientMatch[1] : null,
     size: item.size || null,
     width: item.width || null,
     height: item.height || null,
@@ -64,13 +66,14 @@ function extensionFromMime(mimeType) {
 
 function makeDemoItem() {
   return {
-    id: "demo-panorama", panoramaNo: null, name: "XinTycd Demo Panorama", sourceType: "backend-demo",
-    originalUrl: null, viewerPath: "/assets/demo-panorama.svg", thumbnailPath: "/assets/demo-panorama.svg",
+    id: "demo-panorama", panoramaNo: null, group: "Example", name: "Example", sourceType: "backend-demo",
+    originalUrl: null, viewerPath: "builtin://demo-panorama", thumbnailPath: "builtin://demo-panorama",
     size: null, width: 4096, height: 2048, createdAt: new Date().toISOString()
   };
 }
 
 async function ensureDemoItem() {
+  if (!(await listGroups()).some((group) => group.name === "Example")) await createGroup("Example");
   const items = await readGallery();
   if (!items.some((item) => item.id === "demo-panorama")) {
     await upsertItem(makeDemoItem());
@@ -92,8 +95,28 @@ async function isPanoramaNoTaken(panoramaNo, ignoreId) {
   return Boolean(item && item.id !== ignoreId);
 }
 
+async function validateRequestedGroup(value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value !== "string") return "group 必须是字符串";
+  const group = value.trim();
+  if (Array.from(group).length > 64) return "group 最长为 64 个字符";
+  if (!group) return null;
+  const groups = await listGroups();
+  return groups.some((entry) => entry.name === group) ? null : "请先创建分组";
+}
+
 async function handleGalleryApi(req, res, urlObject, baseUrl) {
   const pathname = urlObject.pathname;
+  if ((req.method === "GET" || req.method === "HEAD") && pathname === "/api/panoramas/preview") {
+    if (!galleryModeAllowed()) return rejectMode(res, "database/external/upload");
+    const item = readItemById(urlObject.searchParams.get("id") || "");
+    if (!item || item.sourceType === "client-upload") return sendApiJson(res, 404, { ok: false, message: "安全预览不存在" });
+    let preview;
+    try { preview = await protectedPreview.preparePreview(item); }
+    catch (error) { return sendApiJson(res, error.statusCode === 404 ? 404 : (error.statusCode || 503), { ok: false, message: error.statusCode === 422 ? "该图片格式无法生成安全预览" : "安全预览暂时不可用" }); }
+    streamFile(req, res, preview.path, { cors: true, cacheControl: "private, max-age=3600", headers: { "Content-Type": preview.mime, "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox; default-src 'none'", "Cross-Origin-Resource-Policy": "cross-origin" } });
+    return true;
+  }
   if (pathname === "/api/gallery/groups" && req.method === "GET") {
     sendJson(res, 200, { ok: true, items: await listGroups() });
     return true;
@@ -124,21 +147,11 @@ async function handleGalleryApi(req, res, urlObject, baseUrl) {
   if ((req.method === "GET" || req.method === "HEAD") && pathname === "/api/panoramas/thumbnail") {
     if (!galleryModeAllowed()) return rejectMode(res, "database/external/upload");
     const item = readItemById(urlObject.searchParams.get("id") || "");
-    if (!canGenerateThumbnail(item)) return sendApiJson(res, 404, { ok: false, message: "缩略图不存在" });
-    const thumbnail = await readThumbnail(item);
-    if (!thumbnail) {
-      res.writeHead(302, { Location: item.viewerPath, "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" });
-      res.end();
-      return true;
-    }
-    res.writeHead(200, {
-      "Content-Type": "image/webp",
-      "Content-Length": thumbnail.length,
-      "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "public, max-age=60",
-      "X-Content-Type-Options": "nosniff"
-    });
-    res.end(req.method === "HEAD" ? undefined : thumbnail);
+    if (!item || item.sourceType === "client-upload") return sendApiJson(res, 404, { ok: false, message: "安全缩略图不存在" });
+    let preview;
+    try { preview = await protectedPreview.preparePreview(item); }
+    catch (_) { return sendApiJson(res, 503, { ok: false, message: "安全缩略图暂时不可用" }); }
+    streamFile(req, res, preview.thumbnailPath, { cors: true, cacheControl: "private, max-age=3600", headers: { "X-Content-Type-Options": "nosniff", "Cross-Origin-Resource-Policy": "cross-origin" } });
     return true;
   }
   if (req.method === "POST" && pathname === "/api/gallery/seed-demo") {
@@ -155,22 +168,31 @@ async function handleGalleryApi(req, res, urlObject, baseUrl) {
   if (req.method === "POST" && pathname === "/api/panoramas/register") {
     if (!modeAllows("external")) return rejectMode(res, "external");
     const body = await parseBody(req);
-    if (!isRemoteHttpUrl(body.url)) return sendApiJson(res, 400, { ok: false, message: "url 必须是 http 或 https 地址" });
+    if (!isRemoteHttpUrl(body.url)) return sendApiJson(res, 400, { ok: false, message: "url 必须是 HTTPS 图片地址" });
+    const groupError = await validateRequestedGroup(body.group);
+    if (groupError) return sendApiJson(res, 400, { ok: false, message: groupError });
     await assertSafeRemoteUrl(body.url);
     const requestedNo = parseOptionalPanoramaNo(body);
     if (!requestedNo.ok) return sendApiJson(res, 400, { ok: false, message: "panoramaNo 必须是正整数" });
     if (requestedNo.value && await isPanoramaNoTaken(requestedNo.value, null)) {
       return sendApiJson(res, 409, { ok: false, message: "panoramaNo 已存在，请使用其他编号" });
     }
+    const remote = await protectedPreview.remoteBuffer(body.url);
+    const privateSource = await protectedPreview.storePrivateSource(remote.buffer);
     const item = {
       id: makeId("remote"), panoramaNo: requestedNo.value,
       group: body.group,
       name: String(body.name || "远程全景图"), description: String(body.description || ""), sourceType: "remote-url",
-      originalUrl: body.url, viewerPath: "/api/panoramas/proxy?url=" + encodeURIComponent(body.url),
-      thumbnailPath: "/api/panoramas/proxy?url=" + encodeURIComponent(body.url), size: null, width: null, height: null,
+      originalUrl: body.url, viewerPath: privateSource,
+      thumbnailPath: privateSource, size: remote.buffer.length, width: null, height: null,
       createdAt: new Date().toISOString()
     };
-    await upsertItem(item);
+    try {
+      const prepared = await protectedPreview.preparePreview(item);
+      item.width = prepared.width;
+      item.height = prepared.height;
+      await upsertItem(item);
+    } catch (error) { await protectedPreview.removePrivateSource(privateSource); throw error; }
     sendJson(res, 200, { ok: true, item: serializeItem(item, baseUrl), items: readGalleryPayload(baseUrl, await readGallery()) });
     return true;
   }
@@ -179,23 +201,36 @@ async function handleGalleryApi(req, res, urlObject, baseUrl) {
     const body = await parseBody(req);
     const imageUrl = String(body.imageUrl || body.viewerPath || body.url || "").trim();
     if (!imageUrl) return sendApiJson(res, 400, { ok: false, message: "imageUrl 必须填写" });
+    const groupError = await validateRequestedGroup(body.group);
+    if (groupError) return sendApiJson(res, 400, { ok: false, message: groupError });
     const requestedNo = parseOptionalPanoramaNo(body);
     if (!requestedNo.ok) return sendApiJson(res, 400, { ok: false, message: "panoramaNo 必须是正整数" });
     const localPath = resolveLocalMediaPath(STORAGE_DIR, imageUrl);
-    if (!isRemoteHttpUrl(imageUrl) && !localPath) return sendApiJson(res, 400, { ok: false, message: "图片地址必须是 http(s) URL 或 /media/uploads/ 下的本地图片" });
-    if (isRemoteHttpUrl(imageUrl)) await assertSafeRemoteUrl(imageUrl);
+    if (!isRemoteHttpUrl(imageUrl) && !localPath) return sendApiJson(res, 400, { ok: false, message: "图片地址必须是 HTTPS URL 或 /media/uploads/ 下的本地图片" });
     if (requestedNo.value && await isPanoramaNoTaken(requestedNo.value, null)) {
       return sendApiJson(res, 409, { ok: false, message: "panoramaNo 已存在，请使用其他编号" });
+    }
+    let storedSourcePath = imageUrl;
+    let remote = null;
+    if (isRemoteHttpUrl(imageUrl)) {
+      await assertSafeRemoteUrl(imageUrl);
+      remote = await protectedPreview.remoteBuffer(imageUrl);
+      storedSourcePath = await protectedPreview.storePrivateSource(remote.buffer);
     }
     const item = {
       id: body.id ? String(body.id) : makeId("db"), panoramaNo: requestedNo.value,
       group: body.group,
       name: String(body.name || body.title || "数据库全景图"), description: String(body.description || ""),
-      sourceType: "database-record", originalUrl: body.originalUrl || imageUrl, viewerPath: imageUrl,
-      thumbnailPath: body.thumbnailUrl || body.thumbnailPath || imageUrl, size: body.size || null,
+      sourceType: "database-record", originalUrl: remote ? imageUrl : null, viewerPath: storedSourcePath,
+      thumbnailPath: storedSourcePath, size: remote ? remote.buffer.length : (body.size || null),
       width: body.width || null, height: body.height || null, createdAt: body.createdAt || new Date().toISOString()
     };
-    await upsertItem(item);
+    try {
+      const prepared = await protectedPreview.preparePreview(item);
+      item.width = prepared.width;
+      item.height = prepared.height;
+      await upsertItem(item);
+    } catch (error) { if (remote && storedSourcePath.startsWith("private://")) await protectedPreview.removePrivateSource(storedSourcePath); throw error; }
     sendJson(res, 200, { ok: true, item: serializeItem(item, baseUrl), items: readGalleryPayload(baseUrl, await readGallery()) });
     return true;
   }
@@ -205,6 +240,8 @@ async function handleGalleryApi(req, res, urlObject, baseUrl) {
     const storage = captureMediaStorage();
     const requestedNo = parseOptionalPanoramaNo(body);
     if (!requestedNo.ok) return sendApiJson(res, 400, { ok: false, message: "panoramaNo 必须是正整数" });
+    const groupError = await validateRequestedGroup(body.group);
+    if (groupError) return sendApiJson(res, 400, { ok: false, message: groupError });
     let item;
     let viewerPath;
     let createdPayload = false;
@@ -241,7 +278,14 @@ async function handleGalleryApi(req, res, urlObject, baseUrl) {
         size: saved.size, width: saved.width == null ? null : saved.width, height: saved.height == null ? null : saved.height, createdAt: new Date().toISOString()
       };
     }
-    try { await upsertItem(item, { resequence: Boolean(body.resequence) }); }
+    try {
+      if (item.sourceType !== "client-upload") {
+        const prepared = await protectedPreview.preparePreview(item);
+        item.width = prepared.width;
+        item.height = prepared.height;
+      }
+      await upsertItem(item, { resequence: Boolean(body.resequence) });
+    }
     catch (error) {
       if (createdPayload) {
         try { await removeImagePayload(viewerPath); } catch (_) { /* keep the original write failure */ }
@@ -253,10 +297,8 @@ async function handleGalleryApi(req, res, urlObject, baseUrl) {
     sendJson(res, 200, response);
     return true;
   }
-  if (req.method === "GET" && pathname === "/api/panoramas/proxy") {
-    if (!galleryModeAllowed()) return rejectMode(res, "external/database/upload");
-    await handleProxy(req, res, urlObject.searchParams.get("url"), 0);
-    return true;
+  if ((req.method === "GET" || req.method === "HEAD") && pathname === "/api/panoramas/proxy") {
+    return sendApiJson(res, 410, { ok: false, message: "直接读取远程原图已停用，请先导入图库并按编号嵌入" });
   }
   if (req.method === "POST" && pathname === "/api/panoramas/update") {
     if (!galleryModeAllowed()) return rejectMode(res, "database/external/upload");

@@ -8,8 +8,7 @@ applyRuntimeConfig(process.argv.slice(2));
 
 const { sendOptions, streamFile } = require("../lib/http");
 const { sendJson, sendText, parseBody } = require("./api-http");
-const { safeLocalMediaPath } = require("./media");
-const { getMediaStorage, updateMediaStorage, mediaReference, readImagePayload } = require("./media-storage");
+const { getMediaStorage, updateMediaStorage } = require("./media-storage");
 const { DB_DRIVER, initialize } = require("./store");
 const { STORAGE_DIR } = require("./sqlite");
 const { handleGalleryApi, makeDemoItem } = require("./routes/gallery");
@@ -116,25 +115,17 @@ async function handleApi(req, res, urlObject) {
   sendText(res, 404, "Not Found");
 }
 
-async function serveStoredMedia(req, res, pathname, reference) {
-  if (!["GET", "HEAD"].includes(req.method) || reference.mode === "client") {
-    sendText(res, 404, "Not Found");
-    return;
+function isRawMediaPath(pathname) {
+  let candidate = String(pathname || "");
+  for (let index = 0; index < 3; index += 1) {
+    if (/^\\?media(?:\/|$)/i.test(candidate) || /^\/media(?:\/|$)/i.test(candidate)) return true;
+    try {
+      const decoded = decodeURIComponent(candidate);
+      if (decoded === candidate) break;
+      candidate = decoded;
+    } catch (_) { break; }
   }
-  const image = await readImagePayload(pathname);
-  if (!image) {
-    sendText(res, 404, "Not Found");
-    return;
-  }
-  res.writeHead(200, {
-    "Content-Type": image.mime,
-    "Content-Length": image.buffer.length,
-    "Access-Control-Allow-Origin": "*",
-    "Cache-Control": "public, max-age=60",
-    "X-Content-Type-Options": "nosniff",
-    "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'"
-  });
-  res.end(req.method === "HEAD" ? undefined : image.buffer);
+  return false;
 }
 
 function serveStatic(req, res, urlObject) {
@@ -148,6 +139,7 @@ function serveStatic(req, res, urlObject) {
     "/assets/THREE-LICENSE": [path.join(__dirname, "..", "frontend", "vendor", "THREE-LICENSE"), "public, max-age=3600"],
     "/assets/THIRD_PARTY_NOTICES.txt": [path.join(__dirname, "..", "frontend", "vendor", "THIRD_PARTY_NOTICES.txt"), "public, max-age=31536000, immutable"],
     "/assets/icons.svg": [path.join(__dirname, "..", "frontend", "icons", "sprite.svg"), "no-cache"],
+    "/assets/i18n.js": [path.join(__dirname, "..", "frontend", "i18n.js"), "no-cache"],
     "/assets/icons/LICENSE.phosphor": [path.join(__dirname, "..", "frontend", "icons", "LICENSE.phosphor"), "public, max-age=3600"],
     "/assets/panorama-viewer.js": [path.join(__dirname, "..", "frontend", "panorama-viewer.js"), "no-cache"],
     "/assets/legacy-viewer.js": [path.join(__dirname, "..", "frontend", "viewer", "legacy-viewer.js"), "no-cache"],
@@ -158,21 +150,8 @@ function serveStatic(req, res, urlObject) {
     streamFile(req, res, filePath, { cors: true, cacheControl, brotli });
     return;
   }
-  if (urlObject.pathname.indexOf("/media/") === 0) {
-    const reference = mediaReference(urlObject.pathname);
-    if (reference) {
-      serveStoredMedia(req, res, urlObject.pathname, reference).catch((error) => {
-        if (!res.headersSent) sendText(res, error.statusCode || 500, "图片读取失败");
-        else res.destroy();
-      });
-      return;
-    }
-    const absolutePath = safeLocalMediaPath(urlObject.pathname);
-    if (!absolutePath) {
-      sendText(res, 403, "Forbidden");
-      return;
-    }
-    streamFile(req, res, absolutePath, { cors: true, cacheControl: "public, max-age=60" });
+  if (isRawMediaPath(urlObject.pathname)) {
+    sendText(res, 404, "Not Found");
     return;
   }
   sendText(res, 404, "Not Found");
@@ -224,5 +203,6 @@ module.exports = {
   APP_REPOSITORY_URL,
   initialize: initializeApplication,
   createServer,
-  makeDemoItem
+  makeDemoItem,
+  isRawMediaPath
 };

@@ -1,7 +1,6 @@
 (function registerConsolePlugins(global) {
   "use strict";
 
-  var preferenceKey = "xint-panorama-console-plugin:";
   var definitions = [
     {
       id: "project-workspace",
@@ -13,12 +12,13 @@
     }
   ];
 
-  function create(storage, hooksById) {
+  function create(initialState, hooksById, persistEnabled) {
+    initialState = initialState || {};
     hooksById = hooksById || {};
     var enabledById = Object.create(null);
     var generation = 0;
     definitions.forEach(function initialize(definition) {
-      enabledById[definition.id] = readEnabled(storage, definition);
+      enabledById[definition.id] = initialState[definition.id] === true;
     });
 
     function snapshot(definition) {
@@ -39,18 +39,14 @@
         if (!enabledById[id] || typeof callback !== "function") return false;
         return callback();
       },
-      setEnabled: function setEnabled(id, nextEnabled) {
+      setEnabled: async function setEnabled(id, nextEnabled) {
         var definition = definitions.find(function findDefinition(item) { return item.id === id; });
-        if (!definition) return false;
-        nextEnabled = Boolean(nextEnabled);
+        if (!definition || typeof nextEnabled !== "boolean") return false;
         if (enabledById[id] === nextEnabled) return nextEnabled;
+        if (typeof persistEnabled !== "function") throw new Error("Plugin settings persistence is unavailable");
+        await persistEnabled(id, nextEnabled);
         enabledById[id] = nextEnabled;
         generation += 1;
-        try {
-          storage.setItem(preferenceKey + id, nextEnabled ? "enabled" : "disabled");
-        } catch (error) {
-          // Keep the in-memory toggle usable for this session when storage is unavailable.
-        }
         var hooks = hooksById[id] || {};
         if (nextEnabled && typeof hooks.onEnable === "function") hooks.onEnable();
         if (!nextEnabled && typeof hooks.onDisable === "function") hooks.onDisable();
@@ -60,16 +56,5 @@
     };
   }
 
-  function readEnabled(storage, definition) {
-    try {
-      var saved = storage.getItem(preferenceKey + definition.id);
-      if (saved === "enabled") return true;
-      if (saved === "disabled") return false;
-    } catch (error) {
-      return definition.defaultEnabled === true;
-    }
-    return definition.defaultEnabled === true;
-  }
-
-  global.XinTConsolePlugins = { create: create, preferenceKey: preferenceKey };
+  global.XinTConsolePlugins = { create: create };
 })(window);

@@ -13,6 +13,12 @@
     projectActionId: 0,
     engineSwitchId: 0,
     pendingViewerEngine: null,
+    consoleSettings: null,
+    settingsReady: false,
+    settingsLoading: false,
+    apiQueryOverride: null,
+    pendingPluginId: null,
+    pendingEmbedPreset: false,
     viewerController: null,
     viewerReady: false,
     viewerConfigReady: false,
@@ -46,27 +52,23 @@
   };
 
   var refs = {};
+  var embedCopyResetTimers = new WeakMap();
+  var embedCopyInFlight = new WeakSet();
+  var settingsPatchQueue = Promise.resolve();
   var projectSceneActions = null;
   var projectPlugins = null;
   var ensureViewerEngineAssets = createEngineAssetLoader(loadViewerAsset);
 
   document.addEventListener("DOMContentLoaded", init);
 
-  function init() {
+  async function init() {
     cacheRefs();
-    projectPlugins = window.XinTConsolePlugins.create(localStorage, {
-      "project-workspace": {
-        onEnable: function enableProjects() { loadProjects(); },
-        onDisable: disableProjectWorkspace,
-        onChange: renderProjectPluginState
-      }
-    });
-    renderProjectPluginState();
+    bindEvents();
     projectSceneActions = window.XinTProjectSceneActions.create({
       state: state,
       request: fetchJson,
       confirm: function confirmDelete(message) { return window.confirm(message); },
-      setSceneStatus: function setSceneStatus(message) { refs.sceneActionStatus.textContent = message; },
+      setSceneStatus: function setSceneStatus(message) { refs.sceneActionStatus.textContent = window.XinTI18n.translateMessage(message); },
       setStatus: setStatus,
       setProjectDeleteButtonsDisabled: function disableDeleteButtons(disabled) {
         refs.projectSceneList.querySelectorAll("[data-scene-delete]").forEach(function updateButton(button) { button.disabled = disabled; });
@@ -75,13 +77,10 @@
       renderProjectScenes: renderProjectScenes,
       renderSpatialHotspots: renderSpatialHotspots
     });
-    initApiBase();
-    initEmbedControls();
-    bindEvents();
-    renderAppInfo();
-    renderGallery();
-    updateEmbedExample();
-    connectBackend();
+    refs.consoleSettingsOverlay.hidden = false;
+    refs.appShell.inert = true;
+    refs.consoleSettingsError.textContent = window.XinTI18n.t("settings.bootstrapLoading");
+    await initializeConsoleSettings();
     window.addEventListener("pagehide", function disposeViewer(event) {
       if (event.persisted) return;
       cancelHotspotNavigation();
@@ -91,12 +90,91 @@
     });
   }
 
-  function createIconActionButton(kind, label, danger) {
+  async function initializeConsoleSettings() {
+    if (state.settingsLoading) return false;
+    state.settingsLoading = true;
+    refs.consoleSettingsRetry.disabled = true;
+    refs.consoleSettingsError.textContent = window.XinTI18n.t("settings.bootstrapLoading");
+    try {
+      var settings = await fetchConsoleSettingsRequest({ method: "GET", cache: "no-store", credentials: "same-origin" });
+      state.consoleSettings = settings;
+      projectPlugins = window.XinTConsolePlugins.create(settings.plugins, {
+        "project-workspace": {
+          onEnable: function enableProjects() { loadProjects(); },
+          onDisable: disableProjectWorkspace,
+          onChange: renderProjectPluginState
+        }
+      }, function persistPluginEnabled(id, enabled) {
+        return patchConsoleSettings({ plugins: { [id]: enabled } });
+      });
+      initApiBase(settings);
+      initEmbedControls(settings);
+      window.XinTToolbarSettings.configure({
+        toolbarHidden: settings.toolbarHidden,
+        save: async function persistToolbarSettings(toolbarHidden) {
+          var updated = await patchConsoleSettings({ toolbarHidden: toolbarHidden });
+          return updated.toolbarHidden;
+        }
+      });
+      state.settingsReady = true;
+      refs.appShell.inert = false;
+      refs.consoleSettingsOverlay.hidden = true;
+      renderProjectPluginState();
+      renderAppInfo();
+      updateAutorotateButton();
+      updateDirectorButton();
+      updateFullscreenButton();
+      renderGallery();
+      updateEmbedExample();
+      if (!state.apiQueryOverride || window.XinTI18n.isSecureServiceUrl(state.apiBase)) await connectBackend({ persist: false });
+      else {
+        refs.settingsStatus.textContent = window.XinTI18n.t("error.secureServiceUrl");
+        refs.apiBaseInput.focus();
+      }
+      return true;
+    } catch (_) {
+      state.settingsReady = false;
+      refs.appShell.inert = true;
+      refs.consoleSettingsOverlay.hidden = false;
+      refs.consoleSettingsError.textContent = window.XinTI18n.t("settings.bootstrapError");
+      refs.consoleSettingsRetry.hidden = false;
+      return false;
+    } finally {
+      state.settingsLoading = false;
+      refs.consoleSettingsRetry.disabled = false;
+    }
+  }
+
+  function patchConsoleSettings(patch) {
+    var operation = settingsPatchQueue.then(async function savePatch() {
+      var settings = await fetchConsoleSettingsRequest({
+        method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch)
+      });
+      state.consoleSettings = settings;
+      return settings;
+    });
+    settingsPatchQueue = operation.catch(function keepQueueAlive() {});
+    return operation;
+  }
+
+  async function fetchConsoleSettingsRequest(options) {
+    var controller = new AbortController();
+    var timer = setTimeout(function abortSettingsRequest() { controller.abort(); }, 10000);
+    try {
+      var response = await fetch("./api/console-settings", Object.assign({}, options, { signal: controller.signal }));
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      return await response.json();
+    }
+    finally { clearTimeout(timer); }
+  }
+
+  function createIconActionButton(kind, label, danger, translationKey, userName) {
     var button = document.createElement("button");
     button.type = "button";
     button.className = "icon-action-button" + (danger ? " is-danger" : "");
-    button.title = label;
-    button.setAttribute("aria-label", label);
+    var accessibleLabel = translationKey ? window.XinTI18n.t(translationKey, { name: userName }) : label;
+    button.title = accessibleLabel;
+    button.setAttribute("aria-label", accessibleLabel);
     button.innerHTML = '<svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#' + (kind === "edit" ? "edit" : "delete") + '"></use></svg>';
     return button;
   }
@@ -229,19 +307,24 @@
     refs.drawerPanels = Array.prototype.slice.call(document.querySelectorAll(".drawer-panel"));
     refs.drawerTriggers = Array.prototype.slice.call(document.querySelectorAll("[data-drawer-panel]"));
     refs.pluginList = document.getElementById("pluginList");
+    refs.pluginSettingsStatus = document.getElementById("pluginSettingsStatus");
+    refs.embedPresetStatus = document.getElementById("embedPresetStatus");
+    refs.consoleSettingsOverlay = document.getElementById("consoleSettingsOverlay");
+    refs.consoleSettingsError = document.getElementById("consoleSettingsError");
+    refs.consoleSettingsRetry = document.getElementById("consoleSettingsRetry");
     refs.projectNavButtons = Array.prototype.slice.call(document.querySelectorAll("[data-project-entry]"));
   }
 
-  function initApiBase() {
-    var queryApi = new URLSearchParams(location.search).get("api");
-    state.apiBase = (queryApi || localStorage.getItem("xint-panorama-system-api") || "http://127.0.0.1:7210").replace(/\/$/, "");
+  function initApiBase(settings) {
+    var params = new URLSearchParams(location.search);
+    var queryApi = params.has("api") ? params.get("api") : null;
+    state.apiQueryOverride = queryApi === null ? null : queryApi.trim().replace(/\/$/, "");
+    state.apiBase = (state.apiQueryOverride === null ? settings.apiBase : state.apiQueryOverride).replace(/\/$/, "");
     refs.apiBaseInput.value = state.apiBase;
   }
 
-  function initEmbedControls() {
-    state.embedPreset = window.XinTEmbedPresets.fromLegacy(localStorage.getItem("xint-panorama-embed-controls"));
-    localStorage.setItem("xint-panorama-embed-controls", window.XinTEmbedPresets.controlsFor(state.embedPreset));
-    localStorage.removeItem("xint-panorama-embed-hidden-controls");
+  function initEmbedControls(settings) {
+    state.embedPreset = settings.embedPreset;
     updateEmbedPresetButtons();
   }
 
@@ -313,13 +396,27 @@
 
   function bindEvents() {
     refs.connectBtn.addEventListener("click", connectBackend);
-    refs.pluginList.addEventListener("click", function toggleConsolePlugin(event) {
+    refs.consoleSettingsRetry.addEventListener("click", initializeConsoleSettings);
+    refs.pluginList.addEventListener("click", async function toggleConsolePlugin(event) {
       var button = event.target.closest("[data-plugin-toggle]");
-      if (!button) return;
+      if (!button || !projectPlugins || state.pendingPluginId) return;
       var pluginId = button.getAttribute("data-plugin-toggle");
-      projectPlugins.setEnabled(pluginId, !projectPlugins.isEnabled(pluginId));
-      var updatedToggle = refs.pluginList.querySelector('[data-plugin-toggle="' + pluginId + '"]');
-      if (updatedToggle) updatedToggle.focus();
+      if (pluginId !== "project-workspace") return;
+      var nextEnabled = !projectPlugins.isEnabled(pluginId);
+      state.pendingPluginId = pluginId;
+      refs.pluginSettingsStatus.textContent = "";
+      renderProjectPluginState();
+      try {
+        await projectPlugins.setEnabled(pluginId, nextEnabled);
+        refs.pluginSettingsStatus.textContent = "";
+      } catch (_) {
+        refs.pluginSettingsStatus.textContent = window.XinTI18n.t("settings.pluginSaveFailed");
+      } finally {
+        state.pendingPluginId = null;
+        renderProjectPluginState();
+        var updatedToggle = refs.pluginList.querySelector('[data-plugin-toggle="' + pluginId + '"]');
+        if (updatedToggle) updatedToggle.focus();
+      }
     });
     if (window.XinTGalleryGroups) {
       window.XinTGalleryGroups.bind(refs.manageGalleryGroupsBtn, fetchJson, loadGallery, function currentConnectionId() { return state.connectionId; });
@@ -472,7 +569,7 @@
     if (!refs.autorotateBtn) return;
     refs.autorotateBtn.classList.toggle("active", state.autorotate);
     setAttributeIfChanged(refs.autorotateBtn, "aria-pressed", state.autorotate ? "true" : "false");
-    var label = state.autorotate ? "停止旋转" : "自动旋转";
+    var label = window.XinTI18n.t(state.autorotate ? "widget.stopAutorotate" : "control.autorotate");
     setAttributeIfChanged(refs.autorotateBtn, "aria-label", label);
     if (refs.autorotateBtn.title !== label) refs.autorotateBtn.title = label;
   }
@@ -490,18 +587,36 @@
     updateAutorotateButton();
   }
 
-  function connectBackend() {
+  async function connectBackend(options) {
+    if (!state.settingsReady) {
+      await initializeConsoleSettings();
+      return;
+    }
     var nextApiBase = refs.apiBaseInput.value.trim().replace(/\/$/, "");
-    try {
-      var parsedApiBase = new URL(nextApiBase);
-      if (parsedApiBase.protocol !== "http:" && parsedApiBase.protocol !== "https:") throw new Error("protocol");
-    } catch (_) {
-      refs.settingsStatus.textContent = "请输入完整的 HTTP 或 HTTPS API 地址。";
+    if (!window.XinTI18n.isSecureServiceUrl(nextApiBase)) {
+      refs.settingsStatus.textContent = window.XinTI18n.t("error.secureServiceUrl");
       refs.apiBaseInput.focus();
       return;
     }
+    refs.connectBtn.disabled = true;
+    refs.settingsStatus.textContent = "";
+    var persistApiBase = !(options && options.persist === false);
+    try {
+      if (persistApiBase) await patchConsoleSettings({ apiBase: nextApiBase });
+    } catch (_) {
+      refs.settingsStatus.textContent = window.XinTI18n.t("settings.saveFailed");
+      refs.connectBtn.disabled = false;
+      return;
+    }
+    refs.connectBtn.disabled = false;
+    state.apiQueryOverride = persistApiBase ? null : state.apiQueryOverride;
     state.apiBase = nextApiBase;
-    refs.settingsStatus.textContent = "地址已保存，正在连接…";
+    refs.apiBaseInput.value = nextApiBase;
+    refs.settingsStatus.textContent = persistApiBase ? window.XinTI18n.t("status.connectionSaved") : "";
+    startBackendConnection();
+  }
+
+  function startBackendConnection() {
     state.connectionId += 1;
     state.engineSwitchId += 1;
     state.pendingViewerEngine = null;
@@ -541,7 +656,6 @@
     renderGallery();
     renderProjects();
     renderProjectScenes();
-    localStorage.setItem("xint-panorama-system-api", state.apiBase);
     updateEmbedExample();
     Promise.all([loadAppInfo(connectionId), loadGallery(true)]).then(function startInitialPanorama() {
       if (state.connectionId !== connectionId || !state.viewerConfigReady || !state.viewerController || !state.items.length) return;
@@ -560,15 +674,12 @@
         var response = await fetchJson("/api/projects?limit=100");
         if (connectionId !== state.connectionId || listRequestId !== state.projectListRequestId || !projectPlugins.isEnabled("project-workspace")) return;
         state.projects = response.items || [];
-        var savedProjectId = localStorage.getItem("xint-panorama-system-project-id");
         var hasCurrentProject = state.projects.some(function findCurrentProject(project) {
           return project.id === state.currentProjectId;
         });
         var selectedProject = hasCurrentProject
           ? state.currentProjectId
-          : state.projects.some(function findSavedProject(project) { return project.id === savedProjectId; })
-            ? savedProjectId
-            : state.projects[0] && state.projects[0].id;
+          : state.projects[0] && state.projects[0].id;
 
         renderProjects();
         if (selectedProject) {
@@ -638,7 +749,6 @@
         state.currentProject = null;
         state.currentSceneId = null;
         state.activeHotspotId = null;
-        localStorage.removeItem("xint-panorama-system-project-id");
         refs.hotspotLayer.innerHTML = "";
         var nextProject = state.projects[0];
         renderProjects();
@@ -656,8 +766,8 @@
     refs.renameDialog.dataset.type = type;
     refs.renameDialog.dataset.id = item.id;
     refs.renameDialog.dataset.projectId = state.currentProjectId || "";
-    refs.renameDialog.querySelector("h2").textContent = type === "project" ? "重命名项目" : "重命名场景";
-    refs.renameLabel.textContent = type === "project" ? "项目名称" : "场景名称";
+    refs.renameDialog.querySelector("h2").textContent = window.XinTI18n.t(type === "project" ? "status.renameProjectTitle" : "status.renameSceneTitle");
+    refs.renameLabel.textContent = window.XinTI18n.t(type === "project" ? "status.projectNameLabel" : "status.sceneNameLabel");
     refs.renameInput.value = item.name || "";
     refs.renameInput.disabled = false;
     refs.renameStatus.textContent = "";
@@ -734,7 +844,6 @@
       var response = await fetchJson("/api/projects/" + encodeURIComponent(projectId));
       if (connectionId !== state.connectionId || requestId !== state.projectRequestId || state.currentProjectId !== projectId || !projectPlugins.isEnabled("project-workspace")) return;
       state.currentProject = response.project;
-      localStorage.setItem("xint-panorama-system-project-id", projectId);
       renderProjects();
       renderProjectScenes();
       renderSpatialHotspots();
@@ -847,7 +956,7 @@
       if (response.viewer && (response.viewer.engine === "psv" || response.viewer.engine === "legacy")) {
         await applyViewerEngine(response.viewer, connectionId);
       } else {
-        refs.viewerEngineStatus.textContent = "当前服务不支持读取预览引擎设置。";
+        refs.viewerEngineStatus.textContent = window.XinTI18n.t("status.unsupported");
         refs.viewerEngineSelect.disabled = true;
         await ensureViewerInitialized("psv", connectionId);
       }
@@ -855,22 +964,22 @@
       state.viewerConfigReady = true;
       state.availableModes = Array.isArray(response.modes) ? response.modes : [];
       updateSourceAvailability(state.availableModes, "");
-      refs.settingsStatus.textContent = "已连接到 " + state.apiBase;
+      refs.settingsStatus.textContent = window.XinTI18n.t("status.connected", { url: state.apiBase });
       if (response.mediaStorage) {
         configureMediaStorage(response.mediaStorage);
       } else {
         refs.mediaStorageMode.disabled = true;
         refs.mediaFormatSelect.disabled = true;
         refs.saveMediaStorageBtn.disabled = true;
-        refs.mediaStorageHelp.textContent = "当前服务不支持读取图片存储设置。请升级后端服务。";
-        refs.mediaStorageStatus.textContent = "图片存储设置不可用。";
+        refs.mediaStorageHelp.textContent = window.XinTI18n.t("status.mediaUnsupported");
+        refs.mediaStorageStatus.textContent = window.XinTI18n.t("status.storageUnavailable");
       }
       if (!response.app) return;
     } catch (error) {
       if (connectionId === state.connectionId) {
         state.availableModes = null;
-        updateSourceAvailability(null, "无法读取可用添加方式。请检查服务地址后重试。");
-        refs.settingsStatus.textContent = "连接失败：" + error.message;
+        updateSourceAvailability(null, window.XinTI18n.t("status.connectionUnavailable"));
+        refs.settingsStatus.textContent = window.XinTI18n.t("status.connectFailed", { message: error.message });
         await ensureViewerInitialized("psv", connectionId);
         if (connectionId === state.connectionId) state.viewerConfigReady = true;
       }
@@ -884,8 +993,8 @@
     refs.viewerEngineSelect.value = engine;
     refs.viewerEngineSelect.disabled = state.viewerEngineForced;
     refs.viewerEngineStatus.textContent = state.viewerEngineForced
-      ? "由 PANORAMA_VIEWER_ENGINE 环境变量固定为 " + engine + "。"
-      : "设置保存在服务端；图库和嵌入式预览使用同一引擎。切换会保留当前图片与视角。";
+      ? window.XinTI18n.t("status.engineForced", { engine: engine === "psv" ? "Photo Sphere Viewer" : window.XinTI18n.t("settings.engine.legacy") })
+      : window.XinTI18n.t("status.engineSettingHelp");
     if (state.viewerController && engine !== state.viewerEngine) return await switchViewerEngine(engine, connectionId);
     if (!state.viewerController) return await ensureViewerInitialized(engine, connectionId);
     return true;
@@ -930,11 +1039,11 @@
     var connectionId = state.connectionId;
     if (state.pendingUploads.length) {
       refs.viewerEngineSelect.value = state.viewerEngine;
-      refs.viewerEngineStatus.textContent = "请先完成或取消待上传图片，再切换预览引擎。";
+      refs.viewerEngineStatus.textContent = window.XinTI18n.t("status.switchEngineBlocked");
       return;
     }
     refs.viewerEngineSelect.disabled = true;
-    refs.viewerEngineStatus.textContent = "正在保存预览引擎设置…";
+    refs.viewerEngineStatus.textContent = window.XinTI18n.t("status.engineSaving");
     try {
       var result = await fetchJson("/api/settings/viewer", { method: "PUT", body: JSON.stringify({ engine: engine }) });
       if (connectionId !== state.connectionId) return;
@@ -942,11 +1051,11 @@
       var switched = await applyViewerEngine(result.viewer, connectionId);
       if (connectionId !== state.connectionId) return;
       if (engine !== state.viewerEngine || switched === false) throw new Error("预览引擎已保存，但当前浏览器无法启动该引擎");
-      refs.viewerEngineStatus.textContent = "预览引擎已保存。嵌入式预览下次加载时使用此设置。";
+      refs.viewerEngineStatus.textContent = window.XinTI18n.t("status.engineSaved");
     } catch (error) {
       if (connectionId !== state.connectionId) return;
       refs.viewerEngineSelect.value = state.viewerEngine;
-      refs.viewerEngineStatus.textContent = "保存失败：" + error.message;
+      refs.viewerEngineStatus.textContent = window.XinTI18n.t("status.saveFailed", { message: error.message });
     } finally {
       if (connectionId === state.connectionId && !state.viewerEngineForced) refs.viewerEngineSelect.disabled = false;
     }
@@ -1029,8 +1138,8 @@
     refs.mediaQualityValue.textContent = String(state.mediaStorageSettings.quality);
     refs.mediaFormatSelect.disabled = false;
     refs.saveMediaStorageBtn.disabled = false;
-    refs.mediaStorageStatus.textContent = "已读取图片存储设置。";
-    refs.mediaStorageHelp.textContent = "图片保存形式独立于存储位置；转码仅影响之后上传的图片。";
+    refs.mediaStorageStatus.textContent = window.XinTI18n.t("status.storageRead");
+    refs.mediaStorageHelp.textContent = window.XinTI18n.t("settings.help.imageFormat");
     updateMediaStorageForm();
   }
 
@@ -1045,10 +1154,10 @@
     refs.transcodeSettings.hidden = !formState.transcodeVisible;
     refs.mediaQualityField.hidden = !formState.qualityVisible;
     var descriptions = {
-      server: "本地服务端：图片保存在服务端上传目录，适合单机或内网部署。",
-      client: "本地客户端：图片保存在此浏览器的 IndexedDB，仅此浏览器可查看；清理浏览器数据后可能无法恢复。",
-      sqlite: "本地 SQLite：图片数据保存在本机数据库。",
-      cloud: "云端 SQLite：图片以 Base64 保存到 Turso/libSQL；单张图片上限约 6 MiB，转码可降低体积。"
+      server: window.XinTI18n.t("status.storageHelp.server"),
+      client: window.XinTI18n.t("status.storageHelp.client"),
+      sqlite: window.XinTI18n.t("status.storageHelp.sqlite"),
+      cloud: window.XinTI18n.t("status.storageHelp.cloud")
     };
     refs.mediaStorageModeHelp.textContent = descriptions[mode] || descriptions.server;
   }
@@ -1079,7 +1188,11 @@
   }
 
   function updateSourceAvailability(modes, message) {
-    var labels = { upload: "上传本地图片", external: "使用图片链接", database: "已有图片地址（高级）" };
+    var labels = {
+      upload: window.XinTI18n.t("library.upload"),
+      external: window.XinTI18n.t("library.remote"),
+      database: window.XinTI18n.t("library.database")
+    };
     var options = Array.prototype.slice.call(refs.addSourceSelect.querySelectorAll("[data-source-option]"));
     var available = [];
     options.forEach(function updateOption(option) {
@@ -1091,13 +1204,13 @@
     refs.addSourceSelect.disabled = !Array.isArray(modes) || available.length === 0;
     if (!Array.isArray(modes)) {
       refs.addSourceSelect.value = "";
-      refs.sourceAvailability.textContent = message || "正在读取服务端支持的添加方式…";
+      refs.sourceAvailability.textContent = message ? window.XinTI18n.translateMessage(message) : window.XinTI18n.t("library.readingSources");
     } else if (!available.length) {
       refs.addSourceSelect.value = "";
-      refs.sourceAvailability.textContent = message || "当前服务未启用图片添加功能。";
+      refs.sourceAvailability.textContent = message ? window.XinTI18n.translateMessage(message) : window.XinTI18n.t("status.sourcesDisabled");
     } else {
       if (available.indexOf(refs.addSourceSelect.value) === -1) refs.addSourceSelect.value = available[0];
-      refs.sourceAvailability.textContent = message || "可用方式：" + available.map(function getLabel(mode) { return labels[mode]; }).join("、");
+      refs.sourceAvailability.textContent = message ? window.XinTI18n.translateMessage(message) : window.XinTI18n.t("status.sourceMethods", { methods: available.map(function getLabel(mode) { return labels[mode]; }).join(window.XinTI18n.getLanguage() === "en" ? ", " : "、") });
     }
     updateSourceForms();
   }
@@ -1110,10 +1223,10 @@
   }
 
   function renderAppInfo() {
-    refs.systemNameText.textContent = state.appInfo.name;
+    refs.systemNameText.textContent = window.XinTI18n.translateMessage(state.appInfo.name);
     refs.systemVersionText.textContent = state.appInfo.version
-      ? "版本 v" + String(state.appInfo.version).replace(/^v/i, "")
-      : "版本待获取";
+      ? window.XinTI18n.t("widget.version", { version: String(state.appInfo.version).replace(/^v/i, "") })
+      : window.XinTI18n.t("widget.versionPending");
     refs.githubRepoLink.href = state.appInfo.repositoryUrl;
   }
 
@@ -1154,12 +1267,12 @@
       return;
     }
     var labels = {
-      library: { eyebrow: "LIBRARY", title: "资源库" },
-      projects: { eyebrow: "PROJECTS", title: "项目工作区" },
-      plugins: { eyebrow: "PLUGINS", title: "插件" },
-      editor: { eyebrow: "PREVIEW INFO", title: "预览信息" },
-      embed: { eyebrow: "EMBED", title: "嵌入接入" },
-      settings: { eyebrow: "SETTINGS", title: "系统设置" }
+      library: { eyebrow: "drawer.eyebrow.library", title: "drawer.library" },
+      projects: { eyebrow: "drawer.eyebrow.projects", title: "drawer.projects" },
+      plugins: { eyebrow: "drawer.eyebrow.plugins", title: "drawer.plugins" },
+      editor: { eyebrow: "drawer.eyebrow.editor", title: "drawer.editor" },
+      embed: { eyebrow: "drawer.eyebrow.embed", title: "drawer.embed" },
+      settings: { eyebrow: "drawer.eyebrow.settings", title: "drawer.settings" }
     };
     var panelExists = refs.drawerPanels.some(function findPanel(panel) {
       return panel.getAttribute("data-panel") === panelName;
@@ -1173,8 +1286,8 @@
     refs.appShell.classList.add("drawer-open");
     refs.workspaceDrawer.hidden = false;
     refs.drawerBackdrop.hidden = false;
-    refs.drawerEyebrow.textContent = labels[panelName] ? labels[panelName].eyebrow : "WORKSPACE";
-    refs.drawerTitle.textContent = labels[panelName] ? labels[panelName].title : "工作区";
+    refs.drawerEyebrow.textContent = window.XinTI18n.t(labels[panelName] ? labels[panelName].eyebrow : "nav.label");
+    refs.drawerTitle.textContent = window.XinTI18n.t(labels[panelName] ? labels[panelName].title : "drawer.workspace");
     refs.drawerPanels.forEach(function updateDrawerPanel(panel) {
       panel.hidden = panel.getAttribute("data-panel") !== panelName;
     });
@@ -1187,6 +1300,7 @@
 
   function renderProjectPluginState() {
     if (!refs.pluginList || !projectPlugins) return;
+    var focusedToggle = document.activeElement && document.activeElement.getAttribute("data-plugin-toggle");
     refs.pluginList.innerHTML = "";
     projectPlugins.list().forEach(function renderPlugin(plugin) {
       var card = document.createElement("article");
@@ -1205,16 +1319,17 @@
       use.setAttribute("href", "./icons/sprite.svg#" + plugin.icon);
       icon.appendChild(use);
       copy.className = "plugin-card__copy";
-      name.textContent = plugin.name;
-      description.textContent = plugin.description;
+      name.textContent = window.XinTI18n.translateMessage(plugin.name);
+      description.textContent = window.XinTI18n.translateMessage(plugin.description);
       kind.className = "plugin-card__kind";
-      kind.textContent = plugin.kind === "built-in" ? "内置" : "插件";
+      kind.textContent = window.XinTI18n.t(plugin.kind === "built-in" ? "plugins.builtIn" : "nav.plugins");
       copy.append(name, description);
       toggle.type = "button";
       toggle.className = "plugin-action-button" + (plugin.enabled ? " plugin-action-button--disable" : " plugin-action-button--enable");
-      toggle.setAttribute("aria-label", (plugin.enabled ? "禁用" : "启用") + plugin.name);
+      toggle.setAttribute("aria-label", window.XinTI18n.t(plugin.enabled ? "plugins.disable" : "plugins.enable", { name: window.XinTI18n.translateMessage(plugin.name) }));
       toggle.setAttribute("data-plugin-toggle", plugin.id);
-      toggle.textContent = plugin.enabled ? "禁用" : "启用";
+      toggle.textContent = window.XinTI18n.t(plugin.enabled ? "plugins.disableShort" : "plugins.enableShort");
+      toggle.disabled = Boolean(state.pendingPluginId);
       card.append(icon, copy, kind, toggle);
       refs.pluginList.appendChild(card);
     });
@@ -1223,6 +1338,10 @@
     refs.drawerPanels.forEach(function gateProjectPanel(panel) {
       if (panel.getAttribute("data-panel") === "projects") panel.hidden = !enabled || panel.getAttribute("data-panel") !== state.activeDrawerPanel;
     });
+    if (focusedToggle) {
+      var nextFocus = refs.pluginList.querySelector('[data-plugin-toggle="' + focusedToggle + '"]');
+      if (nextFocus) nextFocus.focus();
+    }
   }
 
   function disableProjectWorkspace() {
@@ -1534,12 +1653,14 @@
       item.innerHTML =
         '<div class="upload-init-item__heading"><strong title="' + escapeHtml(upload.file.name) + '">' +
         escapeHtml(upload.file.name) +
-        "</strong><span>待上传</span>" +
+        "</strong><span>" + window.XinTI18n.t("upload.pending") + "</span>" +
         "</div>" +
-        '<label class="field"><span>全景名称</span><input class="text-input" type="text" value="' + escapeHtml(upload.name) + '" data-upload-name="' + index + '" /></label>' +
-        '<label class="field"><span>分组</span><select class="text-input" data-upload-group="' + index + '"><option value="">未分组</option>' + state.galleryGroups.map(function renderGroupOption(group) { var name = typeof group === "string" ? group : String(group.name || ""); return name ? "<option value=\"" + escapeHtml(name) + "\"" + (name === upload.group ? " selected" : "") + ">" + escapeHtml(name) + "</option>" : ""; }).join("") + "</select></label>" +
-        '<label class="field"><span>描述信息</span><textarea class="text-area compact" data-upload-description="' + index + '" placeholder="可选，例如场景说明、楼层、客户名称等"></textarea></label>';
+        '<label class="field"><span>' + window.XinTI18n.t("field.panoramaName") + '</span><input class="text-input" type="text" value="' + escapeHtml(upload.name) + '" data-upload-name="' + index + '" /></label>' +
+        '<label class="field"><span>' + window.XinTI18n.t("field.group") + '</span><select class="text-input" data-upload-group="' + index + '"><option value="">' + window.XinTI18n.t("field.ungrouped") + '</option>' + state.galleryGroups.map(function renderGroupOption(group) { var name = typeof group === "string" ? group : String(group.name || ""); return name ? "<option value=\"" + escapeHtml(name) + "\"" + (name === upload.group ? " selected" : "") + ">" + escapeHtml(name) + "</option>" : ""; }).join("") + "</select></label>" +
+        '<label class="field"><span>' + window.XinTI18n.t("field.descriptionInfo") + '</span><textarea class="text-area compact" data-upload-description="' + index + '" placeholder="' + escapeHtml(window.XinTI18n.t("placeholder.description")) + '"></textarea></label>';
       refs.uploadInitList.appendChild(item);
+      var description = item.querySelector("[data-upload-description]");
+      if (description) description.value = upload.description || "";
     });
   }
 
@@ -1568,6 +1689,23 @@
     state.pendingUploads.forEach(function applyGroup(upload) { upload.group = group; });
     renderPendingUploads();
     refs.galleryActionStatus.textContent = "已将分组应用到全部待上传图片。";
+  }
+
+  function refreshPendingUploadsForLanguage() {
+    if (!state.pendingUploads.length) return;
+    var active = document.activeElement;
+    var attribute = active && ["data-upload-name", "data-upload-group", "data-upload-description"].find(function findAttribute(name) { return active.hasAttribute(name); });
+    var index = attribute && active.getAttribute(attribute);
+    var start = active && typeof active.selectionStart === "number" ? active.selectionStart : null;
+    var end = active && typeof active.selectionEnd === "number" ? active.selectionEnd : null;
+    collectPendingUploadValues();
+    renderPendingUploads();
+    if (!attribute) return;
+    var replacement = refs.uploadInitList.querySelector("[" + attribute + '=\"' + index + '\"]');
+    if (replacement) {
+      replacement.focus();
+      if (start !== null && end !== null && replacement.setSelectionRange) replacement.setSelectionRange(start, end);
+    }
   }
 
   async function uploadPreparedFiles() {
@@ -1711,7 +1849,7 @@
     renderProjectScenes();
     if (!state.viewerController) {
       if (!state.viewerConfigReady) {
-        setViewerState("loading", "正在初始化查看器", item.name || "正在准备图片纹理");
+        setViewerState("loading", "正在初始化查看器", item.name || "正在准备图片纹理", "", null, Boolean(item.name));
       } else if (state.viewerStateAction !== "engine-reload") {
         setViewerState("error", "预览引擎未启动", "请检查查看器资源后重新加载。", "重新加载", "engine-reload");
       }
@@ -1721,8 +1859,8 @@
     updateMeta(item);
     updateEmbedExample();
     setStatus("加载中...");
-    setViewerState("loading", "正在加载全景图片", item.name || "正在准备图片纹理");
-    refs.sourceText.textContent = "来源: " + (item.sourceType || "-");
+    setViewerState("loading", "正在加载全景图片", item.name || "正在准备图片纹理", "", null, Boolean(item.name));
+    refs.sourceText.textContent = window.XinTI18n.t("status.sourcePrefix", { source: item.sourceType || "-" });
 
     try {
       var imageUrl = await resolveItemImageUrl(item, false);
@@ -1766,7 +1904,7 @@
           ? "，纹理已压缩到 " + loaded.scaledWidth + " × " + loaded.scaledHeight
           : "");
       renderSpatialHotspots();
-      setViewerState("ready", "全景图片已就绪", item.name || "");
+      setViewerState("ready", "全景图片已就绪", item.name || "", "", null, Boolean(item.name));
       setStatus("已就绪");
     } catch (error) {
       if (connectionId !== state.connectionId || requestId !== state.requestId) {
@@ -1790,7 +1928,7 @@
     state.viewerReady = false;
     if (state.viewerController) state.viewerController.clear();
     refs.resolutionText.textContent = "-";
-    refs.sourceText.textContent = "来源: -";
+    refs.sourceText.textContent = window.XinTI18n.t("status.sourcePrefix", { source: "-" });
     refs.hotspotLayer.innerHTML = "";
   }
 
@@ -1809,12 +1947,16 @@
     var pageEntries = entries.slice(start, start + state.galleryPageSize);
     refs.galleryList.innerHTML = "";
     refs.galleryPageStatus.textContent = entries.length
-      ? "第 " + state.galleryPage + " / " + pageCount + " 页 · " + entries.length + " 项"
-      : "暂无匹配资源";
+      ? window.XinTI18n.t("status.pageCount", { page: state.galleryPage, total: pageCount, count: entries.length })
+      : window.XinTI18n.t("status.noMatches");
     refs.galleryPrevPage.disabled = state.galleryPage <= 1;
     refs.galleryNextPage.disabled = state.galleryPage >= pageCount;
     if (!entries.length) {
-      refs.galleryList.innerHTML = '<div class="project-empty">' + (state.items.length ? "没有符合当前筛选条件的资源。" : "暂无资源，请使用上方添加全景图。") + "</div>";
+      refs.galleryList.textContent = "";
+      var emptyGallery = document.createElement("div");
+      emptyGallery.className = "project-empty";
+      emptyGallery.textContent = window.XinTI18n.t(state.items.length ? "library.emptyFiltered" : "library.empty");
+      refs.galleryList.appendChild(emptyGallery);
       renderSceneRail();
       return;
     }
@@ -1824,8 +1966,9 @@
       var row = document.createElement("article");
       var select = document.createElement("button");
       var actions = document.createElement("div");
-      var edit = createIconActionButton("edit", "编辑全景图：" + (item.name || item.id), false);
-      var remove = createIconActionButton("delete", "删除全景图：" + (item.name || item.id), true);
+      var itemLabel = item.name || item.id;
+      var edit = createIconActionButton("edit", "编辑全景图：" + itemLabel, false, "a11y.editPanorama", itemLabel);
+      var remove = createIconActionButton("delete", "删除全景图：" + itemLabel, true, "a11y.deletePanorama", itemLabel);
       var selected = state.currentIndex === entry.index;
       row.className = "gallery-row" + (selected ? " is-active" : "");
       select.type = "button";
@@ -1836,8 +1979,8 @@
       var copy = document.createElement("span");
       var title = document.createElement("strong");
       var detail = document.createElement("span");
-      title.textContent = "#" + item.panoramaNo + " " + (item.name || "未命名全景图");
-      detail.textContent = (item.group ? "分组：" + item.group : "未分组") + " · " + (item.sourceType || "-");
+      title.textContent = "#" + item.panoramaNo + " " + (item.name || window.XinTI18n.t("library.unnamed"));
+      detail.textContent = (item.group ? window.XinTI18n.t("library.groupPrefix") + item.group : window.XinTI18n.t("field.ungrouped")) + " · " + (item.sourceType || "-");
       thumbWrap.className = "gallery-item__thumb";
       image.loading = "lazy";
       image.alt = "";
@@ -1870,7 +2013,7 @@
     refs.galleryGroupFilter.innerHTML = "";
     var allOption = document.createElement("option");
     allOption.value = "";
-    allOption.textContent = "全部分组";
+    allOption.textContent = window.XinTI18n.t("library.allGroups");
     refs.galleryGroupFilter.appendChild(allOption);
     groups.forEach(function addGroup(group) {
       var option = document.createElement("option");
@@ -1881,7 +2024,7 @@
     if (state.items.some(function hasUngrouped(item) { return !String(item.group || "").trim(); })) {
       var ungroupedOption = document.createElement("option");
       ungroupedOption.value = "ungrouped";
-      ungroupedOption.textContent = "未分组";
+      ungroupedOption.textContent = window.XinTI18n.t("field.ungrouped");
       refs.galleryGroupFilter.appendChild(ungroupedOption);
     }
     if (selected !== null && selected !== "" && groups.indexOf(selected) === -1) selected = null;
@@ -1896,7 +2039,7 @@
       select.innerHTML = "";
       var empty = document.createElement("option");
       empty.value = "";
-      empty.textContent = "未分组";
+      empty.textContent = window.XinTI18n.t("field.ungrouped");
       select.appendChild(empty);
       state.galleryGroups.forEach(function appendGroup(group) {
         var name = typeof group === "string" ? group : String(group.name || "");
@@ -1954,15 +2097,19 @@
     refs.projectCount.textContent = String(state.projects.length);
     refs.projectList.innerHTML = "";
     if (!state.projects.length) {
-      refs.projectList.innerHTML = '<div class="project-empty">创建项目后，可将图库中的全景图加入为场景。</div>';
+      refs.projectList.textContent = "";
+      var emptyProjects = document.createElement("div");
+      emptyProjects.className = "project-empty";
+      emptyProjects.textContent = window.XinTI18n.t("projects.empty");
+      refs.projectList.appendChild(emptyProjects);
       return;
     }
 
     state.projects.forEach(function eachProject(project) {
       var row = document.createElement("article");
       var select = document.createElement("button");
-      var edit = createIconActionButton("edit", "重命名项目：" + project.name, false);
-      var remove = createIconActionButton("delete", "删除项目：" + project.name, true);
+      var edit = createIconActionButton("edit", "重命名项目：" + project.name, false, "a11y.renameProject", project.name);
+      var remove = createIconActionButton("delete", "删除项目：" + project.name, true, "a11y.deleteProject", project.name);
       var selected = project.id === state.currentProjectId;
       row.className = "project-row" + (selected ? " is-active" : "");
       select.type = "button";
@@ -1971,7 +2118,7 @@
       var title = document.createElement("strong");
       var detail = document.createElement("span");
       title.textContent = project.name;
-      detail.textContent = project.description || "项目工作区";
+      detail.textContent = project.description || window.XinTI18n.t("projects.workspace");
       select.append(title, detail);
       select.addEventListener("click", function onProjectClick() { selectProject(project.id); });
       edit.addEventListener("click", function onRenameProject(event) { event.stopPropagation(); openRenameDialog("project", project); });
@@ -1987,21 +2134,29 @@
   function renderProjectScenes() {
     refs.projectSceneList.innerHTML = "";
     if (!state.currentProject) {
-      refs.projectSceneList.innerHTML = '<div class="project-empty">当前未选择项目。</div>';
+      refs.projectSceneList.textContent = "";
+      var noProject = document.createElement("div");
+      noProject.className = "project-empty";
+      noProject.textContent = window.XinTI18n.t("projects.unselected");
+      refs.projectSceneList.appendChild(noProject);
       return;
     }
 
     var scenes = state.currentProject.scenes || [];
     if (!scenes.length) {
-      refs.projectSceneList.innerHTML = '<div class="project-empty">项目暂无场景。</div>';
+      refs.projectSceneList.textContent = "";
+      var noScenes = document.createElement("div");
+      noScenes.className = "project-empty";
+      noScenes.textContent = window.XinTI18n.t("projects.emptyScenes");
+      refs.projectSceneList.appendChild(noScenes);
       return;
     }
 
     scenes.forEach(function eachProjectScene(scene) {
       var row = document.createElement("article");
       var select = document.createElement("button");
-      var edit = createIconActionButton("edit", "重命名场景：" + scene.name, false);
-      var remove = createIconActionButton("delete", "删除项目场景：" + scene.name, true);
+      var edit = createIconActionButton("edit", "重命名场景：" + scene.name, false, "a11y.renameScene", scene.name);
+      var remove = createIconActionButton("delete", "删除项目场景：" + scene.name, true, "a11y.deleteScene", scene.name);
       var selected = scene.id === state.currentSceneId;
       row.className = "project-scene-row" + (selected ? " is-active" : "");
       select.type = "button";
@@ -2010,7 +2165,7 @@
       var title = document.createElement("strong");
       var detail = document.createElement("span");
       title.textContent = scene.name;
-      detail.textContent = scene.panoramaId || "未关联全景图";
+      detail.textContent = scene.panoramaId || window.XinTI18n.t("projects.unlinkedPanorama");
       select.append(title, detail);
       select.addEventListener("click", function onSceneClick() {
         var index = state.items.findIndex(function findPanorama(item) {
@@ -2035,12 +2190,12 @@
   }
 
   function updateMeta(item) {
-    refs.currentSceneTitle.textContent = item ? item.name || "未命名全景图" : "尚未选择全景图";
+    refs.currentSceneTitle.textContent = item ? item.name || window.XinTI18n.t("library.unnamed") : window.XinTI18n.t("scene.unselected");
     refs.metaId.textContent = item ? item.id : "-";
     refs.metaPanoramaNo.textContent = item && item.panoramaNo ? String(item.panoramaNo) : "-";
     refs.metaName.textContent = item ? item.name : "-";
     refs.metaSource.textContent = item ? item.sourceType || "-" : "-";
-    refs.metaGroup.textContent = item && item.group ? item.group : "未分组";
+    refs.metaGroup.textContent = item && item.group ? item.group : window.XinTI18n.t("field.ungrouped");
     refs.metaSize.textContent = item && item.size ? formatBytes(item.size) : "-";
     refs.metaCreatedAt.textContent = item && item.createdAt ? formatDateTime(item.createdAt) : "-";
     refs.metaDescription.textContent = item && item.description ? item.description : "-";
@@ -2058,6 +2213,7 @@
         apiBase: state.apiBase,
         item: currentItem,
         clientOnly: isClientUpload(currentItem),
+        language: window.XinTI18n.getLanguage(),
         controls: window.XinTEmbedPresets.controlsFor(state.embedPreset)
       });
     } catch (_) {
@@ -2067,23 +2223,51 @@
     refs.embedIframeCode.textContent = available ? result.iframe : "";
     refs.embedScriptCode.textContent = available ? result.script : "";
     refs.embedCodeBlocks.forEach(function updateCodeBlock(block) { block.hidden = !available; });
-    refs.embedCopyButtons.forEach(function updateCopyButton(button) { button.disabled = !available; });
-    refs.embedCodeFeedback.iframe.textContent = available ? "" : result.message;
-    refs.embedCodeFeedback.script.textContent = available ? "" : result.message;
+    refs.embedCopyButtons.forEach(function updateCopyButton(button) {
+      setEmbedCopyButtonState(button, false);
+      button.disabled = !available || embedCopyInFlight.has(button);
+    });
+    refs.embedCodeFeedback.iframe.textContent = available ? "" : window.XinTI18n.translateMessage(result.message);
+    refs.embedCodeFeedback.script.textContent = available ? "" : window.XinTI18n.translateMessage(result.message);
+    refs.embedCodeFeedback.iframe.classList.remove("sr-only");
+    refs.embedCodeFeedback.script.classList.remove("sr-only");
+  }
+
+  function setEmbedCopyButtonState(button, copied) {
+    var timer = embedCopyResetTimers.get(button);
+    if (timer) clearTimeout(timer);
+    embedCopyResetTimers.delete(button);
+    var use = button.querySelector("svg use");
+    var label = button.querySelector("[data-copy-label]");
+    var success = copied === true;
+    if (use) use.setAttribute("href", "./icons/sprite.svg#" + (success ? "check" : "copy"));
+    if (label) label.textContent = window.XinTI18n.t(success ? "embed.copied" : "embed.copy");
+    button.setAttribute("data-copy-state", success ? "success" : "idle");
+    button.classList.toggle("is-copied", success);
+    if (success) embedCopyResetTimers.set(button, setTimeout(function resetCopyButton() { setEmbedCopyButtonState(button, false); }, 2600));
   }
 
   async function copyEmbedCode(kind) {
     var code = kind === "iframe" ? refs.embedIframeCode : refs.embedScriptCode;
     var feedback = refs.embedCodeFeedback[kind];
+    var button = refs.embedCopyButtons.find(function findCopyButton(candidate) { return candidate.getAttribute("data-copy-embed") === kind; });
     var block = code.closest("pre");
     var copiedText = code.textContent;
-    if (!copiedText) return;
+    if (!copiedText || !button || button.disabled || embedCopyInFlight.has(button)) return;
+    embedCopyInFlight.add(button);
+    button.disabled = true;
+    feedback.classList.remove("sr-only");
     try {
       if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") throw new Error("Clipboard API unavailable");
       await navigator.clipboard.writeText(copiedText);
-      if (code.textContent === copiedText) feedback.textContent = "已复制代码。";
+      if (code.textContent === copiedText) {
+        setEmbedCopyButtonState(button, true);
+        feedback.textContent = window.XinTI18n.t("status.copySuccess");
+        feedback.classList.add("sr-only");
+      }
     } catch (_) {
       if (code.textContent !== copiedText) return;
+      setEmbedCopyButtonState(button, false);
       block.focus();
       try {
         var selection = window.getSelection && window.getSelection();
@@ -2096,16 +2280,28 @@
       } catch (_) {
         // Keep focus on the code block as a manual copy fallback.
       }
-      feedback.textContent = "无法自动复制，代码已选中。请按 Ctrl+C（Mac 使用 ⌘C）。";
+      feedback.textContent = window.XinTI18n.t("status.copyManual");
+    } finally {
+      embedCopyInFlight.delete(button);
+      button.disabled = !code.textContent;
     }
   }
 
-  function applyEmbedPreset(preset) {
-    state.embedPreset = ["all", "compact", "none"].indexOf(preset) === -1 ? "all" : preset;
-    localStorage.setItem("xint-panorama-embed-controls", window.XinTEmbedPresets.controlsFor(state.embedPreset));
-    localStorage.removeItem("xint-panorama-embed-hidden-controls");
+  async function applyEmbedPreset(preset) {
+    if (state.pendingEmbedPreset || ["all", "compact", "none"].indexOf(preset) === -1 || preset === state.embedPreset) return;
+    state.pendingEmbedPreset = true;
+    refs.embedPresetStatus.textContent = "";
     updateEmbedPresetButtons();
-    updateEmbedExample();
+    try {
+      await patchConsoleSettings({ embedPreset: preset });
+      state.embedPreset = preset;
+      updateEmbedExample();
+    } catch (_) {
+      refs.embedPresetStatus.textContent = window.XinTI18n.t("settings.embedSaveFailed");
+    } finally {
+      state.pendingEmbedPreset = false;
+      updateEmbedPresetButtons();
+    }
   }
 
   function updateEmbedPresetButtons() {
@@ -2113,6 +2309,7 @@
       var selected = button.getAttribute("data-embed-preset") === state.embedPreset;
       button.classList.toggle("active", selected);
       button.setAttribute("aria-pressed", selected ? "true" : "false");
+      button.disabled = state.pendingEmbedPreset;
     });
   }
 
@@ -2167,7 +2364,7 @@
   }
 
   function updateDirectorButton() {
-    var label = state.directorMode ? "停止自动演示" : "自动演示";
+    var label = window.XinTI18n.t(state.directorMode ? "widget.stopDirector" : "control.director");
     refs.directorBtn.classList.toggle("active", state.directorMode);
     setAttributeIfChanged(refs.directorBtn, "aria-pressed", state.directorMode ? "true" : "false");
     setAttributeIfChanged(refs.directorBtn, "aria-label", label);
@@ -2321,8 +2518,9 @@
   function updateFullscreenButton() {
     var active = Boolean(document.fullscreenElement);
     refs.fullscreenBtn.setAttribute("aria-pressed", active ? "true" : "false");
-    refs.fullscreenBtn.setAttribute("aria-label", active ? "退出全屏" : "全屏预览");
-    refs.fullscreenBtn.title = active ? "退出全屏" : "全屏预览";
+    var label = window.XinTI18n.t(active ? "widget.exitFullscreen" : "control.fullscreen");
+    refs.fullscreenBtn.setAttribute("aria-label", label);
+    refs.fullscreenBtn.title = label;
     refs.fullscreenBtn.querySelector("use").setAttribute("href", "./icons/sprite.svg#" + (active ? "exit-fullscreen" : "fullscreen"));
   }
 
@@ -2347,18 +2545,19 @@
   }
 
   function setStatus(text) {
-    refs.statusBadge.textContent = text;
+    refs.statusBadge.textContent = window.XinTI18n.translateMessage(text);
   }
 
-  function setViewerState(kind, title, detail, actionLabel, actionName) {
+  function setViewerState(kind, title, detail, actionLabel, actionName, detailIsUserData) {
     refs.viewerState.className = "viewer-state is-" + kind;
     refs.viewerState.setAttribute("role", kind === "error" ? "alert" : "status");
-    refs.viewerStateTitle.textContent = title;
-    refs.viewerStateDetail.textContent = detail || "";
+    refs.viewerStateTitle.textContent = window.XinTI18n.translateMessage(title);
+    state.viewerStateDetailIsUserData = Boolean(detailIsUserData);
+    refs.viewerStateDetail.textContent = state.viewerStateDetailIsUserData ? (detail || "") : window.XinTI18n.translateMessage(detail || "");
     refs.viewer.setAttribute("aria-busy", kind === "loading" ? "true" : "false");
     state.viewerStateAction = actionName || null;
     refs.viewerStateAction.hidden = !actionLabel;
-    refs.viewerStateAction.textContent = actionLabel || "";
+    refs.viewerStateAction.textContent = window.XinTI18n.translateMessage(actionLabel || "");
   }
 
   function handleViewerContextState(contextState) {
@@ -2417,7 +2616,8 @@
       return String(value || "-");
     }
 
-    var parts = new Intl.DateTimeFormat("zh-CN", {
+    var locale = window.XinTI18n ? window.XinTI18n.getLanguage() : "zh-CN";
+    var parts = new Intl.DateTimeFormat(locale === "en" ? "en-CA" : locale, {
       timeZone: "Asia/Shanghai",
       year: "numeric",
       month: "2-digit",
@@ -2442,4 +2642,40 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
   }
+
+  window.addEventListener("xint-language-change", function redrawLocalizedUi() {
+    window.XinTI18n.apply(document);
+    window.XinTI18n.applyMessages(document);
+    refreshPendingUploadsForLanguage();
+    renderGallery();
+    renderGalleryGroupSelects();
+    renderProjects();
+    renderProjectScenes();
+    renderProjectPluginState();
+    updateAutorotateButton();
+    updateDirectorButton();
+    updateFullscreenButton();
+    updateEmbedExample();
+    if (state.currentIndex < 0) refs.currentSceneTitle.textContent = window.XinTI18n.t("scene.unselected");
+    if (state.currentIndex >= 0) {
+      var selected = state.items[state.currentIndex];
+      if (selected) {
+        refs.metaGroup.textContent = selected.group || window.XinTI18n.t("field.ungrouped");
+        refs.sourceText.textContent = window.XinTI18n.t("status.sourcePrefix", { source: selected.sourceType || "-" });
+      }
+    } else {
+      refs.sourceText.textContent = window.XinTI18n.t("status.sourcePrefix", { source: "-" });
+    }
+    [refs.statusBadge, refs.viewerStateTitle, refs.viewerStateAction,
+      refs.settingsStatus, refs.viewerEngineStatus, refs.mediaStorageStatus, refs.mediaStorageHelp,
+      refs.mediaStorageModeHelp, refs.sourceAvailability, refs.uploadProgress, refs.remoteFormStatus,
+      refs.databaseFormStatus, refs.galleryActionStatus, refs.projectActionStatus, refs.sceneActionStatus,
+      refs.editActionStatus, refs.renameStatus].forEach(function translateVisibleMessage(element) {
+      if (element) element.textContent = window.XinTI18n.translateMessage(element.textContent);
+    });
+    if (!state.viewerStateDetailIsUserData) refs.viewerStateDetail.textContent = window.XinTI18n.translateMessage(refs.viewerStateDetail.textContent);
+    if (state.activeDrawerPanel) {
+      openDrawer(state.activeDrawerPanel);
+    }
+  });
 })();

@@ -4,6 +4,7 @@ const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const { DatabaseSync } = require("node:sqlite");
+const sharp = require("sharp");
 
 async function run() {
   const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), "xint-ops-test-"));
@@ -16,12 +17,19 @@ async function run() {
     await createDatabase(storage);
     fs.mkdirSync(path.join(storage, "uploads"), { recursive: true });
     fs.writeFileSync(path.join(storage, "uploads", "asset.bin"), "media");
+    const privateId = "12345678-1234-4234-8234-123456789abc";
+    fs.mkdirSync(path.join(storage, "private-sources"), { recursive: true });
+    fs.writeFileSync(path.join(storage, "private-sources", privateId + ".bin"), await sharp({ create: { width: 24, height: 12, channels: 3, background: "#405060" } }).png().toBuffer());
+    fs.mkdirSync(path.join(storage, "protected-previews"), { recursive: true });
+    fs.writeFileSync(path.join(storage, "protected-previews", "stale.preview"), "rebuildable");
     const backupResult = runScript("backup.js", ["--output", backups], storage);
     assert.strictEqual(backupResult.status, 0, backupResult.stderr || backupResult.stdout);
     const backupDir = fs.readdirSync(backups).map((name) => path.join(backups, name)).find((name) => fs.statSync(name).isDirectory());
     assert.ok(backupDir);
     assert.ok(fs.existsSync(path.join(backupDir, "panorama.sqlite")));
     assert.strictEqual(fs.readFileSync(path.join(backupDir, "uploads", "asset.bin"), "utf8"), "media");
+    assert.ok(fs.existsSync(path.join(backupDir, "private-sources", privateId + ".bin")), "Private source images are included in backups");
+    assert.ok(!fs.existsSync(path.join(backupDir, "protected-previews")), "Rebuildable protected derivatives are excluded from backups");
     assert.ok(!fs.readdirSync(backupDir).some((name) => /-wal$|-shm$|-journal$/.test(name)));
 
     fs.mkdirSync(restored, { recursive: true });
@@ -30,6 +38,13 @@ async function run() {
     assert.strictEqual(restoreResult.status, 0, restoreResult.stderr || restoreResult.stdout);
     assert.ok(fs.existsSync(path.join(restored, "panorama.sqlite")));
     assert.strictEqual(fs.readFileSync(path.join(restored, "uploads", "asset.bin"), "utf8"), "media");
+    assert.ok(fs.existsSync(path.join(restored, "private-sources", privateId + ".bin")), "Private source images survive restore");
+    const previousStorage = process.env.PANORAMA_STORAGE_DIR;
+    process.env.PANORAMA_STORAGE_DIR = restored;
+    const previewModule = require("../backend/protected-preview");
+    const restoredPreview = await previewModule.preparePreview({ id: "restored-private", sourceType: "remote-url", viewerPath: "private://" + privateId });
+    assert.deepStrictEqual({ width: restoredPreview.width, height: restoredPreview.height }, { width: 24, height: 12 }, "Restored private sources can generate protected previews");
+    process.env.PANORAMA_STORAGE_DIR = previousStorage;
     const previous = fs.readdirSync(testRoot).map((name) => path.join(testRoot, name)).find((name) => name.startsWith(restored + ".pre-restore-"));
     assert.ok(previous && fs.existsSync(path.join(previous, "old-marker")));
     checkDatabase(path.join(restored, "panorama.sqlite"));

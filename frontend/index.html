@@ -3,25 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>芯添全景系统 · XinT Panorama</title>
+    <title data-i18n="title.console">芯添全景系统 · XinT Panorama</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <a class="brand" href="./" aria-label="芯添全景系统 XinT Panorama 首页">
+        <a class="brand" href="./" aria-label="芯添全景系统 XinT Panorama 首页" data-i18n-aria-label="brand.home">
           <span class="brand-mark"><img src="./brand/xint-logo-white.svg" alt="" aria-hidden="true" /></span>
           <span>
-            <strong>芯添全景系统</strong>
+            <strong><span data-i18n="brand.name">芯添全景系统</span></strong>
             <small>XinT Panorama</small>
           </span>
         </a>
 
-        <nav class="workspace-nav" aria-label="工作区导航">
-          <button class="workspace-nav__item" type="button" data-drawer-panel="library"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#folder"></use></svg>资源库 <span id="galleryCount">0</span></button>
-          <button class="workspace-nav__item" type="button" data-drawer-panel="projects" data-project-entry hidden><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#platforms"></use></svg>项目</button>
-          <button class="workspace-nav__item" type="button" data-drawer-panel="plugins"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#module"></use></svg>插件</button>
-          <button class="workspace-nav__item" type="button" data-drawer-panel="settings"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#settings"></use></svg>设置</button>
+        <nav class="workspace-nav" aria-label="工作区导航" data-i18n-aria-label="nav.label">
+          <button class="workspace-nav__item" type="button" data-drawer-panel="library"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#folder"></use></svg><span data-i18n="nav.library">资源库</span> <span id="galleryCount">0</span></button>
+          <button class="workspace-nav__item" type="button" data-drawer-panel="projects" data-project-entry hidden><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#platforms"></use></svg><span data-i18n="nav.projects">项目</span></button>
+          <button class="workspace-nav__item" type="button" data-drawer-panel="plugins"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#module"></use></svg><span data-i18n="nav.plugins">插件</span></button>
+          <button class="workspace-nav__item" type="button" data-drawer-panel="settings"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#settings"></use></svg><span data-i18n="nav.settings">设置</span></button>
         </nav>
 
         <div class="topbar-status">
@@ -30,286 +30,308 @@
       </header>
 
       <main class="studio-layout">
-        <section class="scene-summary" aria-label="当前场景概览">
+        <section class="scene-summary" aria-label="当前场景概览" data-i18n-aria-label="scene.overview">
           <p class="eyebrow">CURRENT PANORAMA</p>
-          <h1 id="currentSceneTitle">尚未选择全景图</h1>
+          <h1 id="currentSceneTitle"><span data-i18n="scene.unselected">尚未选择全景图</span></h1>
           <div class="scene-summary__meta">
             <span id="currentIndexText">0 / 0</span>
             <span id="sourceText">来源: -</span>
           </div>
           <div class="scene-summary__actions">
-            <button class="icon-button current-scene-edit" type="button" data-drawer-panel="editor" aria-label="编辑当前场景信息" title="编辑当前场景信息"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#edit"></use></svg></button>
-            <button class="text-button" type="button" data-drawer-panel="embed">嵌入接入</button>
+            <button class="icon-button current-scene-edit" type="button" data-drawer-panel="editor" aria-label="编辑当前场景信息" title="编辑当前场景信息" data-i18n-aria-label="scene.editInfo" data-i18n-title="scene.editInfo"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#edit"></use></svg></button>
+            <button class="text-button" type="button" data-drawer-panel="embed" data-i18n="scene.embed">嵌入接入</button>
           </div>
         </section>
 
         <section class="viewer-panel" aria-label="XinT 全景查看器">
-          <div id="viewer" class="viewer"></div>
+          <div id="viewer" class="viewer" aria-label="XinT 全景查看器" data-i18n-aria-label="viewer.label"></div>
 
           <div id="viewerState" class="viewer-state is-loading" role="status" aria-live="polite" aria-atomic="true">
             <span class="viewer-state__spinner" aria-hidden="true"></span>
             <strong id="viewerStateTitle">正在加载全景图片</strong>
             <small id="viewerStateDetail">准备全景资源</small>
-            <button id="viewerStateAction" type="button" hidden>重新加载</button>
+            <button id="viewerStateAction" type="button" hidden data-i18n="viewer.reload">重新加载</button>
           </div>
 
-          <div id="hotspotLayer" class="hotspot-layer" aria-label="空间热点"></div>
+          <div id="hotspotLayer" class="hotspot-layer" aria-label="空间热点" data-i18n-aria-label="viewer.hotspots"></div>
 
-          <div class="viewer-toolbar" role="toolbar" aria-label="全景查看工具">
-            <button id="prevBtn" class="viewer-action" data-toolbar-control="previous" type="button" aria-label="上一张" title="上一张"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#previous"></use></svg></button>
-            <button id="nextBtn" class="viewer-action" data-toolbar-control="next" type="button" aria-label="下一张" title="下一张"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#next"></use></svg></button>
-            <button id="zoomOutBtn" class="viewer-action" data-toolbar-control="zoom-out" type="button" aria-label="缩小视野" title="缩小视野"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#zoom-out"></use></svg></button>
-            <button id="zoomInBtn" class="viewer-action" data-toolbar-control="zoom-in" type="button" aria-label="放大细节" title="放大细节"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#zoom-in"></use></svg></button>
+          <div class="viewer-toolbar" role="toolbar" aria-label="全景查看工具" data-i18n-aria-label="viewer.toolbar">
+            <button id="prevBtn" class="viewer-action" data-toolbar-control="previous" type="button" aria-label="上一张" title="上一张" data-i18n-aria-label="control.previous" data-i18n-title="control.previous"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#previous"></use></svg></button>
+            <button id="nextBtn" class="viewer-action" data-toolbar-control="next" type="button" aria-label="下一张" title="下一张" data-i18n-aria-label="control.next" data-i18n-title="control.next"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#next"></use></svg></button>
+            <button id="zoomOutBtn" class="viewer-action" data-toolbar-control="zoom-out" type="button" aria-label="缩小视野" title="缩小视野" data-i18n-aria-label="control.zoomOut" data-i18n-title="control.zoomOut"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#zoom-out"></use></svg></button>
+            <button id="zoomInBtn" class="viewer-action" data-toolbar-control="zoom-in" type="button" aria-label="放大细节" title="放大细节" data-i18n-aria-label="control.zoomIn" data-i18n-title="control.zoomIn"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#zoom-in"></use></svg></button>
             <button id="autorotateBtn" class="viewer-action" data-toolbar-control="autorotate" type="button" aria-label="自动旋转" title="自动旋转" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#refresh"></use></svg></button>
             <button id="directorBtn" class="viewer-action" data-toolbar-control="director" type="button" aria-label="自动演示" title="自动演示" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#play"></use></svg></button>
-            <button id="resetBtn" class="viewer-action" data-toolbar-control="reset" type="button" aria-label="重置视角" title="重置视角"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#retry"></use></svg></button>
+            <button id="resetBtn" class="viewer-action" data-toolbar-control="reset" type="button" aria-label="重置视角" title="重置视角" data-i18n-aria-label="control.reset" data-i18n-title="control.reset"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#retry"></use></svg></button>
             <button id="fullscreenBtn" class="viewer-action" data-toolbar-control="fullscreen" type="button" aria-label="全屏预览" title="全屏预览" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#fullscreen"></use></svg></button>
-            <button id="customizeToolbarBtn" class="viewer-action viewer-more-button" type="button" aria-haspopup="dialog" aria-label="更多工具" title="更多工具"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#more"></use></svg></button>
+            <button id="customizeToolbarBtn" class="viewer-action viewer-more-button" type="button" aria-haspopup="dialog" aria-label="更多工具" title="更多工具" data-i18n-aria-label="control.more" data-i18n-title="control.more"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#more"></use></svg></button>
           </div>
         </section>
 
-        <aside class="scene-facts" aria-label="场景信息">
+        <aside class="scene-facts" aria-label="场景信息" data-i18n-aria-label="scene.data">
           <div class="scene-facts__heading">
             <span class="section-kicker">SCENE DATA</span>
             <span id="metaPanoramaNo" class="scene-number">-</span>
           </div>
           <dl>
-            <div><dt>来源</dt><dd id="metaSource">-</dd></div>
-            <div><dt>分组</dt><dd id="metaGroup">未分组</dd></div>
-            <div><dt>分辨率</dt><dd id="resolutionText">-</dd></div>
-            <div><dt>文件大小</dt><dd id="metaSize">-</dd></div>
-            <div><dt>创建时间</dt><dd id="metaCreatedAt">-</dd></div>
+            <div><dt><span data-i18n="scene.source">来源</span></dt><dd id="metaSource">-</dd></div>
+            <div><dt><span data-i18n="field.group">分组</span></dt><dd id="metaGroup"><span data-i18n="field.ungrouped">未分组</span></dd></div>
+            <div><dt><span data-i18n="field.resolution">分辨率</span></dt><dd id="resolutionText">-</dd></div>
+            <div><dt><span data-i18n="field.fileSize">文件大小</span></dt><dd id="metaSize">-</dd></div>
+            <div><dt><span data-i18n="field.createdAt">创建时间</span></dt><dd id="metaCreatedAt">-</dd></div>
           </dl>
           <p id="metaDescription" class="scene-description">-</p>
-          <button class="outlined-button" type="button" data-drawer-panel="projects" data-project-entry hidden><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#platforms"></use></svg>加入项目</button>
+          <button class="outlined-button" type="button" data-drawer-panel="projects" data-project-entry hidden><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#platforms"></use></svg><span data-i18n="project.join">加入项目</span></button>
         </aside>
       </main>
     </div>
 
     <div id="drawerBackdrop" class="drawer-backdrop" hidden></div>
-    <aside id="workspaceDrawer" class="workspace-drawer" aria-label="工作区面板" hidden>
-      <div class="drawer-header">
-        <div>
-          <p id="drawerEyebrow" class="eyebrow">LIBRARY</p>
-          <h2 id="drawerTitle">资源库</h2>
+    <aside id="workspaceDrawer" class="workspace-drawer" aria-label="工作区面板" data-i18n-aria-label="drawer.workspace" hidden>
+      <div class="workspace-drawer__scroll">
+        <div class="drawer-header">
+          <div>
+            <p id="drawerEyebrow" class="eyebrow">LIBRARY</p>
+            <h2 id="drawerTitle"><span data-i18n="nav.library">资源库</span></h2>
+          </div>
+          <button id="drawerCloseBtn" class="icon-button" type="button" aria-label="关闭面板" title="关闭面板" data-i18n-aria-label="drawer.close" data-i18n-title="drawer.close"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#close"></use></svg></button>
         </div>
-        <button id="drawerCloseBtn" class="icon-button" type="button" aria-label="关闭面板" title="关闭面板"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#close"></use></svg></button>
-      </div>
 
-      <section class="drawer-panel" data-panel="library">
-        <div class="drawer-intro">
-          <p>选择图片预览，或添加新的全景图。</p>
-          <button id="refreshBtn" class="outlined-button" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#refresh"></use></svg>刷新资源</button>
-        </div>
-        <details id="addPanoramaPanel" class="secondary-section add-panorama-panel">
-          <summary>添加全景图</summary>
-          <div class="stack-form">
-            <label class="field" for="addSourceSelect"><span>添加方式</span>
-              <select id="addSourceSelect" class="text-input" disabled>
-                <option value="">正在读取可用来源…</option>
-                <option value="upload" data-source-option="upload">上传本地图片</option>
-                <option value="external" data-source-option="external">使用图片链接</option>
-                <option value="database" data-source-option="database">已有图片地址（高级）</option>
-              </select>
-            </label>
-            <p id="sourceAvailability" class="drawer-copy" role="status" aria-live="polite">正在读取服务端支持的添加方式…</p>
-            <div id="uploadSourceForm" class="source-form" hidden>
-              <label class="upload-zone" for="fileInput">
-                <input id="fileInput" class="file-input-visually-hidden" type="file" accept="image/*" multiple />
-                <strong>选择本地图片</strong>
-                <span>可一次选择多张；编号由系统自动分配</span>
+        <section class="drawer-panel" data-panel="library">
+          <div class="drawer-intro">
+            <p><span data-i18n="library.choose">选择图片预览，或添加新的全景图。</span></p>
+            <button id="refreshBtn" class="outlined-button" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#refresh"></use></svg><span data-i18n="library.refresh">刷新资源</span></button>
+          </div>
+          <details id="addPanoramaPanel" class="secondary-section add-panorama-panel">
+            <summary><span data-i18n="library.add">添加全景图</span></summary>
+            <div class="stack-form">
+              <label class="field" for="addSourceSelect"><span><span data-i18n="library.addMethod">添加方式</span></span>
+                <select id="addSourceSelect" class="text-input" disabled>
+                  <option value="" data-i18n="library.loadingSources">正在读取可用来源…</option>
+                  <option value="upload" data-source-option="upload" data-i18n="library.upload">上传本地图片</option>
+                  <option value="external" data-source-option="external" data-i18n="library.remote">使用图片链接</option>
+                  <option value="database" data-source-option="database" data-i18n="library.database">已有图片地址（高级）</option>
+                </select>
               </label>
-              <div id="uploadInitPanel" class="upload-init-panel" hidden>
-                <div class="section-label"><span>待上传</span><span id="uploadInitCount">0</span></div>
-                <label class="field"><span>本批次默认分组</span><span class="group-apply-row"><select id="uploadGroupInput" class="text-input"><option value="">未分组</option></select><button id="applyUploadGroupBtn" class="outlined-button" type="button">应用到全部</button></span></label>
-                <p class="drawer-copy">请确认名称和描述。成功上传的图片会从此列表移除。</p>
-                <div id="uploadInitList" class="upload-init-list"></div>
-                <p id="uploadProgress" class="upload-progress" role="status" aria-live="polite"></p>
-                <div class="upload-init-actions">
-                  <button id="uploadCancelBtn" class="outlined-button" type="button">取消剩余图片</button>
-                  <button id="uploadSubmitBtn" class="primary-button" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#upload"></use></svg>开始上传</button>
+              <p id="sourceAvailability" class="drawer-copy" role="status" aria-live="polite"><span data-i18n="library.readingSources">正在读取服务端支持的添加方式…</span></p>
+              <div id="uploadSourceForm" class="source-form" hidden>
+                <label class="upload-zone" for="fileInput">
+                  <input id="fileInput" class="file-input-visually-hidden" type="file" accept="image/*" multiple />
+                  <strong><span data-i18n="library.chooseLocal">选择本地图片</span></strong>
+                  <span><span data-i18n="library.multipleFiles">可一次选择多张；编号由系统自动分配</span></span>
+                </label>
+                <div id="uploadInitPanel" class="upload-init-panel" hidden>
+                  <div class="section-label"><span><span data-i18n="upload.pending">待上传</span></span><span id="uploadInitCount">0</span></div>
+                  <label class="field"><span><span data-i18n="upload.defaultGroup">本批次默认分组</span></span><span class="group-apply-row"><select id="uploadGroupInput" class="text-input"><option value="" data-i18n="field.ungrouped">未分组</option></select><button id="applyUploadGroupBtn" class="outlined-button" type="button"><span data-i18n="upload.applyAll">应用到全部</span></button></span></label>
+                  <p class="drawer-copy"><span data-i18n="upload.confirm">请确认名称和描述。成功上传的图片会从此列表移除。</span></p>
+                  <div id="uploadInitList" class="upload-init-list"></div>
+                  <p id="uploadProgress" class="upload-progress" role="status" aria-live="polite"></p>
+                  <div class="upload-init-actions">
+                    <button id="uploadCancelBtn" class="outlined-button" type="button"><span data-i18n="upload.cancelRemaining">取消剩余图片</span></button>
+                    <button id="uploadSubmitBtn" class="primary-button" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#upload"></use></svg><span data-i18n="upload.start">开始上传</span></button>
+                  </div>
                 </div>
               </div>
+              <div id="remoteSourceForm" class="source-form" hidden>
+                <label class="field"><span><span data-i18n="field.imageName">图片名称</span></span><input id="remoteNameInput" class="text-input" type="text" placeholder="全景图名称" data-i18n-placeholder="placeholder.panoramaName" /></label>
+                <label class="field"><span><span data-i18n="field.imageUrl">图片链接</span></span><textarea id="remoteUrlInput" class="text-area compact" placeholder="输入可访问的 HTTP 或 HTTPS 图片地址" data-i18n-placeholder="placeholder.httpImageUrl"></textarea></label>
+                <label class="field"><span><span data-i18n="field.group">分组</span></span><select id="remoteGroupInput" class="text-input"><option value="" data-i18n="field.ungrouped">未分组</option></select></label>
+                <button id="registerUrlBtn" class="primary-button" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#link"></use></svg><span data-i18n="library.addUrl">添加图片链接</span></button>
+                <p id="remoteFormStatus" class="form-status" role="status" aria-live="polite"></p>
+              </div>
+              <div id="databaseSourceForm" class="source-form" hidden>
+                <label class="field"><span><span data-i18n="field.recordName">记录名称</span></span><input id="databaseTitleInput" class="text-input" type="text" placeholder="全景图标题" data-i18n-placeholder="placeholder.panoramaName" /></label>
+                <label class="field"><span><span data-i18n="field.existingImageUrl">已有图片地址</span></span><textarea id="databaseImageUrlInput" class="text-area compact" placeholder="HTTP(S) 图片链接或 /media/uploads/ 下的本地图片" data-i18n-placeholder="placeholder.existingImageUrl"></textarea></label>
+                <label class="field"><span><span data-i18n="field.group">分组</span></span><select id="databaseGroupInput" class="text-input"><option value="" data-i18n="field.ungrouped">未分组</option></select></label>
+                <label class="field"><span><span data-i18n="field.thumbnailOptional">缩略图地址（可选）</span></span><input id="databaseThumbnailInput" class="text-input" type="text" placeholder="留空时使用图片地址" data-i18n-placeholder="placeholder.thumbnail" /></label>
+                <button id="createDatabaseRecordBtn" class="primary-button" type="button"><span data-i18n="library.saveRecord">保存图片记录</span></button>
+                <p id="databaseFormStatus" class="form-status" role="status" aria-live="polite"></p>
+              </div>
             </div>
-            <div id="remoteSourceForm" class="source-form" hidden>
-              <label class="field"><span>图片名称</span><input id="remoteNameInput" class="text-input" type="text" placeholder="全景图名称" /></label>
-              <label class="field"><span>图片链接</span><textarea id="remoteUrlInput" class="text-area compact" placeholder="输入可访问的 HTTP 或 HTTPS 图片地址"></textarea></label>
-              <label class="field"><span>分组</span><select id="remoteGroupInput" class="text-input"><option value="">未分组</option></select></label>
-              <button id="registerUrlBtn" class="primary-button" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#link"></use></svg>添加图片链接</button>
-              <p id="remoteFormStatus" class="form-status" role="status" aria-live="polite"></p>
+          </details>
+          <div class="gallery-filters">
+            <label class="field"><span><span data-i18n="library.filterGroup">按分组筛选</span></span><select id="galleryGroupFilter" class="text-input"><option value="" data-i18n="library.allGroups">全部分组</option></select></label>
+            <label class="field"><span><span data-i18n="library.search">搜索名称或编号</span></span><input id="gallerySearchInput" class="text-input" type="search" placeholder="输入名称或编号" data-i18n-placeholder="placeholder.search" /></label>
+          </div>
+          <button id="manageGalleryGroupsBtn" class="outlined-button gallery-group-manage" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#folder"></use></svg><span data-i18n="library.manageGroups">新建 / 管理分组</span></button>
+          <p id="galleryActionStatus" class="form-status" role="status" aria-live="polite"></p>
+          <div id="galleryList" class="gallery-list"></div>
+          <nav class="gallery-pagination" aria-label="资源库分页">
+            <button id="galleryPrevPage" class="outlined-button" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#previous"></use></svg><span data-i18n="library.previousPage">上一页</span></button>
+            <span id="galleryPageStatus" aria-live="polite">第 1 页</span>
+            <button id="galleryNextPage" class="outlined-button" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#next"></use></svg><span data-i18n="library.nextPage">下一页</span></button>
+          </nav>
+        </section>
+
+        <section class="drawer-panel" data-panel="plugins" hidden>
+          <p id="pluginSettingsStatus" class="form-status" role="status" aria-live="polite"></p>
+          <div id="pluginList" class="plugin-list"></div>
+        </section>
+
+        <section class="drawer-panel" data-panel="projects" hidden>
+          <div class="project-create">
+            <input id="projectNameInput" class="text-input" type="text" placeholder="新项目名称" data-i18n-placeholder="projects.newName" />
+            <button id="createProjectBtn" class="primary-button" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#add"></use></svg><span data-i18n="projects.create">创建项目</span></button>
+          </div>
+          <div class="section-label"><span><span data-i18n="projects.list">项目列表</span></span><span id="projectCount">0</span></div>
+          <div id="projectList" class="project-list"></div>
+          <p id="projectActionStatus" class="form-status" role="status" aria-live="polite"></p>
+
+          <div class="drawer-divider"></div>
+          <div class="section-label"><span><span data-i18n="projects.scenes">项目场景</span></span></div>
+          <div id="projectSceneList" class="project-scene-list"></div>
+          <p id="sceneActionStatus" class="form-status" role="status" aria-live="polite"></p>
+          <div class="stack-form project-actions">
+            <input id="sceneNameInput" class="text-input" type="text" placeholder="输入场景名称" aria-label="场景名称" data-i18n-placeholder="projects.sceneName" data-i18n-aria-label="projects.sceneNameLabel" />
+            <button id="addCurrentSceneBtn" class="outlined-button" type="button"><span data-i18n="projects.addCurrent">加入当前全景图</span></button>
+          </div>
+        </section>
+
+        <section class="drawer-panel" data-panel="editor" hidden>
+          <p class="drawer-copy"><span data-i18n="editor.description">编辑当前全景图的业务信息，不会影响原始图片文件。</span></p>
+          <dl class="editor-meta">
+            <div><dt><span data-i18n="field.id">ID</span></dt><dd id="metaId">-</dd></div>
+            <div><dt><span data-i18n="field.currentName">当前名称</span></dt><dd id="metaName">-</dd></div>
+          </dl>
+          <div class="stack-form">
+            <label class="field"><span><span data-i18n="field.panoramaNumber">全景编号</span></span><input id="editPanoramaNoInput" class="text-input" type="number" min="1" placeholder="例如 1001" /></label>
+            <label class="field"><span><span data-i18n="field.panoramaName">全景名称</span></span><input id="editNameInput" class="text-input" type="text" placeholder="请输入名称" /></label>
+            <label class="field"><span><span data-i18n="field.group">分组</span></span><select id="editGroupInput" class="text-input"><option value="" data-i18n="field.ungrouped">未分组</option></select></label>
+            <label class="field"><span><span><span data-i18n="field.descriptionInfo">描述信息</span></span></span><textarea id="editDescriptionInput" class="text-area compact" placeholder="可选描述，例如场景说明、楼层、客户名称等"></textarea></label>
+            <button id="saveMetaBtn" class="primary-button" type="button"><span data-i18n="common.save">保存修改</span></button>
+            <p id="editActionStatus" class="form-status" role="status" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <section class="drawer-panel" data-panel="embed" hidden>
+          <p class="drawer-copy"><span data-i18n="embed.intro">将当前全景图嵌入普通网站。预览模式会随当前选择自动更新。</span></p>
+          <div class="embed-configurator">
+            <div class="embed-configurator__heading">
+              <span><span data-i18n="embed.visibility">控件可见性</span></span>
+              <div class="embed-presets" role="group" aria-label="嵌入控件预设">
+                <button type="button" data-embed-preset="all" aria-pressed="false"><span data-i18n="embed.all">完整</span></button>
+                <button type="button" data-embed-preset="compact" aria-pressed="false"><span data-i18n="embed.compact">精简</span></button>
+                <button type="button" data-embed-preset="none" aria-pressed="false"><span data-i18n="embed.none">隐藏</span></button>
+              </div>
             </div>
-            <div id="databaseSourceForm" class="source-form" hidden>
-              <label class="field"><span>记录名称</span><input id="databaseTitleInput" class="text-input" type="text" placeholder="全景图标题" /></label>
-              <label class="field"><span>已有图片地址</span><textarea id="databaseImageUrlInput" class="text-area compact" placeholder="HTTP(S) 图片链接或 /media/uploads/ 下的本地图片"></textarea></label>
-              <label class="field"><span>分组</span><select id="databaseGroupInput" class="text-input"><option value="">未分组</option></select></label>
-              <label class="field"><span>缩略图地址（可选）</span><input id="databaseThumbnailInput" class="text-input" type="text" placeholder="留空时使用图片地址" /></label>
-              <button id="createDatabaseRecordBtn" class="primary-button" type="button">保存图片记录</button>
-              <p id="databaseFormStatus" class="form-status" role="status" aria-live="polite"></p>
+            <div class="embed-preset-descriptions">
+              <p><strong><span data-i18n="embed.all">完整</span></strong><span><span data-i18n="embed.allDescription">显示查看器支持的控件。</span></span></p>
+              <p><strong><span data-i18n="embed.compact">精简</span></strong><span><span data-i18n="embed.compactDescription">保留缩放、自动旋转和全屏。</span></span></p>
+              <p><strong><span data-i18n="embed.none">隐藏</span></strong><span><span data-i18n="embed.noneDescription">隐藏查看工具栏。</span></span></p>
             </div>
+            <p id="embedPresetStatus" class="form-status" role="status" aria-live="polite"></p>
           </div>
-        </details>
-        <div class="gallery-filters">
-          <label class="field"><span>按分组筛选</span><select id="galleryGroupFilter" class="text-input"><option value="">全部分组</option></select></label>
-          <label class="field"><span>搜索名称或编号</span><input id="gallerySearchInput" class="text-input" type="search" placeholder="输入名称或编号" /></label>
-        </div>
-        <button id="manageGalleryGroupsBtn" class="outlined-button gallery-group-manage" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#folder"></use></svg>新建 / 管理分组</button>
-        <p id="galleryActionStatus" class="form-status" role="status" aria-live="polite"></p>
-        <div id="galleryList" class="gallery-list"></div>
-        <nav class="gallery-pagination" aria-label="资源库分页">
-          <button id="galleryPrevPage" class="outlined-button" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#previous"></use></svg>上一页</button>
-          <span id="galleryPageStatus" aria-live="polite">第 1 页</span>
-          <button id="galleryNextPage" class="outlined-button" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#next"></use></svg>下一页</button>
-        </nav>
-      </section>
+          <div class="embed-code-grid">
+            <article class="embed-code-card">
+              <header class="embed-code-card__header"><h3><span data-i18n="embed.iframe">iframe 嵌入</span></h3><button type="button" class="small-action-button embed-copy-button" data-copy-embed="iframe" disabled><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#copy"></use></svg><span data-copy-label data-i18n="embed.copy">复制</span></button></header>
+              <pre class="embed-code-block" data-embed-code="iframe" tabindex="0" hidden><code id="embedIframeCode"></code></pre>
+              <p class="embed-code-feedback" data-embed-feedback="iframe" role="status" aria-live="polite"><span data-i18n="embed.selectFirst">请先选择全景图。</span></p>
+            </article>
+            <article class="embed-code-card">
+              <header class="embed-code-card__header"><h3><span data-i18n="embed.javascript">JavaScript 嵌入</span></h3><button type="button" class="small-action-button embed-copy-button" data-copy-embed="script" disabled><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#copy"></use></svg><span data-copy-label data-i18n="embed.copy">复制</span></button></header>
+              <pre class="embed-code-block" data-embed-code="script" tabindex="0" hidden><code id="embedScriptCode"></code></pre>
+              <p class="embed-code-feedback" data-embed-feedback="script" role="status" aria-live="polite"><span data-i18n="embed.selectFirst">请先选择全景图。</span></p>
+            </article>
+          </div>
+        </section>
 
-      <section class="drawer-panel" data-panel="plugins" hidden>
-        <p class="drawer-copy">插件启用状态保存在当前浏览器。</p>
-        <div id="pluginList" class="plugin-list"></div>
-      </section>
-
-      <section class="drawer-panel" data-panel="projects" hidden>
-        <div class="project-create">
-          <input id="projectNameInput" class="text-input" type="text" placeholder="新项目名称" />
-          <button id="createProjectBtn" class="primary-button" type="button"><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#add"></use></svg>创建项目</button>
-        </div>
-        <div class="section-label"><span>项目列表</span><span id="projectCount">0</span></div>
-        <div id="projectList" class="project-list"></div>
-        <p id="projectActionStatus" class="form-status" role="status" aria-live="polite"></p>
-
-        <div class="drawer-divider"></div>
-        <div class="section-label"><span>项目场景</span></div>
-        <div id="projectSceneList" class="project-scene-list"></div>
-        <p id="sceneActionStatus" class="form-status" role="status" aria-live="polite"></p>
-        <div class="stack-form project-actions">
-          <input id="sceneNameInput" class="text-input" type="text" placeholder="输入场景名称" aria-label="场景名称" />
-          <button id="addCurrentSceneBtn" class="outlined-button" type="button">加入当前全景图</button>
-        </div>
-      </section>
-
-      <section class="drawer-panel" data-panel="editor" hidden>
-        <p class="drawer-copy">编辑当前全景图的业务信息，不会影响原始图片文件。</p>
-        <dl class="editor-meta">
-          <div><dt>ID</dt><dd id="metaId">-</dd></div>
-          <div><dt>当前名称</dt><dd id="metaName">-</dd></div>
-        </dl>
-        <div class="stack-form">
-          <label class="field"><span>全景编号</span><input id="editPanoramaNoInput" class="text-input" type="number" min="1" placeholder="例如 1001" /></label>
-          <label class="field"><span>全景名称</span><input id="editNameInput" class="text-input" type="text" placeholder="请输入名称" /></label>
-          <label class="field"><span>分组</span><select id="editGroupInput" class="text-input"><option value="">未分组</option></select></label>
-          <label class="field"><span>描述信息</span><textarea id="editDescriptionInput" class="text-area compact" placeholder="可选描述，例如场景说明、楼层、客户名称等"></textarea></label>
-          <button id="saveMetaBtn" class="primary-button" type="button">保存修改</button>
-          <p id="editActionStatus" class="form-status" role="status" aria-live="polite"></p>
-        </div>
-      </section>
-
-      <section class="drawer-panel" data-panel="embed" hidden>
-        <p class="drawer-copy">将当前全景图嵌入普通网站。预览模式会随当前选择自动更新。</p>
-        <div class="embed-configurator">
-          <div class="embed-configurator__heading">
-            <span>控件可见性</span>
-            <div class="embed-presets" role="group" aria-label="嵌入控件预设">
-              <button type="button" data-embed-preset="all" aria-pressed="false">完整</button>
-              <button type="button" data-embed-preset="compact" aria-pressed="false">精简</button>
-              <button type="button" data-embed-preset="none" aria-pressed="false">无</button>
+        <section class="drawer-panel" data-panel="settings" hidden>
+          <div class="stack-form settings-language-picker">
+            <label class="field">
+              <span data-i18n="language.label">界面语言</span>
+              <select class="text-input" data-language-select aria-label="界面语言" data-i18n-aria-label="language.label">
+                <option value="zh-CN">简体中文</option>
+                <option value="zh-TW">繁體中文</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+            <p class="drawer-copy" data-i18n="settings.languageHelp">仅影响此浏览器界面，切换后立即生效。</p>
+          </div>
+          <div class="drawer-divider"></div>
+          <div class="stack-form">
+            <label class="field"><span data-i18n="settings.apiLabel">服务端 API 地址</span><input id="apiBaseInput" class="text-input" type="url" placeholder="http://127.0.0.1:7210" autocomplete="url" aria-label="API 地址" data-i18n-aria-label="settings.api" /></label>
+            <p class="drawer-copy" data-i18n="settings.apiHelp">地址保存在当前服务端配置中；保存后立即重新连接。</p>
+            <button id="connectBtn" class="primary-button" type="button" data-i18n="settings.connectSave">保存并连接</button>
+            <p id="settingsStatus" class="form-status" role="status" aria-live="polite"></p>
+          </div>
+          <div class="drawer-divider"></div>
+          <div class="stack-form">
+            <h3><span data-i18n="settings.viewerEngine">预览引擎</span></h3>
+            <label class="field"><span data-i18n="settings.engineLabel">全景渲染引擎</span>
+              <select id="viewerEngineSelect" class="text-input" disabled>
+                <option value="psv" data-i18n="settings.engineDefault">Photo Sphere Viewer（默认）</option>
+                <option value="legacy" data-i18n="settings.engineLegacy">兼容球面引擎</option>
+              </select>
+            </label>
+            <p id="viewerEngineStatus" class="drawer-copy">连接服务后读取预览引擎设置。</p>
+          </div>
+          <div class="drawer-divider"></div>
+          <div class="stack-form media-storage-settings">
+            <h3><span data-i18n="settings.storage">图片存储</span></h3>
+            <label class="field"><span data-i18n="settings.modeLabel">存储位置</span>
+              <select id="mediaStorageMode" class="text-input" disabled>
+                <option value="server" data-i18n="settings.modeServer">本地服务端</option>
+                <option value="client" data-i18n="settings.modeClient">本地客户端（仅此浏览器）</option>
+                <option value="sqlite" data-i18n="settings.modeSqlite">本地 SQLite</option>
+                <option value="cloud" data-i18n="settings.modeCloud">云端 SQLite（Turso/libSQL）</option>
+              </select>
+            </label>
+            <p id="mediaStorageHelp" class="drawer-copy">连接服务后读取图片存储设置。</p>
+            <div id="cloudSettingsPanel" class="stack-form media-storage-cloud" hidden>
+              <label class="field"><span data-i18n="settings.cloudUrlLabel">云端数据库 URL</span><input id="cloudDatabaseUrlInput" class="text-input" type="url" placeholder="libsql://your-database.turso.io" autocomplete="url" aria-label="数据库地址" data-i18n-aria-label="settings.url" /></label>
+              <label class="field"><span data-i18n="settings.tokenLabel">访问 Token</span><input id="cloudTokenInput" class="text-input" type="password" placeholder="已配置时留空可保留原 Token" autocomplete="new-password" aria-label="数据库令牌" data-i18n-aria-label="settings.token" /></label>
             </div>
+            <label class="field"><span><span data-i18n="settings.storageFormat">图片保存形式</span></span>
+              <select id="mediaFormatSelect" class="text-input" disabled>
+                <option value="original" data-i18n="settings.formatOriginal">保留原格式</option>
+                <option value="base64" data-i18n="settings.base64">Base64</option>
+                <option value="transcode" data-i18n="settings.formatTranscode">转码后保存</option>
+              </select>
+            </label>
+            <div id="transcodeSettings" class="stack-form media-storage-transcode" hidden>
+              <label class="field"><span data-i18n="settings.transcodeLabel">转码格式</span><select id="mediaCodecSelect" class="text-input"><option value="jpeg" data-i18n="settings.jpeg">JPEG</option><option value="png" data-i18n="settings.png">PNG</option><option value="webp" data-i18n="settings.webp">WebP</option></select></label>
+              <label id="mediaQualityField" class="field"><span data-i18n="settings.qualityLabel">图片质量 <output id="mediaQualityValue">85</output></span><input id="mediaQualityInput" class="text-input" type="range" min="1" max="100" value="85" /></label>
+            </div>
+            <p id="mediaStorageModeHelp" class="drawer-copy"></p>
+            <button id="saveMediaStorageBtn" class="primary-button" type="button" disabled data-i18n="settings.saveStorage">保存图片存储设置</button>
+            <p id="mediaStorageStatus" class="form-status" role="status" aria-live="polite"></p>
           </div>
-          <div class="embed-preset-descriptions">
-            <p><strong>完整</strong><span>显示查看器支持的控件。</span></p>
-            <p><strong>精简</strong><span>保留缩放、自动旋转和全屏。</span></p>
-            <p><strong>无</strong><span>隐藏查看工具栏。</span></p>
+          <div class="danger-zone">
+            <span><span data-i18n="danger.title">危险操作</span></span>
+            <p><span data-i18n="danger.clearWarning">清空后无法恢复当前图库记录，请谨慎使用。</span></p>
+            <button id="clearBtn" class="icon-action-button is-danger" type="button" aria-label="清空图库" title="清空图库" data-i18n-aria-label="danger.clearLibrary" data-i18n-title="danger.clearLibrary"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#delete"></use></svg></button>
           </div>
-        </div>
-        <div class="embed-code-grid">
-          <article class="embed-code-card">
-            <header class="embed-code-card__header"><h3>iframe 嵌入</h3><button type="button" class="small-action-button embed-copy-button" data-copy-embed="iframe" disabled><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#copy"></use></svg>复制代码</button></header>
-            <pre class="embed-code-block" data-embed-code="iframe" tabindex="0" hidden><code id="embedIframeCode"></code></pre>
-            <p class="embed-code-feedback" data-embed-feedback="iframe" role="status" aria-live="polite">请先选择全景图。</p>
-          </article>
-          <article class="embed-code-card">
-            <header class="embed-code-card__header"><h3>JavaScript 嵌入</h3><button type="button" class="small-action-button embed-copy-button" data-copy-embed="script" disabled><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#copy"></use></svg>复制代码</button></header>
-            <pre class="embed-code-block" data-embed-code="script" tabindex="0" hidden><code id="embedScriptCode"></code></pre>
-            <p class="embed-code-feedback" data-embed-feedback="script" role="status" aria-live="polite">请先选择全景图。</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="drawer-panel" data-panel="settings" hidden>
-        <div class="stack-form">
-          <label class="field"><span>服务端 API 地址</span><input id="apiBaseInput" class="text-input" type="url" placeholder="http://127.0.0.1:7210" autocomplete="url" /></label>
-          <p class="drawer-copy">保存后会在此浏览器记住地址，并立即重新连接服务。</p>
-          <button id="connectBtn" class="primary-button" type="button">保存并连接</button>
-          <p id="settingsStatus" class="form-status" role="status" aria-live="polite"></p>
-        </div>
-        <div class="drawer-divider"></div>
-        <div class="stack-form">
-          <h3>预览引擎</h3>
-          <label class="field"><span>全景渲染引擎</span>
-            <select id="viewerEngineSelect" class="text-input" disabled>
-              <option value="psv">Photo Sphere Viewer（默认）</option>
-              <option value="legacy">兼容球面引擎</option>
-            </select>
-          </label>
-          <p id="viewerEngineStatus" class="drawer-copy">连接服务后读取预览引擎设置。</p>
-        </div>
-        <div class="drawer-divider"></div>
-        <div class="stack-form media-storage-settings">
-          <h3>图片存储</h3>
-          <label class="field"><span>存储位置</span>
-            <select id="mediaStorageMode" class="text-input" disabled>
-              <option value="server">本地服务端</option>
-              <option value="client">本地客户端（仅此浏览器）</option>
-              <option value="sqlite">本地 SQLite</option>
-              <option value="cloud">云端 SQLite（Turso/libSQL）</option>
-            </select>
-          </label>
-          <p id="mediaStorageHelp" class="drawer-copy">连接服务后读取图片存储设置。</p>
-          <div id="cloudSettingsPanel" class="stack-form media-storage-cloud" hidden>
-            <label class="field"><span>云端数据库 URL</span><input id="cloudDatabaseUrlInput" class="text-input" type="url" placeholder="libsql://your-database.turso.io" autocomplete="url" /></label>
-            <label class="field"><span>访问 Token</span><input id="cloudTokenInput" class="text-input" type="password" placeholder="已配置时留空可保留原 Token" autocomplete="new-password" /></label>
-          </div>
-          <label class="field"><span>图片保存形式</span>
-            <select id="mediaFormatSelect" class="text-input" disabled>
-              <option value="original">保留原格式</option>
-              <option value="base64">Base64</option>
-              <option value="transcode">转码后保存</option>
-            </select>
-          </label>
-          <div id="transcodeSettings" class="stack-form media-storage-transcode" hidden>
-            <label class="field"><span>转码格式</span><select id="mediaCodecSelect" class="text-input"><option value="jpeg">JPEG</option><option value="png">PNG</option><option value="webp">WebP</option></select></label>
-            <label id="mediaQualityField" class="field"><span>图片质量 <output id="mediaQualityValue">85</output></span><input id="mediaQualityInput" class="text-input" type="range" min="1" max="100" value="85" /></label>
-          </div>
-          <p id="mediaStorageModeHelp" class="drawer-copy"></p>
-          <button id="saveMediaStorageBtn" class="primary-button" type="button" disabled>保存图片存储设置</button>
-          <p id="mediaStorageStatus" class="form-status" role="status" aria-live="polite"></p>
-        </div>
-        <div class="danger-zone">
-          <span>危险操作</span>
-          <p>清空后无法恢复当前图库记录，请谨慎使用。</p>
-          <button id="clearBtn" class="icon-action-button is-danger" type="button" aria-label="清空图库" title="清空图库"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#delete"></use></svg></button>
-        </div>
-      </section>
+        </section>
+      </div>
     </aside>
 
     <dialog id="renameDialog" class="toolbar-settings-dialog" aria-labelledby="renameDialogTitle">
-      <h2 id="renameDialogTitle">重命名</h2>
+      <h2 id="renameDialogTitle"><span data-i18n="common.rename">重命名</span></h2>
       <form id="renameForm" class="stack-form">
-        <label class="field"><span id="renameLabel">名称</span><input id="renameInput" class="text-input" type="text" maxlength="120" required /></label>
+        <label class="field"><span id="renameLabel"><span data-i18n="common.name">名称</span></span><input id="renameInput" class="text-input" type="text" maxlength="120" required /></label>
         <p id="renameStatus" class="form-status" role="status" aria-live="polite"></p>
-        <div class="toolbar-settings-actions"><button type="button" class="outlined-button" data-rename-close>取消</button><button id="renameSubmit" type="submit" class="primary-button">保存</button></div>
+        <div class="toolbar-settings-actions"><button type="button" class="outlined-button" data-rename-close><span data-i18n="common.cancel">取消</span></button><button id="renameSubmit" type="submit" class="primary-button" data-i18n="common.saveShort">保存</button></div>
       </form>
     </dialog>
 
     <div id="systemContextMenu" class="system-context-menu" role="menu" aria-label="系统信息" hidden>
       <div class="system-context-menu__summary">
         <strong id="systemNameText">XinT 全景系统</strong>
-        <span id="systemVersionText">版本待获取</span>
+        <span id="systemVersionText"><span data-i18n="widget.versionPending">版本待获取</span></span>
       </div>
       <div class="system-context-menu__divider" role="separator"></div>
       <a id="githubRepoLink" class="system-context-menu__link" href="https://github.com/XinTycd/XinT-Panorama-System" target="_blank" rel="noopener noreferrer" role="menuitem">
-        <span>进入 GitHub 仓库</span><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#external"></use></svg>
+        <span><span data-i18n="widget.repository">进入 GitHub 仓库</span></span><svg class="xint-icon xint-icon--small" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="./icons/sprite.svg#external"></use></svg>
       </a>
     </div>
 
+    <div id="consoleSettingsOverlay" class="console-settings-overlay" role="alert" aria-live="assertive" hidden>
+      <div class="console-settings-overlay__card">
+        <p id="consoleSettingsError" data-i18n="settings.bootstrapLoading">正在读取服务端控制台设置…</p>
+        <button id="consoleSettingsRetry" class="primary-button" type="button" data-i18n="settings.retry" hidden>重试</button>
+      </div>
+    </div>
+    <script src="./i18n.js"></script>
     <script src="./panorama-viewer.js"></script>
     <script src="./client-media.js"></script>
     <script src="./media-storage-form.js"></script>

@@ -201,9 +201,11 @@
       listen("before-render", onBeforeRender);
       instance.__xintListeners = boundListeners;
       element.tabIndex = 0;
-      element.setAttribute("aria-label", "XinT 全景查看器");
+      element.setAttribute("data-i18n-aria-label", "viewer.label");
+      element.setAttribute("aria-label", window.XinTI18n ? window.XinTI18n.t("viewer.label") : "XinT 全景查看器");
       var canvas = instance.renderer.renderer.domElement;
-      canvas.setAttribute("aria-label", "XinT 全景画布，拖动或使用方向键调整视角");
+      canvas.setAttribute("data-i18n-aria-label", "viewer.canvas");
+      canvas.setAttribute("aria-label", window.XinTI18n ? window.XinTI18n.t("viewer.canvas") : "XinT 全景画布，拖动或使用方向键调整视角");
       canvas.addEventListener("webglcontextlost", onContextLost, false);
       canvas.addEventListener("webglcontextrestored", onContextRestored, false);
       updatePixelRatio(instance);

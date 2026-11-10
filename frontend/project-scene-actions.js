@@ -47,7 +47,10 @@
       if (!projectPackage || !projectId || !scene || !scene.id) return false;
       const lockKey = connectionId + ":" + projectId;
       if (lockedProjects.has(lockKey)) return false;
-      if (!options.confirm("删除场景“" + scene.name + "”及其热点？项目和图库中的全景资源会保留。")) return false;
+      const confirmMessage = window.XinTI18n
+        ? window.XinTI18n.t("status.sceneDeleteConfirm", { name: scene.name })
+        : "删除场景“" + scene.name + "”及其热点？项目和图库中的全景资源会保留。";
+      if (!options.confirm(confirmMessage)) return false;
 
       lockedProjects.add(lockKey);
       options.setProjectDeleteButtonsDisabled(true);

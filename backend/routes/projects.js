@@ -4,6 +4,18 @@ const { STORAGE_DIR } = require("../sqlite");
 const { readGallery } = require("../store");
 const { sendJson, parseBody } = require("../api-http");
 
+function publicRelease(release) {
+  if (!release || !release.snapshot) return release;
+  const result = JSON.parse(JSON.stringify(release));
+  const assets = result.snapshot && result.snapshot.assets;
+  if (Array.isArray(assets)) assets.forEach(function projectPrivateAsset(asset) {
+    asset.viewerPath = "/api/panoramas/preview?id=" + encodeURIComponent(asset.id || "");
+    delete asset.originalUrl;
+    delete asset.thumbnailPath;
+  });
+  return result;
+}
+
 async function handleProjectApi(req, res, urlObject) {
   if (req.method === "GET" && urlObject.pathname === "/api/projects") {
     const result = await projectStore.listProjects({
@@ -120,7 +132,7 @@ async function handleProjectApi(req, res, urlObject) {
         await parseBody(req),
         { galleryItems: await readGallery() }
       );
-      sendJson(res, 201, { ok: true, release: release });
+      sendJson(res, 201, { ok: true, release: publicRelease(release) });
     } catch (error) {
       if (error.statusCode === 422 && error.report) {
         sendJson(res, 422, { ok: false, message: error.message, report: error.report });
@@ -216,7 +228,7 @@ async function handleProjectApi(req, res, urlObject) {
       sendJson(res, 404, { ok: false, message: "发布版本不存在" });
       return true;
     }
-    sendJson(res, 200, { ok: true, release: release });
+    sendJson(res, 200, { ok: true, release: publicRelease(release) });
     return true;
   }
 

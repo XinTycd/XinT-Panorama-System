@@ -21,6 +21,16 @@
       [hidden] {
         display: none !important;
       }
+      * { scrollbar-color: #8aa283 #26322f; scrollbar-width: thin; }
+      @supports selector(::-webkit-scrollbar) {
+        * { scrollbar-color: auto; scrollbar-width: auto; }
+        *::-webkit-scrollbar { width: 10px; height: 10px; }
+        *::-webkit-scrollbar-track { margin: 3px; border-radius: 999px; background: #26322f; }
+        *::-webkit-scrollbar-thumb { border: 2px solid #26322f; border-radius: 999px; background: #8aa283; }
+        *::-webkit-scrollbar-thumb:hover { background: #b4ca9a; }
+        *::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+        *::-webkit-scrollbar-corner { background: #26322f; }
+      }
       html,
       body {
         margin: 0;
@@ -95,32 +105,33 @@
   <body>
     <div class="shell">
       <div class="viewer-shell">
-        <div id="viewer"></div>
-        <div id="statusText" class="viewer-feedback" data-control="status" role="status" aria-live="polite">加载中...</div>
-        <div class="toolbar" role="toolbar" aria-label="全景查看工具">
-          <button id="prevBtn" class="button" data-control="previous" type="button" aria-label="上一张" title="上一张"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#previous"></use></svg></button>
-          <button id="nextBtn" class="button" data-control="next" type="button" aria-label="下一张" title="下一张"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#next"></use></svg></button>
-          <button id="autorotateBtn" class="button" data-control="autorotate" type="button" aria-label="自动旋转" title="自动旋转" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#refresh"></use></svg></button>
-          <button id="zoomOutBtn" class="button" data-control="zoom-out" type="button" aria-label="缩小视野" title="缩小视野"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#zoom-out"></use></svg></button>
-          <button id="zoomInBtn" class="button" data-control="zoom-in" type="button" aria-label="放大细节" title="放大细节"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#zoom-in"></use></svg></button>
-          <button id="focusBtn" class="button" data-control="focus" type="button" aria-label="聚焦" title="聚焦" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#focus"></use></svg></button>
-          <button id="directorBtn" class="button" data-control="director" type="button" aria-label="自动演示" title="自动演示" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#play"></use></svg></button>
-          <button id="resetBtn" class="button" data-control="reset" type="button" aria-label="重置视角" title="重置视角"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#retry"></use></svg></button>
-          <button id="fullscreenBtn" class="button" data-control="fullscreen" type="button" aria-label="全屏预览" title="全屏预览" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#fullscreen"></use></svg></button>
+        <div id="viewer" aria-label="XinT 全景查看器" data-i18n-aria-label="viewer.label"></div>
+        <div id="statusText" class="viewer-feedback" data-control="status" data-state="feedback" role="status" aria-live="polite">加载中...</div>
+        <div class="toolbar" role="toolbar" aria-label="全景查看工具" data-i18n-aria-label="widget.toolbar">
+          <button id="prevBtn" class="button" data-control="previous" type="button" aria-label="上一张" title="上一张" data-i18n-aria-label="widget.previous" data-i18n-title="widget.previous"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#previous"></use></svg></button>
+          <button id="nextBtn" class="button" data-control="next" type="button" aria-label="下一张" title="下一张" data-i18n-aria-label="widget.next" data-i18n-title="widget.next"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#next"></use></svg></button>
+          <button id="autorotateBtn" class="button" data-control="autorotate" type="button" aria-label="自动旋转" title="自动旋转" data-i18n-aria-label="widget.autorotate" data-i18n-title="widget.autorotate" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#refresh"></use></svg></button>
+          <button id="zoomOutBtn" class="button" data-control="zoom-out" type="button" aria-label="缩小视野" title="缩小视野" data-i18n-aria-label="widget.zoomOut" data-i18n-title="widget.zoomOut"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#zoom-out"></use></svg></button>
+          <button id="zoomInBtn" class="button" data-control="zoom-in" type="button" aria-label="放大细节" title="放大细节" data-i18n-aria-label="widget.zoomIn" data-i18n-title="widget.zoomIn"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#zoom-in"></use></svg></button>
+          <button id="focusBtn" class="button" data-control="focus" type="button" aria-label="聚焦" title="聚焦" data-i18n-aria-label="widget.focus" data-i18n-title="widget.focus" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#focus"></use></svg></button>
+          <button id="directorBtn" class="button" data-control="director" type="button" aria-label="自动演示" title="自动演示" data-i18n-aria-label="widget.director" data-i18n-title="widget.director" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#play"></use></svg></button>
+          <button id="resetBtn" class="button" data-control="reset" type="button" aria-label="重置视角" title="重置视角" data-i18n-aria-label="widget.reset" data-i18n-title="widget.reset"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#retry"></use></svg></button>
+          <button id="fullscreenBtn" class="button" data-control="fullscreen" type="button" aria-label="全屏预览" title="全屏预览" data-i18n-aria-label="widget.fullscreen" data-i18n-title="widget.fullscreen" aria-pressed="false"><svg class="xint-icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#fullscreen"></use></svg></button>
         </div>
-        <div id="systemContextMenu" class="widget-system-context-menu" role="menu" aria-label="系统信息" hidden>
+        <div id="systemContextMenu" class="widget-system-context-menu" role="menu" aria-label="系统信息" data-i18n-aria-label="widget.context" hidden>
           <div class="widget-system-context-menu__summary">
-            <strong id="systemNameText">芯添全景系统</strong>
-            <span id="systemVersionText">版本待获取</span>
+            <strong id="systemNameText" data-i18n="brand.name">芯添全景系统</strong>
+            <span id="systemVersionText" data-i18n="widget.versionPending">版本待获取</span>
           </div>
           <div class="widget-system-context-menu__divider" role="separator"></div>
           <a id="githubRepoLink" class="widget-system-context-menu__link" href="https://github.com/XinTycd/XinT-Panorama-System" target="_blank" rel="noopener noreferrer" role="menuitem">
-            <span>进入 GitHub 仓库</span><svg class="widget-system-context-menu__icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#external"></use></svg>
+            <span data-i18n="widget.repository">进入 GitHub 仓库</span><svg class="widget-system-context-menu__icon" aria-hidden="true" focusable="false" viewBox="0 0 256 256"><use href="/assets/icons.svg#external"></use></svg>
           </a>
         </div>
       </div>
     </div>
 
+    <script src="/assets/i18n.js"></script>
     <script src="/assets/panorama-viewer.js"></script>
     <script>
       (function initWidget() {
@@ -156,13 +167,29 @@
           autorotate: initialAutorotate,
           viewerController: null,
           viewerReady: false,
+          viewerEngine: null,
           pageHidden: false,
-          systemContextMenuReturnFocus: null
+          systemContextMenuReturnFocus: null,
+          readyPanoramaName: null,
+          statusMessageSource: "加载中...",
+          appNameSource: "芯添全景系统",
+          appVersionSource: "",
+          appRepositorySource: "https://github.com/XinTycd/XinT-Panorama-System"
         };
         var viewerShell = document.querySelector(".viewer-shell");
         var statusIsFeedback = true;
 
+        setWidgetStatus("加载中...", true);
         applyControlVisibility();
+        if (!window.XinTI18n.isSecureServiceUrl(apiBase)) {
+          setWidgetStatus(window.XinTI18n.t("error.secureServiceUrl"), true);
+          return;
+        }
+        if (externalImageUrl) {
+          hidePaging();
+          setWidgetStatus(window.XinTI18n.t("widget.importByNumber"), true);
+          return;
+        }
         bindEvents();
         var initialData = requestInitialData();
         fetch(apiBase + "/api/config").then(toJson).then(function useConfiguredViewer(config) {
@@ -219,15 +246,10 @@
 
         function initViewer(engine) {
           var legacy = engine === "legacy";
+          state.viewerEngine = engine;
           viewerShell.classList.toggle("is-legacy", legacy);
-          if (legacy) {
-            ["previous", "next", "autorotate", "focus", "director", "reset", "fullscreen"].forEach(function hideLegacyControl(name) {
-              visibleControls[name] = false;
-            });
-            applyControlVisibility();
-            refs.statusText.hidden = !statusIsFeedback;
-            updateControlContainers();
-          }
+          applyControlVisibility();
+          if (legacy) refs.statusText.hidden = !statusIsFeedback;
           state.viewerController = XinTPanoramaViewer.create({
             element: refs.viewer,
             engine: engine,
@@ -290,14 +312,22 @@
         }
 
         function renderAppInfo(app) {
-          app = app && typeof app === "object" ? app : {};
-          refs.systemNameText.textContent = typeof app.name === "string" && app.name.trim() ? app.name.trim() : "芯添全景系统";
-          refs.systemVersionText.textContent = typeof app.version === "string" && app.version.trim()
-            ? "版本 v" + app.version.trim().replace(/^v/i, "")
-            : "版本待获取";
-          if (typeof app.repositoryUrl === "string" && /^https?:\/\//i.test(app.repositoryUrl.trim())) {
-            refs.githubRepoLink.href = app.repositoryUrl.trim();
+          if (app && typeof app === "object") {
+            state.appNameSource = typeof app.name === "string" && app.name.trim() ? app.name.trim() : "芯添全景系统";
+            state.appVersionSource = typeof app.version === "string" ? app.version.trim().replace(/^v/i, "") : "";
+            state.appRepositorySource = typeof app.repositoryUrl === "string" && /^https?:\/\//i.test(app.repositoryUrl.trim())
+              ? app.repositoryUrl.trim()
+              : state.appRepositorySource;
           }
+          refs.systemNameText.removeAttribute("data-i18n");
+          refs.systemVersionText.removeAttribute("data-i18n");
+          refs.systemNameText.dataset.sourceName = state.appNameSource;
+          refs.systemVersionText.dataset.sourceVersion = state.appVersionSource;
+          refs.systemNameText.textContent = window.XinTI18n.translateMessage(state.appNameSource);
+          refs.systemVersionText.textContent = state.appVersionSource
+            ? window.XinTI18n.t("widget.version", { version: state.appVersionSource })
+            : window.XinTI18n.t("widget.versionPending");
+          refs.githubRepoLink.href = state.appRepositorySource;
         }
 
         function showSystemContextMenu(event) {
@@ -329,7 +359,6 @@
         }
 
         function requestInitialData() {
-          if (externalImageUrl) return Promise.resolve({});
           var route = fixedPanoramaNo
             ? "/api/panoramas/by-no?no=" + encodeURIComponent(fixedPanoramaNo)
             : "/api/gallery";
@@ -341,21 +370,6 @@
         }
 
         async function loadInitialData(initialData) {
-          if (externalImageUrl) {
-            hidePaging();
-            state.items = [
-              {
-                id: "external-image",
-                panoramaNo: null,
-                name: externalImageName,
-                sourceType: "external-url",
-                viewerUrl: apiBase + "/api/panoramas/proxy?url=" + encodeURIComponent(externalImageUrl)
-              }
-            ];
-            selectScene(0);
-            return;
-          }
-
           var result = await initialData;
           if (state.pageHidden) return;
           var payload = result.payload;
@@ -383,6 +397,7 @@
               return;
             }
           }
+          applyControlVisibility();
           selectScene(0);
         }
 
@@ -417,7 +432,7 @@
 
               if (loaded.stale) return;
               state.viewerReady = true;
-              setWidgetStatus("已就绪: " + item.name, false);
+              setWidgetReady(item.name);
             })
             .catch(function onError() {
               if (requestId !== state.requestId || controller !== state.viewerController) return;
@@ -435,7 +450,7 @@
         }
 
         function moveSelection(delta) {
-          if (fixedPanoramaNo || externalImageUrl || !state.items.length) {
+          if (fixedPanoramaNo || !state.items.length) {
             return;
           }
           selectScene((state.currentIndex + delta + state.items.length) % state.items.length);
@@ -449,7 +464,8 @@
         }
 
         function updateAutorotateText() {
-          var label = state.autorotate ? "停止旋转" : "自动旋转";
+          var label = window.XinTI18n.t(state.autorotate ? "widget.stopAutorotate" : "widget.autorotate");
+          setAttributeIfChanged(refs.autorotateBtn, "aria-pressed", state.autorotate ? "true" : "false");
           setAttributeIfChanged(refs.autorotateBtn, "aria-label", label);
           if (refs.autorotateBtn.title !== label) refs.autorotateBtn.title = label;
         }
@@ -464,8 +480,9 @@
           updateAutorotateText();
           updateDirectorText();
           refs.focusBtn.setAttribute("aria-pressed", isFocused ? "false" : "true");
-          refs.focusBtn.setAttribute("aria-label", isFocused ? "聚焦视野" : "退出聚焦");
-          refs.focusBtn.title = isFocused ? "聚焦视野" : "退出聚焦";
+          var focusLabel = window.XinTI18n.t(isFocused ? "widget.focusView" : "widget.exitFocus");
+          refs.focusBtn.setAttribute("aria-label", focusLabel);
+          refs.focusBtn.title = focusLabel;
         }
 
         function toggleDirector() {
@@ -498,8 +515,8 @@
           var currentView = view || state.viewerController.getView();
           var focused = currentView.fov <= 42;
           setAttributeIfChanged(refs.focusBtn, "aria-pressed", focused ? "true" : "false");
-          setAttributeIfChanged(refs.focusBtn, "aria-label", focused ? "退出聚焦" : "聚焦视野");
-          var focusTitle = focused ? "退出聚焦" : "聚焦视野";
+          var focusTitle = window.XinTI18n.t(focused ? "widget.exitFocus" : "widget.focusView");
+          setAttributeIfChanged(refs.focusBtn, "aria-label", focusTitle);
           if (refs.focusBtn.title !== focusTitle) refs.focusBtn.title = focusTitle;
           updateDirectorText();
         }
@@ -512,7 +529,7 @@
           setAttributeIfChanged(refs.directorBtn.querySelector("use"), "href", "/assets/icons.svg#" + (isPlaying ? "pause" : "play"));
           refs.directorBtn.classList.toggle("active", isPlaying);
           setAttributeIfChanged(refs.directorBtn, "aria-pressed", isPlaying ? "true" : "false");
-          var directorLabel = isPlaying ? "停止自动演示" : "自动演示";
+          var directorLabel = window.XinTI18n.t(isPlaying ? "widget.stopDirector" : "widget.director");
           setAttributeIfChanged(refs.directorBtn, "aria-label", directorLabel);
           if (refs.directorBtn.title !== directorLabel) refs.directorBtn.title = directorLabel;
         }
@@ -539,8 +556,9 @@
         function updateFullscreenButton() {
           var active = Boolean(document.fullscreenElement);
           refs.fullscreenBtn.setAttribute("aria-pressed", active ? "true" : "false");
-          refs.fullscreenBtn.setAttribute("aria-label", active ? "退出全屏" : "全屏预览");
-          refs.fullscreenBtn.title = active ? "退出全屏" : "全屏预览";
+          var label = window.XinTI18n.t(active ? "widget.exitFullscreen" : "widget.fullscreen");
+          refs.fullscreenBtn.setAttribute("aria-label", label);
+          refs.fullscreenBtn.title = label;
           refs.fullscreenBtn.querySelector("use").setAttribute("href", "/assets/icons.svg#" + (active ? "exit-fullscreen" : "fullscreen"));
         }
 
@@ -636,10 +654,28 @@
 
         function applyControlVisibility() {
           Array.prototype.forEach.call(document.querySelectorAll("[data-control]"), function updateControl(element) {
-            element.hidden = !visibleControls[element.getAttribute("data-control")];
+            var name = element.getAttribute("data-control");
+            var capable = true;
+            if (state.viewerEngine === "legacy" && ["previous", "next", "autorotate", "focus", "director", "reset", "fullscreen"].indexOf(name) !== -1) capable = false;
+            if ((name === "previous" || name === "next") && (fixedPanoramaNo || state.items.length < 2)) capable = false;
+            element.hidden = !visibleControls[name] || !capable;
           });
+          refs.statusText.hidden = !statusIsFeedback;
           updateControlContainers();
         }
+
+        function applyControlPreset(preset) {
+          if (preset !== "all" && preset !== "compact" && preset !== "none") return false;
+          visibleControls = resolveVisibleControls(preset, null);
+          applyControlVisibility();
+          return true;
+        }
+
+        try {
+          if (window.parent !== window && window.parent.location.origin === window.location.origin) {
+            window.XinTPanoramaWidget = Object.freeze({ setControlPreset: applyControlPreset });
+          }
+        } catch (_) { /* Cross-origin parents receive no widget control API. */ }
 
         function updateControlContainers() {
           [document.querySelector(".hud"), document.querySelector(".toolbar")].forEach(
@@ -654,12 +690,37 @@
           );
         }
 
+        function setWidgetReady(name) {
+          state.readyPanoramaName = String(name || "");
+          state.statusMessageSource = null;
+          statusIsFeedback = false;
+          if (refs.statusText.dataset) refs.statusText.dataset.state = "ready";
+          if (refs.statusText.setAttribute) refs.statusText.setAttribute("data-state", "ready");
+          refs.statusText.textContent = window.XinTI18n.t("widget.ready", { name: state.readyPanoramaName });
+          refs.statusText.hidden = true;
+          updateControlContainers();
+        }
+
         function setWidgetStatus(message, feedback) {
+          state.readyPanoramaName = null;
+          state.statusMessageSource = String(message || "");
           statusIsFeedback = feedback === true;
-          refs.statusText.textContent = message;
+          if (refs.statusText.dataset) refs.statusText.dataset.state = statusIsFeedback ? "feedback" : "ready";
+          if (refs.statusText.setAttribute) refs.statusText.setAttribute("data-state", statusIsFeedback ? "feedback" : "ready");
+          refs.statusText.textContent = window.XinTI18n ? window.XinTI18n.translateMessage(state.statusMessageSource) : state.statusMessageSource;
           refs.statusText.hidden = !statusIsFeedback;
           updateControlContainers();
         }
+
+        window.addEventListener("xint-language-change", function refreshWidgetMessages() {
+          if (state.readyPanoramaName !== null) refs.statusText.textContent = window.XinTI18n.t("widget.ready", { name: state.readyPanoramaName });
+          else if (state.statusMessageSource !== null) refs.statusText.textContent = window.XinTI18n.translateMessage(state.statusMessageSource);
+          renderAppInfo();
+          updateAutorotateText();
+          updateDirectorText();
+          updateFullscreenButton();
+          updateViewControlState();
+        });
       })();
     </script>
   </body>

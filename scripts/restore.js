@@ -51,6 +51,7 @@ async function main() {
       recursive: true,
       filter: function excludeBackupOnlyFiles(source) {
         const base = path.basename(source).toLowerCase();
+        if (path.resolve(source) === path.join(sourceDir, "protected-previews")) return false;
         return base !== "backup-manifest.json" && !/-wal$|-shm$|-journal$/.test(base);
       }
     });

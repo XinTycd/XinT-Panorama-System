@@ -26,3 +26,11 @@ backend/logs/
 logs/runtime/
 tests/.tmp/
 backups/
+
+/backend/public/demo/
+/scripts/demo-server.js
+/backend/demo-security.js
+/tests/demo-server.test.js
+/docs/DEMO.md
+backend/storage/*
+!backend/storage/.gitkeep

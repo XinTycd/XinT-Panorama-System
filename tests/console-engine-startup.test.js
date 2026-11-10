@@ -68,6 +68,27 @@ const loader = createLoader((tag, url) => {
   assert(sceneSelector.indexOf("state.currentIndex = index") < sceneSelector.indexOf("await requestedController.setPanorama(imageUrl)"), "Scene selection records the newest choice before asynchronous image resolution");
   assert(sceneSelector.includes("requestId !== state.requestId || state.viewerController !== requestedController"), "Old scene loads cannot replace a newer selection or viewer instance");
 
+  const connectBackend = extractFunction(app, "async function connectBackend(options)");
+  const invalidConnectionState = { apiBase: "https://current.example" };
+  let rejectedConnectionStatus = "";
+  let rejectedConnectionFocused = false;
+  const connectionContext = {
+    state: { ...invalidConnectionState, settingsReady: true },
+    refs: {
+      connectBtn: { disabled: false },
+      apiBaseInput: { value: "http://public.example", focus() { rejectedConnectionFocused = true; } },
+      settingsStatus: { set textContent(value) { rejectedConnectionStatus = value; } }
+    },
+    window: { XinTI18n: {
+      isSecureServiceUrl(value) { try { const url = new URL(value); return !url.username && !url.password && (url.protocol === "https:" || (url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))); } catch { return false; } },
+      t(key) { return key; }
+    } }
+  };
+  await vm.runInNewContext("(" + connectBackend + ")", connectionContext)();
+  assert.equal(invalidConnectionState.apiBase, "https://current.example", "An insecure HTTP backend does not replace the active service");
+  assert.equal(rejectedConnectionStatus, "error.secureServiceUrl", "Console shows the secure-service guidance");
+  assert.equal(rejectedConnectionFocused, true, "Console returns focus to the invalid address field");
+
   let psvLoadResolve;
   const initialized = [];
   const engineContext = {

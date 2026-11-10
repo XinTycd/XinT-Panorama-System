@@ -10,7 +10,7 @@ process.env.PANORAMA_STORAGE_DIR = TEST_STORAGE_DIR;
 
 const { createServer } = require("../backend/index");
 const { writeGallery, closeDatabase } = require("../backend/store");
-const { verifyReleaseSnapshot } = require("../backend/project-delivery");
+const { analyzeProject, verifyReleaseSnapshot } = require("../backend/project-delivery");
 
 function request(port, pathname, options) {
   const payload = options && options.body ? options.body : null;
@@ -21,12 +21,12 @@ function request(port, pathname, options) {
         port: port,
         path: pathname,
         method: (options && options.method) || "GET",
-        headers: payload
+        headers: Object.assign(payload
           ? {
               "Content-Type": "application/json",
               "Content-Length": Buffer.byteLength(payload)
             }
-          : {}
+          : {}, options && options.headers || {})
       },
       function onResponse(res) {
         const chunks = [];
@@ -100,6 +100,15 @@ async function run() {
     const demoPayload = JSON.parse(demo.body);
     assert.ok((demoPayload.items || []).length >= 1);
     assert.strictEqual(demoPayload.items[0].panoramaNo, 1);
+    const packagedDemo = demoPayload.items.find((item) => item.id === "demo-panorama");
+    assert(packagedDemo);
+    assert.equal(packagedDemo.name, "Example");
+    assert.equal(packagedDemo.group, "Example");
+    assert.equal(packagedDemo.originalUrl, null);
+    const demoPreview = await request(port, packagedDemo.viewerPath, { encoding: "latin1" });
+    assert.equal(demoPreview.statusCode, 200, "The built-in seed example has a protected raster preview");
+    const demoPreviewMeta = await sharp(Buffer.from(demoPreview.body, "latin1")).metadata();
+    assert.deepStrictEqual([demoPreviewMeta.width, demoPreviewMeta.height], [4096, 2048]);
 
     const createBuildingGroup = await request(port, "/api/gallery/groups", {
       method: "POST", body: JSON.stringify({ name: "  建筑  " })
@@ -163,11 +172,28 @@ async function run() {
     assert.strictEqual(head.headers["content-length"], thumbnail.headers["content-length"]);
     assert.strictEqual(head.body, "");
 
+    assert.strictEqual(uploadPayload.item.originalUrl, null);
+    assert.match(uploadPayload.item.viewerPath, /^\/api\/panoramas\/preview\?id=/);
+    const protectedImage = await request(port, uploadPayload.item.viewerPath, { encoding: "latin1" });
+    assert.strictEqual(protectedImage.statusCode, 200);
+    assert.strictEqual(protectedImage.headers["content-type"], "image/webp");
+    assert.notStrictEqual(Buffer.from(protectedImage.body, "latin1").toString("hex"), panoramaFixture.toString("hex"));
+    const protectedMetadata = await sharp(Buffer.from(protectedImage.body, "latin1")).metadata();
+    assert.deepStrictEqual([protectedMetadata.width, protectedMetadata.height], [640, 320]);
+    const rawImageName = fs.readdirSync(uploadsDir)[0];
+    const rawPath = "/media/uploads/" + encodeURIComponent(rawImageName);
+    for (const [candidate, method, headers] of [
+      [rawPath, "GET", {}], [rawPath, "HEAD", {}], [rawPath, "GET", { Range: "bytes=0-15" }],
+      ["/media%2Fuploads%2F" + encodeURIComponent(rawImageName), "GET", {}]
+    ]) {
+      assert.strictEqual((await request(port, candidate, { method, headers })).statusCode, 404);
+    }
+
     const databaseRecord = await request(port, "/api/panoramas/create", {
       method: "POST",
       body: JSON.stringify({
         title: "database-panorama",
-        imageUrl: "https://example.com/panorama.jpg",
+        imageUrl: rawPath,
         panoramaNo: 2001,
         group: "  建筑  "
       })
@@ -177,12 +203,13 @@ async function run() {
     assert.strictEqual(databasePayload.item.panoramaNo, 2001);
     assert.strictEqual(databasePayload.item.name, "database-panorama");
     assert.strictEqual(databasePayload.item.sourceType, "database-record");
-    assert.strictEqual(databasePayload.item.thumbnailUrl, "https://example.com/panorama.jpg");
+    assert.match(databasePayload.item.thumbnailUrl, /\/api\/panoramas\/thumbnail\?id=/);
+    assert.match(databasePayload.item.viewerUrl, /\/api\/panoramas\/preview\?id=/);
     assert.strictEqual(databasePayload.item.group, "建筑");
 
     const missingGroupItem = await request(port, "/api/panoramas/create", {
       method: "POST",
-      body: JSON.stringify({ imageUrl: "https://example.com/missing-group.jpg", group: "not-created" })
+      body: JSON.stringify({ imageUrl: rawPath, group: "not-created" })
     });
     assert.strictEqual(missingGroupItem.statusCode, 400);
     assert.strictEqual(JSON.parse(missingGroupItem.body).message.includes("先创建"), true);
@@ -195,7 +222,7 @@ async function run() {
     assert.strictEqual(JSON.parse(updateGroup.body).item.group, "室内");
     const duplicateImageAddress = await request(port, "/api/panoramas/create", {
       method: "POST",
-      body: JSON.stringify({ imageUrl: "https://example.com/panorama.jpg", name: "same address" })
+      body: JSON.stringify({ id: databasePayload.item.id, imageUrl: rawPath, name: "same address" })
     });
     assert.strictEqual(duplicateImageAddress.statusCode, 200);
     assert.strictEqual(JSON.parse(duplicateImageAddress.body).item.id, databasePayload.item.id);
@@ -203,14 +230,14 @@ async function run() {
     const groupsAfterUpdates = JSON.parse((await request(port, "/api/gallery/groups")).body).items;
     assert.deepStrictEqual(groupsAfterUpdates.find((group) => group.name === "建筑"), { name: "建筑", count: 0 });
     assert.deepStrictEqual(groupsAfterUpdates.find((group) => group.name === "室内"), { name: "室内", count: 1 });
-    assert.deepStrictEqual(groupsAfterUpdates.find((group) => group.name === ""), { name: "", count: 2 });
+    assert.deepStrictEqual(groupsAfterUpdates.find((group) => group.name === ""), { name: "", count: 1 });
     const deleteInteriorGroup = await request(port, "/api/gallery/groups?name=" + encodeURIComponent("室内"), { method: "DELETE" });
     assert.strictEqual(deleteInteriorGroup.statusCode, 200);
     assert.deepStrictEqual(JSON.parse(deleteInteriorGroup.body).group, { name: "室内", movedToUngrouped: 1 });
     assert.strictEqual((await request(port, "/api/gallery/groups?name=" + encodeURIComponent("室内"), { method: "DELETE" })).statusCode, 404);
     assert.strictEqual(JSON.parse((await request(port, "/api/panoramas/by-no?no=2001")).body).item.group, "");
     const groupsAfterDelete = JSON.parse((await request(port, "/api/gallery/groups")).body).items;
-    assert.deepStrictEqual(groupsAfterDelete.find((group) => group.name === ""), { name: "", count: 3 });
+    assert.deepStrictEqual(groupsAfterDelete.find((group) => group.name === ""), { name: "", count: 2 });
     assert.deepStrictEqual(groupsAfterDelete.find((group) => group.name === "空组"), { name: "空组", count: 0 });
     const invalidLongGroup = await request(port, "/api/panoramas/update", {
       method: "POST",
@@ -220,7 +247,7 @@ async function run() {
 
     const autoNumberOne = await request(port, "/api/panoramas/create", {
       method: "POST",
-      body: JSON.stringify({ imageUrl: "/media/uploads/auto-one.jpg" })
+      body: JSON.stringify({ imageUrl: rawPath })
     });
     assert.strictEqual(autoNumberOne.statusCode, 200);
     const autoNumberOneItem = JSON.parse(autoNumberOne.body).item;
@@ -229,7 +256,7 @@ async function run() {
     assert.strictEqual(deleteAutoNumberOne.statusCode, 200);
     const autoNumberTwo = await request(port, "/api/panoramas/create", {
       method: "POST",
-      body: JSON.stringify({ imageUrl: "/media/uploads/auto-two.jpg" })
+      body: JSON.stringify({ imageUrl: rawPath })
     });
     assert.strictEqual(JSON.parse(autoNumberTwo.body).item.panoramaNo, 2003);
 
@@ -335,9 +362,9 @@ async function run() {
     const diagnosticsPayload = JSON.parse(diagnostics.body);
     assert.strictEqual(diagnostics.statusCode, 200);
     assert.strictEqual(diagnosticsPayload.report.ready, true);
-    assert.strictEqual(diagnosticsPayload.report.offlineSafe, false);
+    assert.strictEqual(diagnosticsPayload.report.offlineSafe, true);
     assert.ok(diagnosticsPayload.report.score >= 80);
-    assert.ok(diagnosticsPayload.report.checks.some(function hasRemoteDependency(check) {
+    assert.ok(!diagnosticsPayload.report.checks.some(function hasRemoteDependency(check) {
       return check.id === "REMOTE_ASSET_DEPENDENCY";
     }));
 
@@ -398,9 +425,9 @@ async function run() {
     assert.strictEqual(releaseVerification.statusCode, 200);
     assert.strictEqual(releaseVerificationPayload.verification.verified, true);
     assert.strictEqual(releaseVerificationPayload.verification.snapshotVerified, true);
-    assert.strictEqual(releaseVerificationPayload.verification.allAssetsVerified, false);
-    assert.ok(releaseVerificationPayload.verification.assetResults.some(function unverifiedRemote(asset) {
-      return asset.status === "remote" && asset.verified === null && asset.verification === "not-checked";
+    assert.strictEqual(releaseVerificationPayload.verification.allAssetsVerified, true);
+    assert.ok(releaseVerificationPayload.verification.assetResults.every(function verifiedSource(asset) {
+      return asset.verified === true;
     }));
 
     const tamperedSnapshot = JSON.parse(JSON.stringify(releasePayload.release.snapshot));
@@ -496,7 +523,11 @@ async function run() {
     assert.ok(unreachableReport.checks.some(function findsUnreachableScene(check) {
       return check.id === "SCENE_UNREACHABLE" && check.entityId === unreachableSceneId && check.level === "warning";
     }));
-    assert.strictEqual(unreachableReport.stats.remoteDependencies, 1);
+    assert.strictEqual(unreachableReport.stats.remoteDependencies, 0, "A local SQLite image does not create a remote dependency");
+    const remoteDiagnostic = analyzeProject({
+      project: { id: "remote-fixture" }, scenes: [{ id: "remote-scene", name: "Remote", panoramaId: "remote-asset" }], hotspots: []
+    }, [{ id: "remote-asset", name: "Remote image", viewerPath: "https://cdn.example.test/panorama.jpg", originalUrl: "https://cdn.example.test/panorama.jpg", width: 2000, height: 1000 }], TEST_STORAGE_DIR);
+    assert.strictEqual(remoteDiagnostic.stats.remoteDependencies, 1, "A genuinely remote image remains an offline delivery dependency");
 
     const cascadeProjectResponse = await request(port, "/api/projects", {
       method: "POST",
@@ -543,26 +574,29 @@ async function run() {
     assert.strictEqual((await request(port, "/api/projects/" + cascadeProject.id)).statusCode, 404);
     assert.strictEqual((await request(port, "/api/releases/" + cascadeRelease.id)).statusCode, 404);
 
+    const uploadsBeforeUnused = new Set(fs.readdirSync(uploadsDir));
     const unusedUploadResponse = await request(port, "/api/panoramas/upload-base64", {
       method: "POST",
-      body: JSON.stringify({ name: "待删除文件", dataUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9nK3sAAAAASUVORK5CYII=" })
+      body: JSON.stringify({ name: "待删除文件", dataUrl: "data:image/png;base64," + panoramaFixture.toString("base64") })
     });
     assert.strictEqual(unusedUploadResponse.statusCode, 200);
     const unusedUpload = JSON.parse(unusedUploadResponse.body).item;
-    const retainedFilePath = path.join(TEST_STORAGE_DIR, "uploads", decodeURIComponent(unusedUpload.viewerPath.split("/").pop()));
+    const addedSource = fs.readdirSync(uploadsDir).find((name) => !uploadsBeforeUnused.has(name));
+    assert(addedSource);
+    const retainedFilePath = path.join(uploadsDir, addedSource);
     const deleteUnusedUpload = await request(port, "/api/panoramas/" + unusedUpload.id, { method: "DELETE" });
     assert.strictEqual(deleteUnusedUpload.statusCode, 200);
     assert.strictEqual(fs.existsSync(retainedFilePath), true);
 
     const blockedProxy = await request(port, "/api/panoramas/proxy?url=" + encodeURIComponent("http://127.0.0.1/secret"));
-    assert.strictEqual(blockedProxy.statusCode, 403);
+    assert.strictEqual(blockedProxy.statusCode, 410);
 
     const galleryClear = await request(port, "/api/gallery/clear", { method: "POST", body: JSON.stringify({}) });
     assert.strictEqual(galleryClear.statusCode, 200);
     assert.strictEqual(fs.existsSync(retainedFilePath), true);
     const groupsAfterClear = JSON.parse((await request(port, "/api/gallery/groups")).body).items;
-    assert.deepStrictEqual(groupsAfterClear.filter((group) => group.name).map((group) => group.name).sort(), ["建筑", "空组"]);
-    assert.deepStrictEqual(groupsAfterClear.filter((group) => group.name).map((group) => group.count), [0, 0]);
+    assert.deepStrictEqual(groupsAfterClear.filter((group) => group.name).map((group) => group.name).sort(), ["Example", "建筑", "空组"]);
+    assert.deepStrictEqual(groupsAfterClear.filter((group) => group.name).map((group) => group.count), [0, 0, 0]);
     const releaseAfterGalleryClear = await request(port, "/api/releases/" + releasePayload.release.id + "/verify");
     assert.strictEqual(releaseAfterGalleryClear.statusCode, 200);
     assert.strictEqual(JSON.parse(releaseAfterGalleryClear.body).verification.verified, true);
@@ -571,7 +605,7 @@ async function run() {
       method: "POST",
       body: JSON.stringify({
         name: "compact-response",
-        dataUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9nK3sAAAAASUVORK5CYII="
+        dataUrl: "data:image/png;base64," + panoramaFixture.toString("base64")
       })
     });
     assert.strictEqual(compactUpload.statusCode, 200);
@@ -579,9 +613,9 @@ async function run() {
     assert.deepStrictEqual(Object.keys(compactUploadPayload).sort(), ["item", "ok"]);
     const compactByNo = await request(port, "/api/panoramas/by-no?no=" + compactUploadPayload.item.panoramaNo);
     assert.strictEqual(JSON.parse(compactByNo.body).item.id, compactUploadPayload.item.id);
-    const fallbackThumbnail = await request(port, compactUploadPayload.item.thumbnailPath);
-    assert.strictEqual(fallbackThumbnail.statusCode, 302);
-    assert.strictEqual(fallbackThumbnail.headers.location, compactUploadPayload.item.viewerPath);
+    const compactThumbnail = await request(port, compactUploadPayload.item.thumbnailPath);
+    assert.strictEqual(compactThumbnail.statusCode, 200);
+    assert.strictEqual(compactThumbnail.headers["content-type"], "image/webp");
     const deleteCompactUpload = await request(port, "/api/panoramas/" + compactUploadPayload.item.id, { method: "DELETE" });
     assert.strictEqual(deleteCompactUpload.statusCode, 200);
     assert.strictEqual((await request(port, compactUploadPayload.item.thumbnailPath)).statusCode, 404);
