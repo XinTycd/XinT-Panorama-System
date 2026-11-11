@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.5 — 2026-11-11
+
+- Stop returning stored panorama files and source URLs from public API responses. Serve metadata-free, lossless previews and generated thumbnails; remote imports require HTTPS and validate DNS destinations, while the raw-image proxy is retired.
+- Store the API address, built-in plugin state, embed preset, and toolbar visibility in server-side console settings. Keep only the language choice in the browser.
+- Add Simplified Chinese, Traditional Chinese, and English console interfaces with language selection in Settings; improve copy feedback, hidden-control labels, and scrollbar styling.
+
+See the [English release notes](docs/releases/v0.2.5.md) and [简体中文版本](docs/releases/v0.2.5-zh-CN.md).
+
 ## v0.2.4 — 2026-11-03
 
 - Load only the configured engine at console startup and request gallery metadata alongside configuration.
