@@ -1,12 +1,16 @@
-# XinT Panorama System
-
-**English** | [简体中文](./README.zh-CN.md)
-
-Self-hosted 720° panorama viewer for embedding in websites.
-
-[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite)](https://sqlite.org/)
-[![Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue)](./LICENSE)
+<div align="center">
+  <img src="./frontend/brand/favicon.svg" width="88" height="88" alt="XinT Panorama System" />
+  <h1>XinT Panorama System</h1>
+  <p>Self-hosted 720° panorama viewer for embedding in websites.</p>
+  <p>
+    <a href="https://github.com/XinTycd/XinT-Panorama-System/actions/workflows/build.yml"><img src="https://github.com/XinTycd/XinT-Panorama-System/actions/workflows/build.yml/badge.svg?branch=main" alt="Build" /></a>
+    <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24%2B-339933?logo=nodedotjs&amp;logoColor=white" alt="Node.js 24+" /></a>
+    <a href="https://sqlite.org/"><img src="https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite" alt="SQLite" /></a>
+    <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue" alt="Apache-2.0" /></a>
+  </p>
+  <p><strong>English</strong> | <a href="./README.zh-CN.md">简体中文</a></p>
+  <p><a href="https://panorama.nbxint.com/">Live demo</a> · <a href="#quick-start">Quick start</a> · <a href="#documentation">Documentation</a></p>
+</div>
 
 ## Project background
 
@@ -41,9 +45,9 @@ The script creates a responsive iframe in the container and clears that containe
 ></iframe>
 ```
 
-For direct image embedding, use the widget's `imageUrl` query parameter; the widget loads that image through the XinT service's image proxy. See the [embedding guide](./docs/EMBEDDING.md) for supported parameters, host requirements, and image handling.
+Import an image into the gallery first, then embed it by its panorama number. See the [embedding guide](./docs/EMBEDDING.md) for supported parameters, host requirements, and image handling.
 
-The iframe keeps viewer scripts and styles separate from the host page. Embedding does not re-encode the panorama. Original image bytes can be kept with original-format storage, or with an untranscoded Base64 storage option; image transcoding is a separate storage setting. Displayed detail still depends on the browser, device, and available texture size.
+The iframe keeps viewer scripts and styles separate from the host page. Public gallery previews use a metadata-free, lossless derivative that preserves decoded pixels and source dimensions; the stored source remains in the selected storage backend. Upload transcoding is a separate storage setting. Displayed detail still depends on the browser, device, and available texture size.
 
 ![Embedded 720° viewer with the compact toolbar](docs/assets/embed-preview-cc0-cb0de530.jpg)
 
@@ -64,7 +68,7 @@ The API, widget, embed script, and viewer assets are served from port 7210 by de
 
 The console manages panorama images, gallery groups, project scenes, and hotspots. It also provides image preview and embed debugging. A widget embed displays one panorama rather than a whole project.
 
-The project workspace is a built-in console plugin and is disabled by default. Use the Enable and Disable buttons in the Plugins drawer to show or hide project and scene controls. Its state is stored in the current browser.
+The project workspace is a built-in console plugin and is disabled by default. Use the Enable and Disable buttons in the Plugins drawer to show or hide project and scene controls. Its state and all console preferences except the language choice are saved in the server's local `console-settings.json` file.
 
 ![XinT Panorama management console](docs/assets/studio-preview-cc0-c68ed218.jpg)
 
@@ -72,7 +76,7 @@ Panorama: [Rural Landscape](https://polyhaven.com/a/rural_landscape) by Sergej M
 
 Gallery images can be uploaded or registered by URL, grouped and filtered, and browsed eight per page. Project scenes and hotspots can be imported or exported as project JSON.
 
-The Embedding drawer generates copyable iframe and JavaScript snippets for a selected server panorama, with full, compact, and no-toolbar presets.
+The Embedding drawer generates copyable iframe and JavaScript snippets for a selected server panorama, with full, compact, and no-toolbar presets. The console language picker is inside Settings.
 
 ## Configuration
 
@@ -109,6 +113,7 @@ Development requires Node.js 24. `npm run build:vendor` creates the local viewer
 - [Deployment](./docs/DEPLOYMENT.md) (Chinese)
 - [API reference](./docs/API.md) (Chinese)
 - [Embedding guide](./docs/EMBEDDING.md) (Chinese)
+- [v0.2.5 release notes](./docs/releases/v0.2.5.md)
 - [v0.2.4 release notes](./docs/releases/v0.2.4.md)
 - [Changelog](./CHANGELOG.md)
 

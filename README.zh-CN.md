@@ -1,12 +1,16 @@
-# XinT Panorama System
-
-[English](./README.md) | **简体中文**
-
-可自行部署、用于嵌入现有网站的 720° 全景查看器。
-
-[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite)](https://sqlite.org/)
-[![Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue)](./LICENSE)
+<div align="center">
+  <img src="./frontend/brand/favicon.svg" width="88" height="88" alt="XinT Panorama System" />
+  <h1>XinT Panorama System</h1>
+  <p>可自行部署、用于嵌入现有网站的 720° 全景查看器。</p>
+  <p>
+    <a href="https://github.com/XinTycd/XinT-Panorama-System/actions/workflows/build.yml"><img src="https://github.com/XinTycd/XinT-Panorama-System/actions/workflows/build.yml/badge.svg?branch=main" alt="Build" /></a>
+    <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24%2B-339933?logo=nodedotjs&amp;logoColor=white" alt="Node.js 24+" /></a>
+    <a href="https://sqlite.org/"><img src="https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite" alt="SQLite" /></a>
+    <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue" alt="Apache-2.0" /></a>
+  </p>
+  <p><a href="./README.md">English</a> | <strong>简体中文</strong></p>
+  <p><a href="https://panorama.nbxint.com/">在线演示</a> · <a href="#快速开始">快速开始</a> · <a href="#文档">文档</a></p>
+</div>
 
 ## 项目背景
 
@@ -41,9 +45,9 @@ DJI Osmo 360、Insta360 这类消费级全景相机越来越常见，个人创�
 ></iframe>
 ```
 
-直接嵌入图片时，可使用 widget 的 `imageUrl` 查询参数；widget 会通过 XinT 服务的图片代理加载该图片。支持参数、宿主要求和图片处理方式见[嵌入说明](./docs/EMBEDDING.md)。
+请先将图片导入图库，再按全景编号嵌入。支持参数、宿主要求和图片处理方式见[嵌入说明](./docs/EMBEDDING.md)。
 
-iframe 将查看器脚本与样式隔离在独立页面中。嵌入不会重新编码全景图片；使用原格式存储或未转码的 Base64 存储可保留原始图片字节。图片转码是单独的存储选项。实际显示细节仍受浏览器、设备和可用纹理尺寸限制。
+iframe 将查看器脚本与样式隔离在独立页面中。图库公开预览使用移除元数据的无损派生图，保留解码像素和源尺寸；存储源文件保留在所选存储后端。上传转码是单独的存储选项。实际显示细节仍受浏览器、设备和可用纹理尺寸限制。
 
 ![使用精简工具栏的嵌入式 720° 全景查看器](docs/assets/embed-preview-cc0-cb0de530.jpg)
 
@@ -64,7 +68,7 @@ API、widget、嵌入脚本和查看器资源默认由 7210 端口提供。管�
 
 控制台用于管理全景图片、图库分组、项目场景和热点，也可预览图片并调试嵌入设置。嵌入 widget 展示单张全景图片，不会展示整个项目。
 
-项目工作区是默认禁用的内置插件。在“插件”抽屉中使用“启用”和“禁用”按钮，可显示或隐藏项目和场景入口。状态保存在当前浏览器。
+项目工作区是默认禁用的内置插件。在“插件”抽屉中使用“启用”和“禁用”按钮，可显示或隐藏项目和场景入口。插件状态及语言偏好之外的控制台偏好保存在服务端的 `console-settings.json`。
 
 ![XinT Panorama 管理控制台](docs/assets/studio-preview-cc0-c68ed218.jpg)
 
@@ -72,7 +76,7 @@ API、widget、嵌入脚本和查看器资源默认由 7210 端口提供。管�
 
 图库支持上传或登记图片 URL、分组与筛选，每页浏览 8 项。项目场景和热点可通过项目 JSON 导入或导出。
 
-嵌入接入抽屉会为选中的服务端全景图生成可复制的 iframe 和 JavaScript 代码，并提供完整、精简和无工具栏三种预设。
+嵌入接入抽屉会为选中的服务端全景图生成可复制的 iframe 和 JavaScript 代码，并提供完整、精简和隐藏三种控件预设。控制台语言入口位于“设置”抽屉内。
 
 ## 配置
 
@@ -109,6 +113,7 @@ npm run build:vendor
 - [部署指南](./docs/DEPLOYMENT.md)
 - [API 参考](./docs/API.md)
 - [嵌入说明](./docs/EMBEDDING.md)
+- [v0.2.5 发布说明](./docs/releases/v0.2.5-zh-CN.md)
 - [v0.2.4 发布说明](./docs/releases/v0.2.4-zh-CN.md)
 - [变更记录](./CHANGELOG.md)
 
