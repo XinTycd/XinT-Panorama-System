@@ -29,7 +29,7 @@
 | --- | --- | --- |
 | GET | `/api/gallery` | 查询全部图库记录 |
 | GET | `/api/panoramas/by-no?no=1` | 按图库编号查询 |
-| GET/HEAD | `/api/panoramas/preview?id=...` | 获取移除元数据、保留解码像素和原尺寸的无损派生预览 |
+| GET/HEAD | `/api/panoramas/preview?id=...` | 获取受保护的预览，可选 `width=1024`、`2048`、`4096` 或 `8192` |
 | GET/HEAD | `/api/panoramas/thumbnail?id=...` | 获取安全预览的 WebP 缩略图，最长边不超过 320 像素 |
 | POST | `/api/panoramas/create` | 注册已有图片地址/记录 |
 | POST | `/api/panoramas/register` | 注册远程图片链接 |
@@ -57,7 +57,9 @@
 
 图库项的公开预览地址为 `/api/panoramas/preview?id=...`，缩略图地址为 `/api/panoramas/thumbnail?id=...`。远程原图代理已关闭；`/widget?imageUrl=...` 不再加载外部图片，需先调用 `/api/panoramas/register` 或 `/api/panoramas/create` 导入，再使用 `panoramaNo`。
 
-图库响应中的 `viewerPath`、`viewerUrl` 与 `thumbnailUrl` 指向受保护的预览端点，不返回存储源路径或原始 URL。服务端仅为可解码的静态图片生成移除元数据的无损派生图，保留解码像素和尺寸；缩略图也由派生图生成。原始媒体保存在所选本地、SQLite 或云端存储中。浏览器专属图片没有服务端预览 URL。解码失败、源文件不存在或处理队列已满时，请求返回错误，不回退发送原图。
+图库响应中的 `viewerPath`、`viewerUrl` 与 `thumbnailUrl` 指向受保护的预览端点，不返回存储源路径或原始 URL。服务端从可解码的静态图片生成移除元数据的预览和缩略图。原始媒体保存在所选本地、SQLite 或云端存储中。浏览器专属图片没有服务端预览 URL。解码失败、源文件不存在或处理队列已满时，请求返回错误，不回退发送原图。
+
+`width` 限制派生图的最长边。服务端等比缩小，小于请求尺寸的图保持原尺寸。缩小后的 1024、2048 档使用高质量 WebP 编码，4096、8192 档使用无损编码。省略参数时返回全尺寸无损派生图。
 
 ## 项目、场景、热点
 

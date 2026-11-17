@@ -1107,7 +1107,7 @@
       var imageUrl = await resolveItemImageUrl(item, false);
       if (!imageUrl) throw new Error("当前图片资源不可用");
       if (connectionId !== state.connectionId || requestId !== state.requestId || state.viewerController !== nextController) return;
-      var result = await nextController.setPanorama(imageUrl);
+      var result = await nextController.setPanorama(imageUrl, { adaptive: item });
       if (connectionId !== state.connectionId || requestId !== state.requestId || state.viewerController !== nextController || result.stale) return;
       nextController.setView(savedView, 0);
       state.viewerReady = true;
@@ -1866,7 +1866,7 @@
       var imageUrl = await resolveItemImageUrl(item, false);
       if (!imageUrl) throw new Error("这张图片保存在上传时的浏览器中，当前浏览器找不到本地副本；请在此浏览器重新上传。");
       if (connectionId !== state.connectionId || requestId !== state.requestId || state.viewerController !== requestedController) return;
-      var loaded = await requestedController.setPanorama(imageUrl);
+      var loaded = await requestedController.setPanorama(imageUrl, { adaptive: item });
       if (connectionId !== state.connectionId || requestId !== state.requestId || state.viewerController !== requestedController) {
         return;
       }

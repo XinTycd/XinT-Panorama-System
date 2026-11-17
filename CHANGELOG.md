@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.6 — 2026-11-17
+
+- Start protected PSV previews at a smaller resolution, then increase detail as the viewport and zoom require.
+- Keep the panorama visible if a higher-resolution preview fails.
+
 ## v0.2.5 — 2026-11-11
 
 - Stop returning stored panorama files and source URLs from public API responses. Serve metadata-free, lossless previews and generated thumbnails; remote imports require HTTPS and validate DNS destinations, while the raw-image proxy is retired.

@@ -109,6 +109,14 @@ async function run() {
     assert.equal(demoPreview.statusCode, 200, "The built-in seed example has a protected raster preview");
     const demoPreviewMeta = await sharp(Buffer.from(demoPreview.body, "latin1")).metadata();
     assert.deepStrictEqual([demoPreviewMeta.width, demoPreviewMeta.height], [4096, 2048]);
+    const smallPreview = await request(port, packagedDemo.viewerPath + "&width=1024", { encoding: "latin1" });
+    assert.equal(smallPreview.statusCode, 200);
+    const smallMeta = await sharp(Buffer.from(smallPreview.body, "latin1")).metadata();
+    assert.deepEqual([smallMeta.width, smallMeta.height], [1024, 512]);
+    assert(smallPreview.body.length < demoPreview.body.length, "The initial tier transfers fewer bytes");
+    for (const query of ["&width=1920", "&width=1024&width=2048", "&width=1e3"]) {
+      assert.equal((await request(port, packagedDemo.viewerPath + query)).statusCode, 400);
+    }
 
     const createBuildingGroup = await request(port, "/api/gallery/groups", {
       method: "POST", body: JSON.stringify({ name: "  建筑  " })

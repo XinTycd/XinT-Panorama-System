@@ -111,8 +111,13 @@ async function handleGalleryApi(req, res, urlObject, baseUrl) {
     if (!galleryModeAllowed()) return rejectMode(res, "database/external/upload");
     const item = readItemById(urlObject.searchParams.get("id") || "");
     if (!item || item.sourceType === "client-upload") return sendApiJson(res, 404, { ok: false, message: "安全预览不存在" });
+    const widths = urlObject.searchParams.getAll("width");
+    const width = widths.length ? Number(widths[0]) : undefined;
+    if (widths.length && (widths.length !== 1 || String(width) !== widths[0] || !protectedPreview.PREVIEW_WIDTHS.has(width))) {
+      return sendApiJson(res, 400, { ok: false, message: "不支持的预览分辨率" });
+    }
     let preview;
-    try { preview = await protectedPreview.preparePreview(item); }
+    try { preview = await protectedPreview.preparePreview(item, width); }
     catch (error) { return sendApiJson(res, error.statusCode === 404 ? 404 : (error.statusCode || 503), { ok: false, message: error.statusCode === 422 ? "该图片格式无法生成安全预览" : "安全预览暂时不可用" }); }
     streamFile(req, res, preview.path, { cors: true, cacheControl: "private, max-age=3600", headers: { "Content-Type": preview.mime, "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox; default-src 'none'", "Cross-Origin-Resource-Policy": "cross-origin" } });
     return true;

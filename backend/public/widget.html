@@ -426,7 +426,7 @@
           state.viewerReady = false;
           setWidgetStatus("加载中...", true);
 
-          controller.setPanorama(resolveItemViewerUrl(item, apiBase))
+          controller.setPanorama(resolveItemViewerUrl(item, apiBase), { adaptive: item })
             .then(function onLoaded(loaded) {
               if (requestId !== state.requestId || controller !== state.viewerController) return;
 

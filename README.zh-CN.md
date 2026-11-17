@@ -47,7 +47,7 @@ DJI Osmo 360、Insta360 这类消费级全景相机越来越常见，个人创�
 
 请先将图片导入图库，再按全景编号嵌入。支持参数、宿主要求和图片处理方式见[嵌入说明](./docs/EMBEDDING.md)。
 
-iframe 将查看器脚本与样式隔离在独立页面中。图库公开预览使用移除元数据的无损派生图，保留解码像素和源尺寸；存储源文件保留在所选存储后端。上传转码是单独的存储选项。实际显示细节仍受浏览器、设备和可用纹理尺寸限制。
+iframe 将查看器脚本与样式隔离在独立页面中。Photo Sphere Viewer 先加载较小的预览图，在视口增大或访客放大画面时提升清晰度。视图需要更高细节且设备支持时，可加载全尺寸无损派生图。存储的源文件始终保留在服务端。
 
 ![使用精简工具栏的嵌入式 720° 全景查看器](docs/assets/embed-preview-cc0-cb0de530.jpg)
 
@@ -113,8 +113,6 @@ npm run build:vendor
 - [部署指南](./docs/DEPLOYMENT.md)
 - [API 参考](./docs/API.md)
 - [嵌入说明](./docs/EMBEDDING.md)
-- [v0.2.5 发布说明](./docs/releases/v0.2.5-zh-CN.md)
-- [v0.2.4 发布说明](./docs/releases/v0.2.4-zh-CN.md)
 - [变更记录](./CHANGELOG.md)
 
 ## 贡献

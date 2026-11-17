@@ -47,7 +47,7 @@ The script creates a responsive iframe in the container and clears that containe
 
 Import an image into the gallery first, then embed it by its panorama number. See the [embedding guide](./docs/EMBEDDING.md) for supported parameters, host requirements, and image handling.
 
-The iframe keeps viewer scripts and styles separate from the host page. Public gallery previews use a metadata-free, lossless derivative that preserves decoded pixels and source dimensions; the stored source remains in the selected storage backend. Upload transcoding is a separate storage setting. Displayed detail still depends on the browser, device, and available texture size.
+The iframe keeps viewer scripts and styles separate from the host page. Photo Sphere Viewer starts with a smaller preview and brings in more detail as the viewport grows or the visitor zooms. It uses a full-resolution lossless derivative when the view calls for it and the device can render it. The stored source stays private.
 
 ![Embedded 720° viewer with the compact toolbar](docs/assets/embed-preview-cc0-cb0de530.jpg)
 
@@ -113,8 +113,6 @@ Development requires Node.js 24. `npm run build:vendor` creates the local viewer
 - [Deployment](./docs/DEPLOYMENT.md) (Chinese)
 - [API reference](./docs/API.md) (Chinese)
 - [Embedding guide](./docs/EMBEDDING.md) (Chinese)
-- [v0.2.5 release notes](./docs/releases/v0.2.5.md)
-- [v0.2.4 release notes](./docs/releases/v0.2.4.md)
 - [Changelog](./CHANGELOG.md)
 
 ## Contributing

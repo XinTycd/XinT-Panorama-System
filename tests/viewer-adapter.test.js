@@ -120,7 +120,8 @@ const window = {
   },
   Blob,
   Image: FakeImage,
-  URL: fakeURL,
+  URL: Object.assign(class extends URL {}, fakeURL),
+  location: { href: "https://example.test/widget" },
   devicePixelRatio: 3,
   addEventListener(type, fn) { (windowListeners[type] ||= []).push(fn); },
   removeEventListener(type, fn) { windowListeners[type] = (windowListeners[type] || []).filter((item) => item !== fn); },
@@ -347,6 +348,34 @@ const api = window.XinTPanoramaViewer;
   vm.runInNewContext(psvBundle.outputFiles[0].text, psvContext);
   assert.equal(psvContext.XinTPSV.Cache.enabled, false, "Built PSV entry disables the global blob cache at initialization");
   assert(viewEvents.length > 0);
+  const adaptiveElement = new FakeElement();
+  adaptiveElement.clientWidth = 500;
+  adaptiveElement.clientHeight = 200;
+  const adaptiveController = api.create({ element: adaptiveElement });
+  const preview = "https://example.test/api/panoramas/preview?id=scene";
+  const initial = adaptiveController.setPanorama(preview, { adaptive: { width: 8192, height: 4096 } });
+  await tick();
+  const adaptiveViewer = FakeViewer.instances.at(-1);
+  assert.equal(adaptiveViewer.requests[0].url, preview + "&width=1024");
+  adaptiveViewer.requests[0].resolve(true);
+  await initial;
+  for (const [id, timer] of timers) if (timer.delay === 350) { timers.delete(id); timer.callback(); }
+  assert.equal(adaptiveViewer.requests.length, 1, "No higher tier is needed at the initial size");
+  adaptiveElement.clientHeight = 650;
+  adaptiveController.setView({ yaw: 220, pitch: -5, fov: 30 });
+  for (const [id, timer] of timers) if (timer.delay === 350) { timers.delete(id); timer.callback(); }
+  await tick();
+  assert.equal(adaptiveViewer.requests[1].url, preview, "Maximum zoom can use the full derivative within the GPU limit");
+  adaptiveViewer.requests[1].reject(new Error("upgrade failed"));
+  await new Promise(setImmediate);
+  assert.equal(adaptiveController.getView().yaw, 220, "The interaction is preserved after an unsuccessful upgrade");
+  for (const [id, timer] of timers) if (timer.delay === 350) { timers.delete(id); timer.callback(); }
+  await tick();
+  assert.equal(adaptiveViewer.requests[2].url, preview + "&width=4096", "A lower tier can still improve the panorama");
+  adaptiveViewer.requests[2].resolve(true);
+  await new Promise(setImmediate);
+  adaptiveController.dispose();
+
   console.log("Viewer adapter behavior tests passed");
 })().catch((error) => {
   console.error(error);

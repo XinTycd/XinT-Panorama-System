@@ -65,7 +65,7 @@ const loader = createLoader((tag, url) => {
   const engineSwitcher = extractFunction(app, "async function switchViewerEngine(engine, connectionId)");
   assert(engineSwitcher.indexOf("await ensureViewerEngineAssets(engine)") < engineSwitcher.indexOf("var item = state.currentIndex >= 0 ? state.items[state.currentIndex]"), "Engine switching captures the latest scene after slow asset loading");
   const sceneSelector = extractFunction(app, "async function selectScene(index)");
-  assert(sceneSelector.indexOf("state.currentIndex = index") < sceneSelector.indexOf("await requestedController.setPanorama(imageUrl)"), "Scene selection records the newest choice before asynchronous image resolution");
+  assert(sceneSelector.indexOf("state.currentIndex = index") < sceneSelector.indexOf("await requestedController.setPanorama(imageUrl, { adaptive: item })"), "Scene selection records the newest choice before asynchronous image resolution");
   assert(sceneSelector.includes("requestId !== state.requestId || state.viewerController !== requestedController"), "Old scene loads cannot replace a newer selection or viewer instance");
 
   const connectBackend = extractFunction(app, "async function connectBackend(options)");

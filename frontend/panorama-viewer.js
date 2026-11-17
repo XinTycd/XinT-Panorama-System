@@ -3,6 +3,7 @@
 
   var MIN_FOV = 30;
   var MAX_FOV = 105;
+  var PREVIEW_TIERS = [1024, 2048, 4096, 8192];
   var MODES = [{ key: "expand", label: "展开模式" }];
 
   function normalizeMode() { return "expand"; }
@@ -21,6 +22,28 @@
     return error;
   }
 
+  function previewVariant(url, width) {
+    try {
+      var target = new global.URL(url, global.location.href);
+      if (!/^https?:$/.test(target.protocol) || target.pathname !== "/api/panoramas/preview"
+        || target.username || target.password || target.hash || target.searchParams.getAll("id").length !== 1
+        || Array.from(target.searchParams.keys()).some(function onlyId(key) { return key !== "id"; })) return null;
+      if (width) target.searchParams.set("width", width);
+      return target.href;
+    } catch (_) { return null; }
+  }
+
+  function previewDemand(element, fov) {
+    var height = Math.max(1, element.clientHeight || element.offsetHeight || 1);
+    var width = Math.max(1, element.clientWidth || element.offsetWidth || 1);
+    var ratio = Math.min(2, Number(global.devicePixelRatio) || 1, Math.sqrt(4000000 / (width * height)));
+    return height * ratio * 180 / fov;
+  }
+
+  function initialPreviewTier(element, fov, limit) {
+    return previewDemand(element, fov) <= 1024 || limit < 2048 ? 1024 : 2048;
+  }
+
   function create(options) {
     options = options || {};
     if (!options.element) throw new Error("viewer element is required");
@@ -37,6 +60,8 @@
     var activeLoads = new Map();
     var retryTimers = new Set();
     var pendingDecodes = new Set();
+    var adaptiveLoad = null;
+    var upgradeTimer = 0;
     var loadedUrl = null;
     var loadedResult = null;
     var directorId = 0;
@@ -196,8 +221,8 @@
         boundListeners.push([type, handler]);
       }
       listen("position-updated", scheduleNotify);
-      listen("zoom-updated", scheduleNotify);
-      listen("size-updated", function onSizeUpdated() { updatePixelRatio(instance); scheduleNotify(); });
+      listen("zoom-updated", function onZoomUpdated() { scheduleNotify(); scheduleUpgrade(); });
+      listen("size-updated", function onSizeUpdated() { updatePixelRatio(instance); scheduleNotify(); scheduleUpgrade(); });
       listen("before-render", onBeforeRender);
       instance.__xintListeners = boundListeners;
       element.tabIndex = 0;
@@ -238,11 +263,120 @@
     }
 
     function setPanorama(url, loadOptions) {
+      loadOptions = loadOptions || {};
+      var item = loadOptions.adaptive;
+      var source = item && url && previewVariant(loadOptions.previewSource || url);
+      if (disposed || !source) {
+        cancelAdaptive();
+        return loadPanorama(url, loadOptions);
+      }
+      if (loadOptions.force !== true && adaptiveLoad && adaptiveLoad.source === source) {
+        return adaptiveLoad.result ? Promise.resolve(adaptiveLoad.result) : adaptiveLoad.promise;
+      }
+
+      cancelAdaptive();
+      var instance;
+      try { instance = viewer || createViewer(); }
+      catch (error) { return Promise.reject(error); }
+      var limit = Math.min(instance.renderer.renderer.capabilities.maxTextureSize || 4096, 8192);
+      var sourceSize = Math.max(Number(item.width) || 0, Number(item.height) || 0);
+      var initial = loadOptions.initialTier || initialPreviewTier(element, getView().fov, limit);
+      var session = {
+        source: source, sourceSize: sourceSize, limit: limit, current: 0, failed: new Set(), result: null,
+        resolve: loadOptions.resolvePreview, request: null, busy: true, promise: null
+      };
+      adaptiveLoad = session;
+      // Small sources can use their full-size derivative directly.
+      var first = !loadOptions.initialTier && sourceSize && sourceSize <= initial ? sourceSize : initial;
+      session.promise = loadTier(session, first, false, loadOptions.initialTier ? url : null).then(function acceptInitial(result) {
+        if (!result.stale && adaptiveLoad === session) {
+          session.result = result;
+          session.current = first;
+          if (!session.sourceSize && Math.max(result.scaledWidth, result.scaledHeight) < first) session.sourceSize = first;
+          session.busy = false;
+          scheduleUpgrade();
+        }
+        return result;
+      }).catch(function releaseFailedInitial(error) {
+        if (adaptiveLoad === session) cancelAdaptive();
+        throw error;
+      });
+      return session.promise;
+    }
+
+    async function loadTier(session, size, background, initialUrl) {
+      var width = session.sourceSize && session.sourceSize === size ? null : size;
+      var url = initialUrl || previewVariant(session.source, width);
+      var objectUrl = null;
+      var request = null;
+      try {
+        if (!initialUrl && session.resolve) {
+          request = new global.AbortController();
+          session.request = request;
+          var blob = await session.resolve(url, request.signal);
+          if (adaptiveLoad !== session || request.signal.aborted) return { stale: true, url: session.source };
+          objectUrl = global.URL.createObjectURL(blob);
+          url = objectUrl;
+        }
+        if (adaptiveLoad !== session) return { stale: true, url: session.source };
+        return await loadPanorama(url, { background: background });
+      } catch (error) {
+        if (adaptiveLoad !== session) return { stale: true, url: session.source };
+        throw error;
+      } finally {
+        if (objectUrl) global.URL.revokeObjectURL(objectUrl);
+        if (request && session.request === request) session.request = null;
+      }
+    }
+
+    function scheduleUpgrade() {
+      var session = adaptiveLoad;
+      if (!session || session.busy || contextLost || pageSuspended || global.document.hidden) return;
+      global.clearTimeout(upgradeTimer);
+      upgradeTimer = global.setTimeout(function upgradeAfterViewSettles() {
+        upgradeTimer = 0;
+        if (adaptiveLoad !== session || contextLost || pageSuspended || global.document.hidden) return;
+        var max = Math.min(session.sourceSize || Infinity, session.limit);
+        var sizes = PREVIEW_TIERS.filter(function fitsDevice(size) { return size <= max; });
+        if (session.sourceSize && session.sourceSize === max && !sizes.includes(max)) sizes.push(max);
+        var demand = previewDemand(element, getView().fov);
+        var target = sizes.find(function firstSufficient(size) { return size >= demand; }) || sizes[sizes.length - 1];
+        var eligible = sizes.filter(function canUpgrade(size) { return size <= target && size > session.current && !session.failed.has(size); });
+        target = eligible[eligible.length - 1];
+        if (!target) return;
+        session.busy = true;
+        loadTier(session, target, true).then(function acceptTier(result) {
+          if (adaptiveLoad === session && !result.stale) {
+            session.current = target;
+            session.result = result;
+            if (!session.sourceSize && Math.max(result.scaledWidth, result.scaledHeight) < target) session.sourceSize = target;
+          }
+        }).catch(function retainPreviousTier() {
+          if (adaptiveLoad !== session) return;
+          session.failed.add(target);
+          if (viewer && typeof viewer.hideError === "function") viewer.hideError();
+        }).finally(function finishUpgrade() {
+          if (adaptiveLoad !== session) return;
+          session.busy = false;
+          scheduleUpgrade();
+        });
+      }, 350);
+    }
+
+    function cancelAdaptive() {
+      if (!adaptiveLoad) return;
+      if (adaptiveLoad.request) adaptiveLoad.request.abort();
+      adaptiveLoad = null;
+      global.clearTimeout(upgradeTimer);
+      upgradeTimer = 0;
+    }
+
+    function loadPanorama(url, loadOptions) {
       if (disposed) return Promise.reject(new Error("Viewer has been disposed"));
       if (!url) { clear(); return Promise.resolve({ url: null, originalWidth: 0, originalHeight: 0 }); }
       url = String(url);
       loadOptions = loadOptions || {};
-      if (director) stopDirector();
+      if (director && !loadOptions.background) stopDirector();
       if (loadOptions.force !== true && url === loadedUrl && loadedResult) return Promise.resolve(Object.assign({}, loadedResult));
       var existing = activeLoads.get(url);
       if (loadOptions.force !== true && existing && existing.generation === generation) return existing.promise;
@@ -264,7 +398,7 @@
       });
       load.url = url;
       load.promise = Promise.race([
-        startCurrentLoad(instance, url, requestGeneration, 0),
+        startCurrentLoad(instance, url, requestGeneration, loadOptions.background ? { transition: false, showLoader: false } : { transition: false }),
         stalePromise
       ]).then(function onLoaded(loaded) {
         if (requestGeneration !== generation || disposed || viewer !== instance || loaded && loaded.stale) return { stale: true, url: url };
@@ -307,6 +441,7 @@
     }
 
     function invalidateLoads() {
+      cancelAdaptive();
       generation += 1;
       lifecycle.generation = generation;
       activeLoads.forEach(function settleStaleLoad(load) { load.resolveStale({ stale: true, url: load.url }); });
@@ -318,15 +453,15 @@
       cancelPendingDecodes();
     }
 
-    function startCurrentLoad(instance, url, requestGeneration, retry) {
+    function startCurrentLoad(instance, url, requestGeneration, panoramaOptions) {
       return Promise.resolve().then(function checkBeforeLoad() {
         if (requestGeneration !== generation || disposed || viewer !== instance) return { stale: true, url: url };
-        return instance.setPanorama(url, { transition: false });
+        return instance.setPanorama(url, panoramaOptions);
       }).then(function retryAbortedLoad(loaded) {
-        if (loaded !== false || retry > 0) return loaded;
+        if (loaded !== false) return loaded;
         return retryLoad();
       }, function retryAbortError(error) {
-        if (!error || error.name !== "AbortError" || retry > 0) throw error;
+        if (!error || error.name !== "AbortError") throw error;
         return retryLoad();
       });
 
@@ -339,7 +474,7 @@
           retryTimers.add(timer);
         }).then(function verifyRetry() {
           if (requestGeneration !== generation || disposed || viewer !== instance) return { stale: true, url: url };
-          return instance.setPanorama(url, { transition: false });
+          return instance.setPanorama(url, panoramaOptions);
         }).then(function validateRetry(loaded) {
           if (loaded === false) throw new Error("The panorama request was interrupted. Please try loading it again.");
           return loaded;
@@ -487,6 +622,7 @@
         skipNextRotateFrame = true;
         if (viewer && !contextLost) { viewer.autoSize(); viewer.needsUpdate(); }
         scheduleNotify();
+        scheduleUpgrade();
       }
     }
 
@@ -516,6 +652,7 @@
       viewer.needsUpdate();
       if (typeof options.onContextState === "function") options.onContextState("restored");
       scheduleNotify();
+      scheduleUpgrade();
     }
 
     function onPageHide(event) {
@@ -599,6 +736,7 @@
     normalizeMode: normalizeMode,
     modes: MODES,
     create: create,
+    initialPreviewTier: initialPreviewTier,
     viewMapping: { oldYawToPsvYaw: oldYawToPsvYaw, psvYawToOldYaw: psvYawToOldYaw, fovToZoom: fovToZoom, zoomToFov: zoomToFov }
   };
 })(window);

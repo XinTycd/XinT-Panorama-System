@@ -1,6 +1,6 @@
 {
   "name": "xint-panorama-system",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Self-hosted 720 panorama viewer for embedding in websites.",
   "author": "XinTycd",
   "license": "Apache-2.0",

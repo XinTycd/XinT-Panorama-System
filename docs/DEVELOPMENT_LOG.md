@@ -138,3 +138,8 @@
 - Persist API address, plugin state, embed preset, and toolbar visibility in server-side console settings while retaining language locally.
 - Add localized console interfaces and improve copy feedback and control presentation.
 - Validation: `npm test` and `npm run check:config` passed in the clean v0.2.4 release worktree. See [v0.2.5 validation output](./logs/v0.2.5-validation.log).
+
+## v0.2.6 — 2026-11-17
+
+- Added bounded preview tiers to the protected image pipeline and reused the existing derivative cache.
+- The PSV console and widget start with a smaller preview and request a higher tier when the view needs it.

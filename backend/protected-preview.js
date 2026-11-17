@@ -16,6 +16,7 @@ const MAX_SOURCE_BYTES = 30 * 1024 * 1024;
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
 const MAX_PIXELS = 100_000_000;
 const MAX_CONCURRENCY = 2;
+const PREVIEW_WIDTHS = new Set([1024, 2048, 4096, 8192]);
 const MAX_QUEUE = 12;
 const ALLOWED_FORMATS = new Set(["jpeg", "png", "webp", "avif", "tiff", "gif", "bmp"]);
 const pending = new Map();
@@ -177,7 +178,7 @@ function drainQueue() {
   }
 }
 
-async function convertBuffer(source) {
+async function convertBuffer(source, width) {
   if (!Buffer.isBuffer(source) || source.length === 0 || source.length > MAX_SOURCE_BYTES) throw createHttpError(413, "图片大小超出允许范围");
   let sharp;
   let metadata;
@@ -188,15 +189,21 @@ async function convertBuffer(source) {
   if (!metadata || !ALLOWED_FORMATS.has(metadata.format) || (metadata.pages || 1) !== 1 || !metadata.width || !metadata.height || metadata.width * metadata.height > MAX_PIXELS || (metadata.depth && metadata.depth !== "uchar")) {
     throw createHttpError(422, "仅支持单帧、标准位深的静态全景图片");
   }
+  const reduced = width && Math.max(metadata.width, metadata.height) > width;
+  function image() {
+    const pipeline = sharp(source, { limitInputPixels: MAX_PIXELS, failOn: "error", animated: false }).autoOrient();
+    return reduced ? pipeline.resize({ width, height: width, fit: "inside", withoutEnlargement: true }) : pipeline;
+  }
   let output;
   try {
-    output = await sharp(source, { limitInputPixels: MAX_PIXELS, failOn: "error", animated: false }).autoOrient().webp({ lossless: true, effort: 0 }).toBuffer({ resolveWithObject: true });
+    const encoding = reduced && width <= 2048 ? { quality: 87, effort: 2 } : { lossless: true, effort: 0 };
+    output = await image().webp(encoding).toBuffer({ resolveWithObject: true });
   } catch (_) { throw createHttpError(422, "无法生成安全预览"); }
   let format = "webp";
   let mime = "image/webp";
   if (output.data.equals(source)) {
     try {
-      output = await sharp(source, { limitInputPixels: MAX_PIXELS, failOn: "error", animated: false }).autoOrient().png({ compressionLevel: 6, adaptiveFiltering: true }).toBuffer({ resolveWithObject: true });
+      output = await image().png({ compressionLevel: 6, adaptiveFiltering: true }).toBuffer({ resolveWithObject: true });
       format = "png";
       mime = "image/png";
     } catch (_) { throw createHttpError(422, "无法生成与源文件字节不同的安全预览"); }
@@ -282,10 +289,9 @@ async function loadVerifiedCache(key, digest) {
   }
 }
 
-function convertAndCache(source, namespace = "") {
+function convertAndCache(source, namespace = "", width) {
   const digest = crypto.createHash("sha256").update(source).digest("hex");
-  const safeNamespace = String(namespace).replace(/[^a-z0-9_-]/gi, "").slice(0, 24);
-  const key = CONVERSION_VERSION + (safeNamespace ? "-" + safeNamespace : "") + "-" + digest;
+  const key = previewKey(digest, namespace, width);
   if (pending.has(key)) return pending.get(key);
   if (active >= MAX_CONCURRENCY && queue.length >= MAX_QUEUE) throw createHttpError(503, "安全预览任务繁忙，请稍后重试");
   let resolveTask;
@@ -297,7 +303,7 @@ function convertAndCache(source, namespace = "") {
       await ensurePrivateDirectory(CACHE_DIR);
       const prior = await loadVerifiedCache(key, digest);
       if (prior) { resolveTask(prior); return; }
-      const converted = await convertBuffer(source);
+      const converted = await convertBuffer(source, width);
       const persisted = await persistPreview(key, converted.buffer, converted.thumbnail, converted.width, converted.height, converted.format, converted.mime);
       const preview = { path: persisted.path, thumbnailPath: persisted.thumbnailPath, thumbnailSize: persisted.thumbnailSize, size: converted.buffer.length, width: converted.width, height: converted.height, format: converted.format, mime: converted.mime, sha256: digest, outputHash: persisted.outputHash };
       const [stat, thumbStat, manifestStat] = await Promise.all([fs.lstat(persisted.path), fs.lstat(persisted.thumbnailPath), fs.lstat(persisted.path + ".json")]);
@@ -348,19 +354,20 @@ async function resourceIdentity(item) {
   return null;
 }
 
-function rememberResource(identity, preview) {
+function rememberResource(identity, preview, width) {
   if (!identity) return;
-  resourceMemo.set(identity.key, { signature: identity.signature, digest: preview.sha256, previewKey: previewKey(preview.sha256, identity.namespace) });
+  resourceMemo.set(identity.key, { signature: identity.signature, digest: preview.sha256, previewKey: previewKey(preview.sha256, identity.namespace, width) });
   if (resourceMemo.size > 128) resourceMemo.delete(resourceMemo.keys().next().value);
 }
 
-function previewKey(digest, namespace = "") {
+function previewKey(digest, namespace = "", width) {
   const safeNamespace = String(namespace).replace(/[^a-z0-9_-]/gi, "").slice(0, 24);
-  return CONVERSION_VERSION + (safeNamespace ? "-" + safeNamespace : "") + "-" + digest;
+  return CONVERSION_VERSION + (safeNamespace ? "-" + safeNamespace : "") + (width ? "-tier-" + width : "") + "-" + digest;
 }
 
-function preparePreview(item) {
-  const key = String(item && item.id || "") + "|" + String(item && item.viewerPath || item && item.originalUrl || "");
+function preparePreview(item, width) {
+  if (width !== undefined && !PREVIEW_WIDTHS.has(width)) throw createHttpError(400, "不支持的预览分辨率");
+  const key = String(item && item.id || "") + "|" + String(item && item.viewerPath || item && item.originalUrl || "") + "|" + (width || "full");
   if (resourcePending.has(key)) return resourcePending.get(key);
   if (activeResourceJobs >= MAX_CONCURRENCY && resourceQueue.length >= MAX_QUEUE) throw createHttpError(503, "安全预览任务繁忙，请稍后重试");
   let resolveTask;
@@ -369,7 +376,8 @@ function preparePreview(item) {
   resourcePending.set(key, promise);
   resourceQueue.push(async () => {
     try {
-      const identity = await resourceIdentity(item);
+      const resource = await resourceIdentity(item);
+      const identity = resource && { ...resource, key: resource.key + "|" + (width || "full") };
       const memo = identity && resourceMemo.get(identity.key);
       if (memo && memo.signature === identity.signature) {
         const verified = await loadVerifiedCache(memo.previewKey, memo.digest);
@@ -378,8 +386,8 @@ function preparePreview(item) {
       if (identity) resourceMemo.delete(identity.key);
       const source = await readSource(item);
       const namespace = item && item.sourceType === "backend-demo" && item.id === "demo-panorama" ? "demo" : "";
-      const preview = await convertAndCache(source.buffer, namespace);
-      rememberResource(identity, preview);
+      const preview = await convertAndCache(source.buffer, namespace, width);
+      rememberResource(identity, preview, width);
       resolveTask(preview);
     } catch (error) {
       rejectTask(error.statusCode ? error : createHttpError(503, "安全预览暂时不可用"));
@@ -399,4 +407,4 @@ async function readPreview(item) {
   return { buffer: await readPreparedPreview(prepared), width: prepared.width, height: prepared.height, size: prepared.size, sha256: prepared.sha256 };
 }
 
-module.exports = { CACHE_DIR, PRIVATE_SOURCE_DIR, CONVERSION_VERSION, MAX_SOURCE_BYTES, MAX_OUTPUT_BYTES, MAX_PIXELS, storePrivateSource, storeRemoteSource, removePrivateSource, readSource, remoteBuffer, convertBuffer, prepareBuffer, preparePreview, readPreparedPreview, readPreview };
+module.exports = { CACHE_DIR, PRIVATE_SOURCE_DIR, CONVERSION_VERSION, MAX_SOURCE_BYTES, MAX_OUTPUT_BYTES, MAX_PIXELS, PREVIEW_WIDTHS, storePrivateSource, storeRemoteSource, removePrivateSource, readSource, remoteBuffer, convertBuffer, prepareBuffer, preparePreview, readPreparedPreview, readPreview };
